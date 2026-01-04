@@ -70,7 +70,7 @@ func init() {
 
 	// Perfil y Rendimiento
 	rootCmd.PersistentFlags().StringVarP(&opts.Profile, "profile", "p", "KoCC", "Device profile (e.g., KV, KPW5)")
-	rootCmd.PersistentFlags().BoolVar(&opts.LowRAM, "low-ram", true, "Enable low memory usage mode (slower)")
+	rootCmd.PersistentFlags().BoolVarP(&opts.LowRAM, "low-ram", "l", false, "Enable low memory usage mode (slower)")
 
 	// Estilo y Lectura
 	rootCmd.PersistentFlags().BoolVarP(&opts.Manga, "manga-style", "m", true, "Manga style (right-to-left reading)")

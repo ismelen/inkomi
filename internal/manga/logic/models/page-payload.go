@@ -13,6 +13,8 @@ type PagePayload struct {
 	Path            string
 	Title           string
 	Ext             string
+	H int
+	W int
 }
 
 func NewPagePayload(mode string, img *image.Image) *PagePayload {

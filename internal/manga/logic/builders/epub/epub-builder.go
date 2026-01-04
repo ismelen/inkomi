@@ -170,7 +170,7 @@ func (t *EpubBuilder) BuildHTML(z *zip.Writer, payload *manga.PagePayload, page 
 	htmlPath := filepath.Join(textPath, chapterName, payload.Title+".xhtml")
 
 	deviceHeight := t.opts.ProfileData.Height
-	imgWidth, imgHeight := (*payload.Image).Bounds().Dx(), (*payload.Image).Bounds().Dy()
+	imgWidth, imgHeight := payload.W, payload.H
 
 	content := fmt.Sprintf(
 		EpubTemplates.HTMLStart,
