@@ -5,19 +5,26 @@ import (
 )
 
 type PagePayload struct {
-	Mode            string // N, R, S1, S2
-	Image           *image.Image
-	OriginalMode    string
-	TargetPathOrder string
+	Mode            rune // N, R, 1, 2
 	Rotated         bool
+	H int
+	W int
+	Image           *image.Image
+	TargetPathOrder string
+	OriginalMode    string
 	Path            string
 	Title           string
 	Ext             string
-	H int
-	W int
 }
 
-func NewPagePayload(mode string, img *image.Image) *PagePayload {
+var PathOrders = map[rune]string{
+	'N': "-ermc-x",
+	'R': "-ermc-d",
+	'1': "-ermc-b",
+	'2': "-ermc-c",
+}
+
+func NewPagePayload(mode rune, img *image.Image) *PagePayload {
 	originalMode := "RGB"
 	if _, ok := (*img).(*image.Gray); ok {
 		originalMode = "L"
@@ -31,21 +38,13 @@ func NewPagePayload(mode string, img *image.Image) *PagePayload {
 		Rotated:      false,
 	}
 
-	switch mode {
-	case "N":
-		payload.TargetPathOrder = "-kcc-x"
-		break
-	case "R":
-		payload.Rotated = true
-		payload.TargetPathOrder = "-kcc-d"
-		break
-	case "S1":
-		payload.TargetPathOrder = "-kcc-b"
-		break
-	case "S2":
-		payload.TargetPathOrder = "-kcc-c"
-		break
+	if value, ok := PathOrders[mode]; ok {
+		payload.TargetPathOrder = value
+	}else{
+		payload.TargetPathOrder = "-ermc-x"
 	}
+
+	payload.Rotated = mode == 'R'
 
 	return payload
 }

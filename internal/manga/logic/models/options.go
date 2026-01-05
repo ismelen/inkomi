@@ -111,7 +111,7 @@ func (t *Options) normalizeInputs() error {
 		return FileUtils.FilenameCmp(a.Path, b.Path)
 	})
 
-	t.InputData = t.InputData[:10]
+	t.InputData = t.InputData[:1]
 
 	return nil
 }

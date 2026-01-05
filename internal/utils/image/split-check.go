@@ -7,49 +7,59 @@ import (
 	"github.com/disintegration/imaging"
 )
 
-func SplitCheck(page *manga.PageData, dstWidth, dstHeight int, opts *manga.Options) {
-	width := (*page.Img).Bounds().Dx()
-	height := (*page.Img).Bounds().Dy()
+func SplitCheck(img *image.Image, tw, th int, opts *manga.Options) (payloads [3]*manga.PagePayload, count int8) {
+	w := (*img).Bounds().Dx()
+	h := (*img).Bounds().Dy()
 
-	if (width > height) != (dstWidth > dstHeight) {
-		if width <= dstHeight &&
-			height <= dstWidth &&
-			opts.SpreadSplitter == 2 {
-
-			spread := (*page.Img)
-			spread = imaging.Rotate90(spread)
-			page.Payloads = append(page.Payloads, manga.NewPagePayload("R", &spread))
-		} else {
-			if opts.SpreadSplitter != 2 {
-				var leftBox, rightBox image.Rectangle
-				if width < height {
-					leftBox = image.Rect(0, 0, width, height/2)
-					rightBox = image.Rect(0, width/2, width, height)
-				} else {
-					leftBox = image.Rect(0, 0, width/2, height)
-					rightBox = image.Rect(width/2, 0, width, height)
-				}
-
-				var pageOne, pageTwo image.Image
-				if opts.Manga {
-					pageOne = imaging.Crop((*page.Img), rightBox)
-					pageTwo = imaging.Crop((*page.Img), leftBox)
-				} else {
-					pageOne = imaging.Crop((*page.Img), leftBox)
-					pageTwo = imaging.Crop((*page.Img), rightBox)
-				}
-
-				page.Payloads = append(page.Payloads, manga.NewPagePayload("S1", &pageOne))
-				page.Payloads = append(page.Payloads, manga.NewPagePayload("S2", &pageTwo))
-			}
-
-			if opts.SpreadSplitter == 1 {
-				spread := (*page.Img)
-				spread = imaging.Rotate90(spread)
-				page.Payloads = append(page.Payloads, manga.NewPagePayload("R", &spread))
-			}
-		}
-	} else {
-		page.Payloads = append(page.Payloads, manga.NewPagePayload("N", page.Img))
+	if (w > h) == (tw > th) {
+		// page.Payloads = append(page.Payloads, manga.NewPagePayload('N', img))
+		payloads[count] = manga.NewPagePayload('N', img)
+		count++
+		return
 	}
+
+	if w <= th && 
+		h <= tw && 
+		opts.SpreadSplitter == 2 {
+		spread := image.Image(imaging.Rotate270(*img))
+		// page.Payloads = append(page.Payloads, manga.NewPagePayload(
+		// 	'R', 
+		// 	&spread,
+		// ))
+		payloads[count] = manga.NewPagePayload('R', &spread)
+		count++
+		return
+	}
+
+	if opts.SpreadSplitter != 2 {
+		var leftBox, rightBox image.Rectangle
+		if w < h {
+			leftBox = image.Rect(0, 0, w, h/2)
+			rightBox = image.Rect(0, w/2, w, h)
+		} else {
+			leftBox = image.Rect(0, 0, w/2, h)
+			rightBox = image.Rect(w/2, 0, w, h)
+		}
+
+		var pageOne, pageTwo image.Image
+		if opts.Manga {
+			pageOne = imaging.Crop(*img, rightBox)
+			pageTwo = imaging.Crop(*img, leftBox)
+		} else {
+			pageOne = imaging.Crop(*img, leftBox)
+			pageTwo = imaging.Crop(*img, rightBox)
+		}
+
+		payloads[count] = manga.NewPagePayload('1', &pageOne)
+		payloads[count+1] = manga.NewPagePayload('2', &pageTwo)
+		count += 2
+	}
+
+	if opts.SpreadSplitter == 1 {
+		spread := image.Image(imaging.Rotate270(*img))
+		payloads[count] = manga.NewPagePayload('R', &spread)
+		count++
+	}
+
+	return
 }

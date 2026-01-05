@@ -50,8 +50,8 @@ func (t *EpubBuilder) Build() (string, error) {
 
 	for _, chapter := range t.chapters {
 		for _, page := range chapter.Pages {
-			for _, payload := range page.Payloads {
-				t.BuildHTML(z, payload, page, chapter.NormalizedName)
+			for i := range page.Count {
+				t.BuildHTML(z, page.Payloads[i], page, chapter.NormalizedName)
 			}
 		}
 	}
@@ -84,14 +84,15 @@ func (t *EpubBuilder) CopyFiles(z *zip.Writer) error {
 	)
 	for _, chapter := range t.chapters {
 		for _, page := range chapter.Pages {
-			for _, payload := range page.Payloads {
+			for i := range page.Count {
+				p := page.Payloads[i]
 				copyFile(
 					z,
-					payload.Path,
+					p.Path,
 					filepath.Join(
 						imagesPath,
 						chapter.NormalizedName,
-						payload.Title+".jpg",
+						p.Title+".jpg",
 					),
 				)
 			}
@@ -157,7 +158,7 @@ func (t *EpubBuilder) addFile(z *zip.Writer, zipPath string, content string) (*i
 
 func (t *EpubBuilder) BuildHTML(z *zip.Writer, payload *manga.PagePayload, page *manga.PageData, chapterName string) (err error) {
 	aditionalStyle := ""
-	if page.Fill != "white" {
+	if page.BgColor != "white" {
 		aditionalStyle = "background-color:#000000;"
 	}
 
@@ -287,10 +288,10 @@ func (t *EpubBuilder) BuildOPF(z *zip.Writer, uuid uuid.UUID) error {
 	var refList []string
 	for _, chapter := range t.chapters {
 		for _, page := range chapter.Pages {
-			for _, payload := range page.Payloads {
+			for i := range page.Count {
 				folder := filepath.Join(
 					chapter.NormalizedName,
-					payload.Title,
+					page.Payloads[i].Title,
 				)
 				id := strings.Replace(
 					folder,
@@ -345,13 +346,13 @@ func (t *EpubBuilder) BuildOPF(z *zip.Writer, uuid uuid.UUID) error {
 	for _, ref := range refList {
 		ending := ref[len(ref)-6:]
 		switch ending {
-		case "-kcc-a", "-kcc-d":
+		case "-ermc-a", "-ermc-d":
 			pageSpreadPropertyList = append(pageSpreadPropertyList, "center")
 			pageSide = calculatePageSide(t.opts.Manga)
-		case "-kcc-b":
+		case "-ermc-b":
 			pageSpreadPropertyList = append(pageSpreadPropertyList, "right")
 			pageSide = calculatePageSide(t.opts.Manga)
-		case "-kcc-c":
+		case "-ermc-c":
 			pageSpreadPropertyList = append(pageSpreadPropertyList, "left")
 			pageSide = calculatePageSide(t.opts.Manga)
 		default:
@@ -369,7 +370,7 @@ func (t *EpubBuilder) BuildOPF(z *zip.Writer, uuid uuid.UUID) error {
 		ref := refList[i]
 		ending := ref[len(ref)-6:]
 
-		if "-kcc-x" != ending {
+		if "-ermc-x" != ending {
 			spreadSeen = true
 			if t.opts.Manga {
 				pageSide = "left"
