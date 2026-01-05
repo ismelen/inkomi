@@ -8,7 +8,6 @@ import (
 	manga "ismelen/ermc/internal/manga/logic/models"
 	FileUtils "ismelen/ermc/internal/utils/file"
 	ZipUtils "ismelen/ermc/internal/utils/zip"
-	"os"
 	"path/filepath"
 	"runtime"
 
@@ -31,7 +30,7 @@ func ProcessInputs(opts *manga.Options) ([]string, error) {
 	// Process images
 	chaptersDir := filepath.Join(opts.Output, "chapters")
 	defer func () {
-		os.RemoveAll(chaptersDir) 
+		// os.RemoveAll(chaptersDir) TODO: 
 	}()
 
 	numCPUs := runtime.NumCPU()

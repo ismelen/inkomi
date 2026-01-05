@@ -2,6 +2,7 @@ package PageConverter
 
 import (
 	"fmt"
+	"image"
 	manga "ismelen/ermc/internal/manga/logic/models"
 	FileUtils "ismelen/ermc/internal/utils/file"
 	ImageUtils "ismelen/ermc/internal/utils/image"
@@ -81,6 +82,7 @@ func (t *PageConverter) ConvertPayload(pageNum int, payload *manga.PagePayload) 
 	)
 
 	isColor := t.opts.ColorMode && t.isColor(payload)
+	fmt.Println(isColor)
 	if !isColor {
 		ImageUtils.ConvertToGrayscale(payload)
 	}
@@ -95,15 +97,17 @@ func (t *PageConverter) ConvertPayload(pageNum int, payload *manga.PagePayload) 
 
 
 func (t *PageConverter) isColor(payload *manga.PagePayload) bool {
-	if payload.OriginalMode == "L" {
+
+	switch (*payload.Image).(type) {
+	case *image.Gray:
 		return false
 	}
-
-	if ImageUtils.CalculateColor(t.opts.ColorMode, payload.Image) {
-		return true
+	
+	detector := ImageUtils.ColorDetector{
+		ForceColor: t.opts.ColorMode,
 	}
 
-	return true
+	return detector.CalculateColor(*payload.Image)
 }
 
 func (t *PageConverter) SaveToDir(pageNum int, payload *manga.PagePayload) error {
