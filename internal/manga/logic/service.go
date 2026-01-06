@@ -33,9 +33,9 @@ func ProcessInputs(opts *manga.Options) ([]string, error) {
 		// os.RemoveAll(chaptersDir) TODO: 
 	}()
 
-	numCPUs := runtime.NumCPU()
-	if numCPUs - 1 != 0 {
-		numCPUs--;
+	numCPUs := runtime.NumCPU() - runtime.NumGoroutine()
+	if numCPUs <= 0 {
+		return nil, fmt.Errorf("Not enough threads")
 	}
 	if opts.LowRAM {
 		numCPUs = 1
@@ -67,11 +67,15 @@ func ProcessInputs(opts *manga.Options) ([]string, error) {
 				return err
 			})
 		}
+
+		if err := group.Wait(); err != nil {
+			return nil, err
+		}
+
+		// TODO: Montar volumenes
 	}
 
-	if err := group.Wait(); err != nil {
-		return nil, err
-	}
+	
 
 	// Generate volumes
 	var resultPaths []string
