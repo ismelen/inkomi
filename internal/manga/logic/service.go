@@ -95,6 +95,12 @@ func ProcessInputs(opts *manga.Options) ([]string, error) {
 			filename,
 			opts.InputData[lastIdx:idx+1]...,
 		)
+
+		for i := range (idx+1-lastIdx) {
+			opts.InputData[i] = nil
+		}
+		runtime.GC()
+
 		if err != nil { return nil, err }
 		resultPaths = append(resultPaths, path)
 		volIdx++
@@ -131,6 +137,7 @@ func generateOutput(opts *manga.Options, dstFileName string, chapters ...*manga.
 	if path == "" {
 		return "", fmt.Errorf("Cannot generate output for %s", dstFileName)
 	}
+	
 
 	return
 }
