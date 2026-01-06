@@ -41,11 +41,17 @@ func ProcessInputs(opts *manga.Options) ([]string, error) {
 		numCPUs = 1
 	}
 	fmt.Printf("%d CPUs\n\n", numCPUs)
+
 	var group errgroup.Group
 	sem := make(chan struct{}, numCPUs)
-
 	var pageNum int
-	for _, chapter := range opts.InputData {
+
+	var resultPaths []string
+	var volSize int64
+	var lastIdx, volIdx int
+	inputsLen := len(opts.InputData)
+	
+	for idx, chapter := range opts.InputData {
 		if err := ExtractChapter(chapter, chaptersDir); err != nil {
 			return nil, err
 		}
@@ -72,26 +78,9 @@ func ProcessInputs(opts *manga.Options) ([]string, error) {
 			return nil, err
 		}
 
-		// TODO: Montar volumenes
-	}
-
-	
-
-	// Generate volumes
-	var resultPaths []string
-
-	var targetSize int64 = 0
-	if opts.FileFusion {
-		targetSize = opts.TargetSize << 20
-	}
-	var (
-		volSize int64
-		lastIdx, volIdx int
-	)
-	inputsLen := len(opts.InputData)
-
-	for idx, chapter := range opts.InputData {
-		if volSize += chapter.Size; volSize < targetSize &&
+		// Montar volumen
+		volSize += chapter.Size
+		if volSize < opts.TargetSize &&
 			idx < inputsLen-1 {
 			continue
 		}
@@ -106,12 +95,10 @@ func ProcessInputs(opts *manga.Options) ([]string, error) {
 			filename,
 			opts.InputData[lastIdx:idx+1]...,
 		)
-		if err != nil {
-			return nil, err
-		}
+		if err != nil { return nil, err }
 		resultPaths = append(resultPaths, path)
 		volIdx++
-		lastIdx = idx + 1
+		lastIdx = idx+1
 		volSize = 0
 	}
 

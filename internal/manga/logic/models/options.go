@@ -47,6 +47,12 @@ func (t *Options) ValidateAndNormalize() error {
 	t.setTitle()
 	t.setOutput()
 
+	if t.FileFusion {
+		t.TargetSize = t.TargetSize << 20
+	}else{
+		t.TargetSize = 0
+	}
+
 	return nil
 }
 
