@@ -8,7 +8,6 @@ import (
 	ImageUtils "ismelen/ermc/internal/utils/image"
 	"path/filepath"
 	"runtime"
-	"strings"
 
 	"github.com/disintegration/imaging"
 	_ "golang.org/x/image/webp"
@@ -32,10 +31,6 @@ func New(page *manga.PageData, opts *manga.Options, chapterName string) (*PageCo
 	payloads, count := ImageUtils.SplitCheck(&img, tW, tH, opts)
 	page.Count = count
 	page.Payloads = payloads
-
-	pathParts := strings.Split(page.Src, string(filepath.Separator))
-	filePath := filepath.Join(pathParts[len(pathParts)-2:]...)
-	fmt.Printf("Processing: %s\n", filePath)
 
 	page.Src = ""
 	runtime.GC()
@@ -82,7 +77,6 @@ func (t *PageConverter) ConvertPayload(pageNum int, payload *manga.PagePayload) 
 	)
 
 	isColor := t.opts.ColorMode && t.isColor(payload)
-	fmt.Println(isColor)
 	if !isColor {
 		ImageUtils.ConvertToGrayscale(payload)
 	}

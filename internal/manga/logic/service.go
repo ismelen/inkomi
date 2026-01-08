@@ -5,14 +5,18 @@ import (
 	EpubBuilder "ismelen/ermc/internal/manga/logic/builders/epub"
 	MangaConstants "ismelen/ermc/internal/manga/logic/constants"
 	PageConverter "ismelen/ermc/internal/manga/logic/coverters/page"
+	MangaLogger "ismelen/ermc/internal/manga/logic/helpers/PercentShower"
 	manga "ismelen/ermc/internal/manga/logic/models"
 	FileUtils "ismelen/ermc/internal/utils/file"
 	ZipUtils "ismelen/ermc/internal/utils/zip"
+	"os"
 	"path/filepath"
 	"runtime"
 
 	"golang.org/x/sync/errgroup"
 )
+
+const PROCESSED_LOGGER_KEY = "Processed"
 
 func ProcessInputs(opts *manga.Options) ([]string, error) {
 	// Data Validation
@@ -27,13 +31,18 @@ func ProcessInputs(opts *manga.Options) ([]string, error) {
 		return nil, err
 	}
 
+	// Start logger
+	logger := MangaLogger.New(len(opts.InputData))
+	logger.AddField(PROCESSED_LOGGER_KEY, len(opts.InputData)) // total chapters processed
+	logger.RunAsync(PROCESSED_LOGGER_KEY)
+
 	// Process images
 	chaptersDir := filepath.Join(opts.Output, "chapters")
 	defer func () {
-		// os.RemoveAll(chaptersDir) TODO: 
+		os.RemoveAll(chaptersDir) 
 	}()
 
-	numCPUs := runtime.NumCPU() - runtime.NumGoroutine()
+	numCPUs := runtime.NumCPU() - runtime.NumGoroutine() - 1
 	if numCPUs <= 0 {
 		return nil, fmt.Errorf("Not enough threads")
 	}
@@ -56,27 +65,37 @@ func ProcessInputs(opts *manga.Options) ([]string, error) {
 			return nil, err
 		}
 
+		logger.AddField(chapter.Title, len(chapter.Pages))
+
 		for _, page := range chapter.Pages {
 			pageNum++;
 			pNum := pageNum;
+			cChapter := chapter
 			sem <- struct{}{}
 			group.Go(func() error {
 				defer func() { <- sem }()
 
-				converter, err := PageConverter.New(page, opts, chapter.NormalizedName);
+				converter, err := PageConverter.New(page, opts, cChapter.NormalizedName);
 				if err != nil  {
 					return err;
 				}
 
 				
-				err = converter.Convert(pNum)
-				return err
+				if err = converter.Convert(pNum); err != nil {
+					return err
+				}
+
+				logger.Chan <- chapter.Title
+
+				return nil
 			})
 		}
 
 		if err := group.Wait(); err != nil {
 			return nil, err
 		}
+
+		logger.RemoveField(chapter.Title)
 
 		// Montar volumen
 		volSize += chapter.Size
@@ -106,6 +125,8 @@ func ProcessInputs(opts *manga.Options) ([]string, error) {
 		volIdx++
 		lastIdx = idx+1
 		volSize = 0
+
+		logger.Chan <- PROCESSED_LOGGER_KEY
 	}
 
 	return resultPaths, nil
