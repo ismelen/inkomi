@@ -2,6 +2,8 @@ package EpubBuilder
 
 import (
 	"archive/zip"
+	"bytes"
+	"context"
 	"fmt"
 	"io"
 	manga "ismelen/ermc/internal/manga/logic/models"
@@ -13,6 +15,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/pgaskin/kepubify/v4/kepub"
 )
 
 type EpubBuilder struct {
@@ -28,61 +31,100 @@ func New(opts *manga.Options, dstFileName string, chapters ...*manga.ChapterData
 	return &EpubBuilder{opts, chapters, dstFileName}
 }
 
-func (t *EpubBuilder) Build() (string, error) {
-	path := filepath.Join(t.opts.Output, t.dstFileName+".epub")
-	out, err := os.Create(path)
-	if err != nil {
-		return path, err
-	}
-	defer out.Close()
+func (this *EpubBuilder) Build() (string, error) {
+	// path := filepath.Join(this.opts.Output, this.dstFileName+".epub")
+	// out, err := os.Create(path)
+	// if err != nil {
+	// 	return path, err
+	// }
+	// defer out.Close()
+	// 
+	// z := zip.NewWriter(out)
+	buf := new(bytes.Buffer)
+	z := zip.NewWriter(buf)
 
-	z := zip.NewWriter(out)
-	defer z.Close()
-
-	t.AddHeaders(z)
-	t.addFile(
+	this.AddHeaders(z)
+	this.addFile(
 		z,
 		filepath.Join("META-INF", "container.xml"),
 		EpubTemplates.XML,
 	)
-	t.CopyFiles(z)
-	t.AddStyles(z)
+	this.CopyFiles(z)
+	this.AddStyles(z)
 
-	for _, chapter := range t.chapters {
+	for _, chapter := range this.chapters {
 		for _, page := range chapter.Pages {
 			for i := range page.Count {
-				t.BuildHTML(z, page.Payloads[i], page, chapter.NormalizedName)
+				this.BuildHTML(z, page.Payloads[i], page, chapter.NormalizedName)
 			}
 		}
 	}
 
 	uuid := uuid.New()
 
-	if err := t.BuildNCX(z, uuid); err != nil {
-		return path, err
+	if err := this.BuildNCX(z, uuid); err != nil {
+		return "", err
 	}
 
-	if err := t.BuildOPF(z, uuid); err != nil {
-		return path, err
+	if err := this.BuildOPF(z, uuid); err != nil {
+		return "", err
 	}
 
-	if err := t.BuildNAV(z); err != nil {
+	if err := this.BuildNAV(z); err != nil {
+		return "", err
+	}
+
+	if err := z.Close(); err != nil {
+		return "", err
+	}
+
+	if this.opts.ProfileData.IsKepub {
+		return this.ConvertToKepub(buf)
+	}
+
+	path := filepath.Join(this.opts.Output, this.dstFileName+".epub")
+	out, err := os.Create(path)
+	if err != nil {
 		return path, err
+	}
+	defer out.Close()
+
+	if _, err := io.Copy(out, buf); err != nil {
+		return "", err
 	}
 
 	return path, nil
 }
 
-func (t *EpubBuilder) CopyFiles(z *zip.Writer) error {
+func (this *EpubBuilder) ConvertToKepub(buf *bytes.Buffer) (string, error) {
+	kPath := filepath.Join(this.opts.Output, this.dstFileName+".kepub.epub")
+	out, err := os.Create(kPath)
+	if err != nil {
+		return "", err
+	}
+	defer out.Close()
+
+	in, err := zip.NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
+	if err != nil {
+		return "", err
+	}
+
+	converter := kepub.NewConverter()
+	ctx := context.Background()
+
+	return kPath, converter.Convert(ctx, out, in)
+}
+
+func (this *EpubBuilder) CopyFiles(z *zip.Writer) error {
 	copyFile(
 		z,
-		t.chapters[0].Pages[0].Payloads[0].Path,
+		this.chapters[0].Pages[0].Payloads[0].Path,
 		filepath.Join(
 			imagesPath,
 			"cover.jpg",
 		),
 	)
-	for _, chapter := range t.chapters {
+	for _, chapter := range this.chapters {
 		for _, page := range chapter.Pages {
 			for i := range page.Count {
 				p := page.Payloads[i]
@@ -118,7 +160,7 @@ func copyFile(z *zip.Writer, srcPath, dstPath string) error {
 	return err
 }
 
-func (t *EpubBuilder) AddHeaders(z *zip.Writer) (err error) {
+func (this *EpubBuilder) AddHeaders(z *zip.Writer) (err error) {
 	w, err := z.CreateHeader(EpubTemplates.MimeHeader)
 	if err != nil {
 		return
@@ -132,8 +174,8 @@ func (t *EpubBuilder) AddHeaders(z *zip.Writer) (err error) {
 	return
 }
 
-func (t *EpubBuilder) AddStyles(z *zip.Writer) error {
-	_, err := t.addFile(
+func (this *EpubBuilder) AddStyles(z *zip.Writer) error {
+	_, err := this.addFile(
 		z,
 		filepath.Join(textPath, "style.css"),
 		EpubTemplates.Styles,
@@ -142,7 +184,7 @@ func (t *EpubBuilder) AddStyles(z *zip.Writer) error {
 	return err
 }
 
-func (t *EpubBuilder) addFile(z *zip.Writer, zipPath string, content string) (*io.Writer, error) {
+func (this *EpubBuilder) addFile(z *zip.Writer, zipPath string, content string) (*io.Writer, error) {
 	w, err := z.Create(filepath.ToSlash(zipPath))
 	if err != nil {
 		return nil, err
@@ -156,7 +198,7 @@ func (t *EpubBuilder) addFile(z *zip.Writer, zipPath string, content string) (*i
 	return &w, nil
 }
 
-func (t *EpubBuilder) BuildHTML(z *zip.Writer, payload *manga.PagePayload, page *manga.PageData, chapterName string) (err error) {
+func (this *EpubBuilder) BuildHTML(z *zip.Writer, payload *manga.PagePayload, page *manga.PageData, chapterName string) (err error) {
 	aditionalStyle := ""
 	if page.BgColor != "white" {
 		aditionalStyle = "background-color:#000000;"
@@ -170,7 +212,7 @@ func (t *EpubBuilder) BuildHTML(z *zip.Writer, payload *manga.PagePayload, page 
 
 	htmlPath := filepath.Join(textPath, chapterName, payload.Title+".xhtml")
 
-	deviceHeight := t.opts.ProfileData.Height
+	deviceHeight := this.opts.ProfileData.Height
 	imgWidth, imgHeight := payload.W, payload.H
 
 	content := fmt.Sprintf(
@@ -189,7 +231,7 @@ func (t *EpubBuilder) BuildHTML(z *zip.Writer, payload *manga.PagePayload, page 
 		filepath.ToSlash(relPath),
 	)
 
-	_, err = t.addFile(z, htmlPath, content)
+	_, err = this.addFile(z, htmlPath, content)
 	return
 }
 
@@ -198,16 +240,16 @@ func getTopMargin(deviceHeight, imgHeight int) float64 {
 	return math.Round(float64(y*10)) / 10
 }
 
-func (t *EpubBuilder) BuildNCX(z *zip.Writer, uuid uuid.UUID) error {
+func (this *EpubBuilder) BuildNCX(z *zip.Writer, uuid uuid.UUID) error {
 	path := filepath.Join("OEBPS", "toc.ncx")
 
 	content := fmt.Sprintf(
 		EpubTemplates.NCXStart,
 		uuid,
-		t.dstFileName,
+		this.dstFileName,
 	)
 
-	for _, chapter := range t.chapters {
+	for _, chapter := range this.chapters {
 		folder := filepath.Join(
 			"Text",
 			chapter.NormalizedName,
@@ -224,21 +266,21 @@ func (t *EpubBuilder) BuildNCX(z *zip.Writer, uuid uuid.UUID) error {
 
 	content += EpubTemplates.NCXEnd
 
-	_, err := t.addFile(z, path, content)
+	_, err := this.addFile(z, path, content)
 	return err
 }
 
-func (t *EpubBuilder) BuildNAV(z *zip.Writer) error {
+func (this *EpubBuilder) BuildNAV(z *zip.Writer) error {
 	path := filepath.Join("OEBPS", "nav.xhtml")
 
 	content := fmt.Sprintf(
 		EpubTemplates.NAVStart,
-		t.dstFileName,
+		this.dstFileName,
 	)
 
 	var listContent string
 
-	for _, chapter := range t.chapters {
+	for _, chapter := range this.chapters {
 		folder := filepath.Join(
 			"Text",
 			chapter.NormalizedName,
@@ -257,36 +299,36 @@ func (t *EpubBuilder) BuildNAV(z *zip.Writer) error {
 		listContent +
 		EpubTemplates.NAVEnd
 
-	_, err := t.addFile(z, path, content)
+	_, err := this.addFile(z, path, content)
 	return err
 }
 
-func (t *EpubBuilder) BuildOPF(z *zip.Writer, uuid uuid.UUID) error {
+func (this *EpubBuilder) BuildOPF(z *zip.Writer, uuid uuid.UUID) error {
 	path := filepath.Join("OEBPS", "content.opf")
 
 	content := fmt.Sprintf(
 		EpubTemplates.OPFStart,
-		t.dstFileName,
+		this.dstFileName,
 		uuid,
 		"0.0",
 	)
 
 	writingMode := "horizontal-lr"
-	if t.opts.Manga {
+	if this.opts.Manga {
 		writingMode = "horizontal-rl"
 	}
 
 	content += fmt.Sprintf(
 		EpubTemplates.OPFMetas,
 		time.Now().UTC().Format(time.RFC3339),
-		t.opts.ProfileData.Width,
-		t.opts.ProfileData.Height,
+		this.opts.ProfileData.Width,
+		this.opts.ProfileData.Height,
 		writingMode,
 		false,
 	)
 
 	var refList []string
-	for _, chapter := range t.chapters {
+	for _, chapter := range this.chapters {
 		for _, page := range chapter.Pages {
 			for i := range page.Count {
 				folder := filepath.Join(
@@ -326,7 +368,7 @@ func (t *EpubBuilder) BuildOPF(z *zip.Writer, uuid uuid.UUID) error {
 	)
 
 	var pageSide string
-	if t.opts.Manga {
+	if this.opts.Manga {
 		content += fmt.Sprintf(EpubTemplates.OPFPageProgression, "rtl")
 		pageSide = "right"
 	} else {
@@ -334,7 +376,7 @@ func (t *EpubBuilder) BuildOPF(z *zip.Writer, uuid uuid.UUID) error {
 		pageSide = "left"
 	}
 
-	if t.opts.SpreadShift {
+	if this.opts.SpreadShift {
 		if pageSide == "right" {
 			pageSide = "left"
 		} else {
@@ -348,13 +390,13 @@ func (t *EpubBuilder) BuildOPF(z *zip.Writer, uuid uuid.UUID) error {
 		switch ending {
 		case "-ermc-a", "-ermc-d":
 			pageSpreadPropertyList = append(pageSpreadPropertyList, "center")
-			pageSide = calculatePageSide(t.opts.Manga)
+			pageSide = calculatePageSide(this.opts.Manga)
 		case "-ermc-b":
 			pageSpreadPropertyList = append(pageSpreadPropertyList, "right")
-			pageSide = calculatePageSide(t.opts.Manga)
+			pageSide = calculatePageSide(this.opts.Manga)
 		case "-ermc-c":
 			pageSpreadPropertyList = append(pageSpreadPropertyList, "left")
-			pageSide = calculatePageSide(t.opts.Manga)
+			pageSide = calculatePageSide(this.opts.Manga)
 		default:
 			pageSpreadPropertyList = append(pageSpreadPropertyList, pageSide)
 			if pageSide == "right" {
@@ -372,7 +414,7 @@ func (t *EpubBuilder) BuildOPF(z *zip.Writer, uuid uuid.UUID) error {
 
 		if "-ermc-x" != ending {
 			spreadSeen = true
-			if t.opts.Manga {
+			if this.opts.Manga {
 				pageSide = "left"
 			} else {
 				pageSide = "right"
@@ -397,7 +439,7 @@ func (t *EpubBuilder) BuildOPF(z *zip.Writer, uuid uuid.UUID) error {
 
 	content += EpubTemplates.OPFEnd
 
-	_, err := t.addFile(z, path, content)
+	_, err := this.addFile(z, path, content)
 	return err
 }
 

@@ -8,6 +8,7 @@ import (
 	MangaLogger "ismelen/ermc/internal/manga/logic/helpers/PercentShower"
 	manga "ismelen/ermc/internal/manga/logic/models"
 	FileUtils "ismelen/ermc/internal/utils/file"
+	StringUtils "ismelen/ermc/internal/utils/strings"
 	ZipUtils "ismelen/ermc/internal/utils/zip"
 	"os"
 	"path/filepath"
@@ -111,7 +112,7 @@ func ProcessInputs(opts *manga.Options) ([]string, error) {
 
 		path, err := generateOutput(
 			opts,
-			filename,
+			StringUtils.NormalizeString(filename),
 			opts.InputData[lastIdx:idx+1]...,
 		)
 

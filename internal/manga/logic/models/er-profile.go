@@ -6,4 +6,5 @@ type ERProfile struct {
 	Height  int
 	Palette []uint8
 	Gamma   float64
+	IsKepub   bool
 }
