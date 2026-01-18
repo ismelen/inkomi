@@ -3,9 +3,7 @@ package MangaService
 import (
 	"fmt"
 	EpubBuilder "ismelen/ermc/internal/manga/logic/builders/epub"
-	MangaConstants "ismelen/ermc/internal/manga/logic/constants"
 	PageConverter "ismelen/ermc/internal/manga/logic/coverters/page"
-	MangaLogger "ismelen/ermc/internal/manga/logic/helpers/PercentShower"
 	manga "ismelen/ermc/internal/manga/logic/models"
 	FileUtils "ismelen/ermc/internal/utils/file"
 	StringUtils "ismelen/ermc/internal/utils/strings"
@@ -20,22 +18,7 @@ import (
 const PROCESSED_LOGGER_KEY = "Processed"
 
 func ProcessInputs(opts *manga.Options) ([]string, error) {
-	// Data Validation
-	profileData, ok := MangaConstants.Profiles[opts.Profile]
-	if !ok {
-		return nil, fmt.Errorf("Unknown profile: %s", opts.Profile)
-	}
-	opts.ProfileData = profileData
 	fmt.Printf("KCC Go Port running with profile: %s (%dx%d)\n", opts.Profile, opts.ProfileData.Width, opts.ProfileData.Height)
-
-	if err := opts.ValidateAndNormalize(); err != nil {
-		return nil, err
-	}
-
-	// Start logger
-	logger := MangaLogger.New(len(opts.InputData))
-	logger.AddField(PROCESSED_LOGGER_KEY, len(opts.InputData)) // total chapters processed
-	logger.RunAsync(PROCESSED_LOGGER_KEY)
 
 	// Process images
 	chaptersDir := filepath.Join(opts.Output, "chapters")
@@ -66,8 +49,6 @@ func ProcessInputs(opts *manga.Options) ([]string, error) {
 			return nil, err
 		}
 
-		logger.AddField(chapter.Title, len(chapter.Pages))
-
 		for _, page := range chapter.Pages {
 			pageNum++;
 			pNum := pageNum;
@@ -86,23 +67,20 @@ func ProcessInputs(opts *manga.Options) ([]string, error) {
 					return err
 				}
 
-				logger.Chan <- chapter.Title
-
 				return nil
 			})
 		}
 
-		if err := group.Wait(); err != nil {
-			return nil, err
-		}
-
-		logger.RemoveField(chapter.Title)
-
+		
 		// Montar volumen
 		volSize += chapter.Size
 		if volSize < opts.TargetSize &&
-			idx < inputsLen-1 {
+		idx < inputsLen-1 {
 			continue
+		}
+		
+		if err := group.Wait(); err != nil {
+			return nil, err
 		}
 
 		filename := chapter.Title
@@ -126,8 +104,6 @@ func ProcessInputs(opts *manga.Options) ([]string, error) {
 		volIdx++
 		lastIdx = idx+1
 		volSize = 0
-
-		logger.Chan <- PROCESSED_LOGGER_KEY
 	}
 
 	return resultPaths, nil

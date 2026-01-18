@@ -1,14 +1,15 @@
 package api
 
 import (
-	"ismelen/ermc/internal/ereader"
 	MangaController "ismelen/ermc/internal/manga/ui"
-	"net/http"
+
+	"github.com/labstack/echo/v4"
 )
 
 func StartServer(port string) error {
-	MangaController.New()
-	ereader.NewController()
+	server := echo.New()
 
-	return http.ListenAndServe(":"+port, nil)
+	MangaController.New(server)
+
+	return server.Start(":"+port)
 }

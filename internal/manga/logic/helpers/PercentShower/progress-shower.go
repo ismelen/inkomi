@@ -1,4 +1,4 @@
-package PercentShower
+package ProgressShower
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 
 const BAR_WIDTH = 40
 
-type logger struct {
+type ProgressShower struct {
 	values map[string]progressionValue
 	Chan   chan string
 	sync.RWMutex
@@ -18,14 +18,14 @@ type progressionValue struct {
 	total, current int
 }
 
-func New(cap int) *logger {
-	return &logger{
+func New(cap int) *ProgressShower {
+	return &ProgressShower{
 		values: make(map[string]progressionValue),
 		Chan:   make(chan string, cap*2),
 	}
 }
 
-func (this *logger) AddField(label string, total int) {
+func (this *ProgressShower) AddField(label string, total int) {
 	this.Lock()
 	this.values[label] = progressionValue{
 		current: 0,
@@ -34,13 +34,13 @@ func (this *logger) AddField(label string, total int) {
 	this.Unlock()
 }
 
-func (this *logger) RemoveField(label string) {
+func (this *ProgressShower) RemoveField(label string) {
 	this.Lock()
 	delete(this.values, label)
 	this.Unlock()
 }
 
-func (this *logger) RunAsync(firstMsg string) {
+func (this *ProgressShower) RunAsync(firstMsg string) {
 	go func() {
 		for msg := range this.Chan {
 			this.RLock()
@@ -61,7 +61,7 @@ func (this *logger) RunAsync(firstMsg string) {
 	}()
 }
 
-func (this *logger) print(msg string) {
+func (this *ProgressShower) print(msg string) {
 	values := this.values[msg]
 
 	percent := float64(values.current) / float64(values.total)
@@ -73,6 +73,6 @@ func (this *logger) print(msg string) {
 	fmt.Printf("(%s): [%s] %d%%\033[K\n", msg, bar, int(percent*100))
 }
 
-func (this *logger) moveCursorUp(levels int) {
+func (this *ProgressShower) moveCursorUp(levels int) {
 	fmt.Printf("\033[%dF", levels)
 }

@@ -17,9 +17,15 @@ var rootCmd = &cobra.Command{
 	Short: "EReader Manga Converter (Go Port)",
 	Long:  `A Go implementation of the Kindle Comic Converter to optimize comics and manga for e-readers.`,
 	Run: func(cmd *cobra.Command, args []string) {
+		if err := opts.ValidateAndNormalize(); err != nil {
+			log.Fatal(err)
+			return
+		}
+		
 		links, err := MangaService.ProcessInputs(&opts)
 		if err != nil {
 			log.Fatal(err)
+			return
 		}
 
 		fmt.Println("Outpus: ")
@@ -27,13 +33,6 @@ var rootCmd = &cobra.Command{
 			fmt.Println(link)
 		}
 	},
-}
-
-// startServer is a bridge to internal/api to avoid package cycle if any (though currently clean)
-func startServer(port string) {
-	if err := api.StartServer(port); err != nil {
-		log.Fatal(err)
-	}
 }
 
 var serveCmd = &cobra.Command{
@@ -44,6 +43,14 @@ var serveCmd = &cobra.Command{
 		startServer(port)
 	},
 }
+
+// startServer is a bridge to internal/api to avoid package cycle if any (though currently clean)
+func startServer(port string) {
+	if err := api.StartServer(port); err != nil {
+		log.Fatal(err)
+	}
+}
+
 
 func Execute() error {
 	return rootCmd.Execute()

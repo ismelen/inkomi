@@ -39,49 +39,81 @@ type Options struct {
 	InputData   []*ChapterData
 }
 
-func (t *Options) ValidateAndNormalize() error {
-	if err := t.normalizeInputs(); err != nil {
-		return err
+func NewOptions(input, profile, title, author string, merge bool) Options {
+	return Options{
+		Inputs: []string{input},
+		Profile: profile,
+		Title: title,
+		Author: author,
+		Format: "EPUB",
+		TargetSize: 200,
+		LowRAM: true,
+
+		Manga: true,
+		SpreadShift: true,
+		FileFusion: merge,
+		SpreadSplitter: 2,
+		ColorMode: true,
+		CroppingMode: 2,
+		CroppingPower: 1.0,
+		RainbowEraser: true,
+		ExtremBlackPoint: true,
+		StretchUpscaleMode: 2,
+		PreserveMargin: 0.0,
 	}
+}
 
-	t.setTitle()
-	t.setOutput()
+func (this *Options) ValidateAndNormalize() error {
+	if err := this.setProfileData(); err != nil { return err }
+	if err := this.normalizeInputs(); err != nil { return err }
 
-	if t.FileFusion {
-		t.TargetSize = t.TargetSize << 20
+	this.setTitle()
+	this.setOutput()
+
+	if this.FileFusion {
+		this.TargetSize = this.TargetSize << 20
 	}else{
-		t.TargetSize = 0
+		this.TargetSize = 0
 	}
 
 	return nil
 }
 
-func (t *Options) setOutput() {
-	if t.Output != "" {
+func (this *Options) setProfileData() error {
+	profileData, ok := Profiles[this.Profile]
+	if !ok {
+		return fmt.Errorf("Unknown profile: %s", this.Profile)
+	}
+	this.ProfileData = profileData
+	return nil
+}
+
+func (this *Options) setOutput() {
+	if this.Output != "" {
 		return
 	}
 
-	t.Output = SysUtils.NewTempDir("results")
+	this.Output = SysUtils.NewTempDir("results")
 }
 
-func (t *Options) setTitle() {
-	if t.Title != "" {
+func (this *Options) setTitle() {
+	if this.Title != "" {
 		return
 	}
 
-	t.Title = filepath.Base(t.Inputs[0])
-	t.Title = strings.TrimSuffix(t.Title, filepath.Ext(t.Title))
+	this.Title = filepath.Base(this.Inputs[0])
+	this.Title = strings.TrimSuffix(this.Title, filepath.Ext(this.Title))
 }
 
-func (t *Options) normalizeInputs() error {
-	if len(t.Inputs) < 1 {
+func (this *Options) normalizeInputs() error {
+	if len(this.Inputs) < 1 {
 		return fmt.Errorf("No inputs")
 	}
 
 	var data []Utils.Pair[string, int64]
 
-	if len(t.Inputs) > 1 {
-		for _, path := range t.Inputs {
+	if len(this.Inputs) > 1 {
+		for _, path := range this.Inputs {
 			info, err := os.Stat(path)
 			if err != nil {
 				return err
@@ -92,7 +124,7 @@ func (t *Options) normalizeInputs() error {
 			})
 		}
 	} else {
-		ok, err := FileUtils.IsDir(t.Inputs[0])
+		ok, err := FileUtils.IsDir(this.Inputs[0])
 		if err != nil {
 			return err
 		}
@@ -100,24 +132,22 @@ func (t *Options) normalizeInputs() error {
 			return fmt.Errorf("Not a directory")
 		}
 
-		data, err = SysUtils.GetChildsInfo(t.Inputs[0])
+		data, err = SysUtils.GetChildsInfo(this.Inputs[0])
 		if err != nil {
 			return err
 		}
 	}
 
 	for _, value := range data {
-		t.InputData = append(
-			t.InputData,
+		this.InputData = append(
+			this.InputData,
 			NewChapterData(value.Fst, value.Snd),
 		)
 	}
 
-	slices.SortFunc(t.InputData, func(a, b *ChapterData) int {
+	slices.SortFunc(this.InputData, func(a, b *ChapterData) int {
 		return FileUtils.FilenameCmp(a.Path, b.Path)
 	})
-
-	t.InputData = t.InputData[:10] // TODO:
 
 	return nil
 }
