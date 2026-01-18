@@ -4,11 +4,11 @@ import (
 	"image"
 )
 
-type PagePayload struct {
+type PagePart struct {
 	Mode            rune // N, R, 1, 2
 	Rotated         bool
-	H int
-	W int
+	H               int
+	W               int
 	Image           *image.Image
 	TargetPathOrder string
 	OriginalMode    string
@@ -24,7 +24,7 @@ var PathOrders = map[rune]string{
 	'2': "-ermc-c",
 }
 
-func NewPagePayload(mode rune, img *image.Image) *PagePayload {
+func NewPagePart(mode rune, img *image.Image) *PagePart {
 	originalMode := "RGB"
 	if _, ok := (*img).(*image.Gray); ok {
 		originalMode = "L"
@@ -32,7 +32,7 @@ func NewPagePayload(mode rune, img *image.Image) *PagePayload {
 		originalMode = "L"
 	}
 
-	payload := &PagePayload{
+	payload := &PagePart{
 		OriginalMode: originalMode,
 		Image:        img,
 		Rotated:      false,
@@ -40,7 +40,7 @@ func NewPagePayload(mode rune, img *image.Image) *PagePayload {
 
 	if value, ok := PathOrders[mode]; ok {
 		payload.TargetPathOrder = value
-	}else{
+	} else {
 		payload.TargetPathOrder = "-ermc-x"
 	}
 

@@ -14,38 +14,42 @@ import (
 )
 
 type PageConverter struct {
-	page *manga.PageData
-	opts *manga.Options
+	page *manga.Page
+	opts *manga.ConverterOptions
 	chapterName string
 }
 
-func New(page *manga.PageData, opts *manga.Options, chapterName string) (*PageConverter, error) {
-	img, err := imaging.Open(page.Src)
+func New(page *manga.Page, opts *manga.ConverterOptions) (*PageConverter, error) {
+	img, err := imaging.Open(page.Path)
 	if err != nil {
 		return nil, err
 	}
 	
-	page.BgColor = ImageUtils.FillCheck(&img)
-	
-	tW, tH := opts.ProfileData.Width, opts.ProfileData.Height
-	payloads, count := ImageUtils.SplitCheck(&img, tW, tH, opts)
+	page.HasWhiteBg = ImageUtils.HasWhiteBg(&img)
+	payloads, count := ImageUtils.SplitCheck(
+		&img, 
+		opts.ProfileData.Width, 
+		opts.ProfileData.Height, 
+		opts,
+	)
 	page.Count = count
-	page.Payloads = payloads
+	page.Parts = payloads
 
-	page.Src = ""
+	dir, _ := filepath.Split(page.Path)
+	page.Path = ""
 	runtime.GC()
-	
+
+
 	return &PageConverter{
 		page: page,
 		opts: opts,
-		chapterName: chapterName,
+		chapterName: filepath.Base(dir),
 	}, nil
 }
 
 func (t *PageConverter) Convert(pageNum int) error {
-	var i int8
-	for ; i<t.page.Count; i++ {
-		if err := t.ConvertPayload(pageNum, t.page.Payloads[i]); err != nil {
+	for i := range t.page.Count {
+		if err := t.ConvertPayload(pageNum, t.page.Parts[i]); err != nil {
 			return err
 		}
 	}
@@ -53,45 +57,44 @@ func (t *PageConverter) Convert(pageNum int) error {
 	return nil
 }
 
-func (t *PageConverter) ConvertPayload(pageNum int, payload *manga.PagePayload) error{
+func (t *PageConverter) ConvertPayload(pageNum int, part *manga.PagePart) error{
 	switch t.opts.CroppingMode {
 	case 2:
 		ImageUtils.CropPageNumber(
-			payload,
-			t.page.BgColor,
+			part,
+			t.page.HasWhiteBg,
 			t.opts.PreserveMargin,
 		)
 	case 1:
 		ImageUtils.CropMargins(
-			payload,
-			t.page.BgColor,
+			part,
+			t.page.HasWhiteBg,
 			t.opts.PreserveMargin,
 		)
 	}
 
 	ImageUtils.ResizeImage(
-		payload,
+		part,
 		t.opts.StretchUpscaleMode,
 		t.opts.ProfileData.Width,
 		t.opts.ProfileData.Height,
 	)
 
-	isColor := t.opts.ColorMode && t.isColor(payload)
+	isColor := t.opts.ColorMode && t.isColor(part)
 	if !isColor {
-		ImageUtils.ConvertToGrayscale(payload)
+		ImageUtils.ConvertToGrayscale(part)
 	}
 
 	if t.opts.RainbowEraser {
-		ImageUtils.OptimizeForDisplay(payload)
+		ImageUtils.OptimizeForDisplay(part)
 	}
 	
-	return t.SaveToDir(pageNum, payload)
+	return t.SaveToDir(pageNum, part)
 	
 }
 
 
-func (t *PageConverter) isColor(payload *manga.PagePayload) bool {
-
+func (t *PageConverter) isColor(payload *manga.PagePart) bool {
 	switch (*payload.Image).(type) {
 	case *image.Gray:
 		return false
@@ -104,7 +107,7 @@ func (t *PageConverter) isColor(payload *manga.PagePayload) bool {
 	return detector.CalculateColor(*payload.Image)
 }
 
-func (t *PageConverter) SaveToDir(pageNum int, payload *manga.PagePayload) error {
+func (t *PageConverter) SaveToDir(pageNum int, payload *manga.PagePart) error {
 	title := fmt.Sprintf("ermc-%d%s", pageNum, payload.TargetPathOrder)
 	path, err := FileUtils.SaveWithCodec(
 		payload.Image,

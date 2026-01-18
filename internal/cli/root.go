@@ -3,14 +3,14 @@ package cli
 import (
 	"fmt"
 	"ismelen/ermc/internal/api"
-	MangaService "ismelen/ermc/internal/manga/logic"
+	MangaConverter "ismelen/ermc/internal/manga/logic/coverters/manga"
 	manga "ismelen/ermc/internal/manga/logic/models"
 	"log"
 
 	"github.com/spf13/cobra"
 )
 
-var opts = manga.Options{}
+var opts = manga.ConverterOptions{}
 
 var rootCmd = &cobra.Command{
 	Use:   "ermc",
@@ -21,14 +21,15 @@ var rootCmd = &cobra.Command{
 			log.Fatal(err)
 			return
 		}
-		
-		links, err := MangaService.ProcessInputs(&opts)
+
+		converter := MangaConverter.New(&opts, nil)
+		links, err := converter.Convert()
 		if err != nil {
 			log.Fatal(err)
 			return
 		}
 
-		fmt.Println("Outpus: ")
+		fmt.Println("Outputs: ")
 		for _, link := range links {
 			fmt.Println(link)
 		}

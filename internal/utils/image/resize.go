@@ -13,7 +13,7 @@ var filters = map[string]imaging.ResampleFilter{
 
 const AUTO_CROP_THRESHOLD = 0.015
 
-func ResizeImage(payload *manga.PagePayload, stretchUpscaleMode int, tW, tH int) {
+func ResizeImage(payload *manga.PagePart, stretchUpscaleMode int, tW, tH int) {
 	
 	bounds := (*payload.Image).Bounds()
 	imgH, imgW := bounds.Dy(), bounds.Dx()

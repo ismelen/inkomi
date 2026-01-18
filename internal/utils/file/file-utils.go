@@ -16,7 +16,7 @@ func IsDir(path string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-
+	
 	return info.IsDir(), nil
 }
 

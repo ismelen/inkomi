@@ -23,6 +23,7 @@ func NormalizeString(value string) string {
 
 	// Reemplazar espacios por guiones
 	result = strings.ReplaceAll(result, " ", "-")
+	result = strings.ReplaceAll(result, "_", "-")
 
 	// Opcional: eliminar caracteres que no sean alfanuméricos o guiones
 	result = strings.Map(func(r rune) rune {

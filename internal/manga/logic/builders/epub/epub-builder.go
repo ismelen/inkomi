@@ -19,15 +19,15 @@ import (
 )
 
 type EpubBuilder struct {
-	opts        *manga.Options
-	chapters    []*manga.ChapterData
+	opts        *manga.ConverterOptions
+	chapters    []*manga.Chapter
 	dstFileName string
 }
 
 var imagesPath = filepath.Join("OEBPS", "Images")
 var textPath = filepath.Join("OEBPS", "Text")
 
-func New(opts *manga.Options, dstFileName string, chapters ...*manga.ChapterData) *EpubBuilder {
+func New(opts *manga.ConverterOptions, dstFileName string, chapters ...*manga.Chapter) *EpubBuilder {
 	return &EpubBuilder{opts, chapters, dstFileName}
 }
 
@@ -55,7 +55,7 @@ func (this *EpubBuilder) Build() (string, error) {
 	for _, chapter := range this.chapters {
 		for _, page := range chapter.Pages {
 			for i := range page.Count {
-				this.BuildHTML(z, page.Payloads[i], page, chapter.NormalizedName)
+				this.BuildHTML(z, page.Parts[i], page, chapter.NormalizedName)
 			}
 		}
 	}
@@ -118,7 +118,7 @@ func (this *EpubBuilder) ConvertToKepub(buf *bytes.Buffer) (string, error) {
 func (this *EpubBuilder) CopyFiles(z *zip.Writer) error {
 	copyFile(
 		z,
-		this.chapters[0].Pages[0].Payloads[0].Path,
+		this.chapters[0].Pages[0].Parts[0].Path,
 		filepath.Join(
 			imagesPath,
 			"cover.jpg",
@@ -127,7 +127,7 @@ func (this *EpubBuilder) CopyFiles(z *zip.Writer) error {
 	for _, chapter := range this.chapters {
 		for _, page := range chapter.Pages {
 			for i := range page.Count {
-				p := page.Payloads[i]
+				p := page.Parts[i]
 				copyFile(
 					z,
 					p.Path,
@@ -198,9 +198,9 @@ func (this *EpubBuilder) addFile(z *zip.Writer, zipPath string, content string) 
 	return &w, nil
 }
 
-func (this *EpubBuilder) BuildHTML(z *zip.Writer, payload *manga.PagePayload, page *manga.PageData, chapterName string) (err error) {
+func (this *EpubBuilder) BuildHTML(z *zip.Writer, payload *manga.PagePart, page *manga.Page, chapterName string) (err error) {
 	aditionalStyle := ""
-	if page.BgColor != "white" {
+	if !page.HasWhiteBg {
 		aditionalStyle = "background-color:#000000;"
 	}
 
@@ -253,13 +253,13 @@ func (this *EpubBuilder) BuildNCX(z *zip.Writer, uuid uuid.UUID) error {
 		folder := filepath.Join(
 			"Text",
 			chapter.NormalizedName,
-			chapter.Pages[0].Payloads[0].Title+".xhtml",
+			chapter.Pages[0].Parts[0].Title+".xhtml",
 		)
 
 		content += fmt.Sprintf(
 			EpubTemplates.NCXNavPoint,
 			strings.Replace(folder, string(filepath.Separator), "_", -1),
-			chapter.Title,
+			chapter.NormalizedName, // chapter.Title
 			filepath.ToSlash(folder),
 		)
 	}
@@ -284,13 +284,13 @@ func (this *EpubBuilder) BuildNAV(z *zip.Writer) error {
 		folder := filepath.Join(
 			"Text",
 			chapter.NormalizedName,
-			chapter.Pages[0].Payloads[0].Title+".xhtml",
+			chapter.Pages[0].Parts[0].Title+".xhtml",
 		)
 
 		listContent += fmt.Sprintf(
 			EpubTemplates.NAVLiElem,
 			filepath.ToSlash(folder),
-			chapter.Title,
+			chapter.NormalizedName, // chapter.Title
 		)
 	}
 
@@ -333,7 +333,7 @@ func (this *EpubBuilder) BuildOPF(z *zip.Writer, uuid uuid.UUID) error {
 			for i := range page.Count {
 				folder := filepath.Join(
 					chapter.NormalizedName,
-					page.Payloads[i].Title,
+					page.Parts[i].Title,
 				)
 				id := strings.Replace(
 					folder,

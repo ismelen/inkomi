@@ -10,7 +10,7 @@ import (
 	_ "golang.org/x/image/webp"
 )
 
-func FillCheck(img *image.Image) string {
+func HasWhiteBg(img *image.Image) bool {
 	bw := imaging.Grayscale(*img)
 	boxA, err1 := getBBoxInternal(bw, true)
 	boxB, err2 := getBBoxInternal(bw, false)
@@ -34,13 +34,13 @@ func FillCheck(img *image.Image) string {
 
 	if diff > 0.5 {
 		if surfaceW < surfaceB {
-			return "black"
+			return false
 		} else {
-			return "white"
+			return true
 		}
 	}
 
-	return "black"
+	return false
 }
 
 type bBox struct {

@@ -7,19 +7,19 @@ import (
 	"github.com/disintegration/imaging"
 )
 
-func CropPageNumber(payload *manga.PagePayload, bgColor string, preserveMargin float64) {
-	cropFunc(payload, bgColor, preserveMargin, CalculateBboxAgresive)
+func CropPageNumber(payload *manga.PagePart, hasWhiteBg bool, preserveMargin float64) {
+	cropFunc(payload, hasWhiteBg, preserveMargin, CalculateBboxAgresive)
 }
 
-func CropMargins(payload *manga.PagePayload, bgColor string, preserveMargin float64) {
-	cropFunc(payload, bgColor, preserveMargin, CalculateBbox)
+func CropMargins(payload *manga.PagePart, hasWhiteBg bool, preserveMargin float64) {
+	cropFunc(payload, hasWhiteBg, preserveMargin, CalculateBbox)
 }
 
-func cropFunc(payload *manga.PagePayload, bgColor string, preserveMargin float64, cropper func (img image.Image, bgColor string) BBox) {
+func cropFunc(payload *manga.PagePart, hasWhiteBg bool, preserveMargin float64, cropper func (img image.Image, hasWhiteBg bool) BBox) {
 	img := image.Image(imaging.AdjustContrast(*payload.Image, 100))
 	img = imaging.Grayscale(img)
 	
-	box := cropper(img, bgColor)
+	box := cropper(img, hasWhiteBg)
 
 	rect := image.Rect(
 		box.Left - int(preserveMargin),

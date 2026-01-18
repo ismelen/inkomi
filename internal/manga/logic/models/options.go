@@ -4,6 +4,7 @@ import (
 	"fmt"
 	Utils "ismelen/ermc/internal/utils"
 	FileUtils "ismelen/ermc/internal/utils/file"
+	StringUtils "ismelen/ermc/internal/utils/strings"
 	SysUtils "ismelen/ermc/internal/utils/sys"
 	"os"
 	"path/filepath"
@@ -11,8 +12,8 @@ import (
 	"strings"
 )
 
-// Options holds all the configuration for the conversion process.
-type Options struct {
+// ConverterOptions holds all the configuration for the conversion process.
+type ConverterOptions struct {
 	Inputs     []string
 	Output     string
 	Profile    string
@@ -36,11 +37,11 @@ type Options struct {
 
 	// Internal calculated fields
 	ProfileData ERProfile
-	InputData   []*ChapterData
+	InputData   []*Chapter
 }
 
-func NewOptions(input, profile, title, author string, merge bool) Options {
-	return Options{
+func NewOptions(input, profile, title, author string, merge bool) ConverterOptions {
+	return ConverterOptions{
 		Inputs: []string{input},
 		Profile: profile,
 		Title: title,
@@ -63,9 +64,8 @@ func NewOptions(input, profile, title, author string, merge bool) Options {
 	}
 }
 
-func (this *Options) ValidateAndNormalize() error {
+func (this *ConverterOptions) ValidateAndNormalize() error {
 	if err := this.setProfileData(); err != nil { return err }
-	if err := this.normalizeInputs(); err != nil { return err }
 
 	this.setTitle()
 	this.setOutput()
@@ -79,7 +79,7 @@ func (this *Options) ValidateAndNormalize() error {
 	return nil
 }
 
-func (this *Options) setProfileData() error {
+func (this *ConverterOptions) setProfileData() error {
 	profileData, ok := Profiles[this.Profile]
 	if !ok {
 		return fmt.Errorf("Unknown profile: %s", this.Profile)
@@ -88,7 +88,7 @@ func (this *Options) setProfileData() error {
 	return nil
 }
 
-func (this *Options) setOutput() {
+func (this *ConverterOptions) setOutput() {
 	if this.Output != "" {
 		return
 	}
@@ -96,58 +96,136 @@ func (this *Options) setOutput() {
 	this.Output = SysUtils.NewTempDir("results")
 }
 
-func (this *Options) setTitle() {
+func (this *ConverterOptions) setTitle() {
 	if this.Title != "" {
 		return
 	}
 
 	this.Title = filepath.Base(this.Inputs[0])
 	this.Title = strings.TrimSuffix(this.Title, filepath.Ext(this.Title))
+	this.Title = StringUtils.NormalizeString(this.Title)
 }
 
-func (this *Options) normalizeInputs() error {
-	if len(this.Inputs) < 1 {
-		return fmt.Errorf("No inputs")
+func (this *ConverterOptions) GetVolumes() ([]Volume, error) {
+	hasInputs := len(this.Inputs) > 0
+	if !hasInputs { return nil, fmt.Errorf("No inputs") }
+
+	var chaptersMetadata []Utils.Pair[string, int64]
+
+	
+	for _, path := range this.Inputs {
+		metadata, err := this.getChaptersMetadata(path)
+		if err != nil { return nil, err }
+		
+		chaptersMetadata = append(chaptersMetadata, metadata...)
 	}
+	
+	slices.SortFunc(chaptersMetadata, func(a, b Utils.Pair[string, int64]) int {
+		return FileUtils.FilenameCmp(a.Fst, b.Fst)
+	})
+
+	var volumes []Volume
+
+	if !this.FileFusion {
+		for _, metadata := range chaptersMetadata {
+			chapter := NewChapter(metadata.Fst)
+			volumes = append(volumes, NewVolume(
+				chapter.NormalizedName, 
+				[]*Chapter{chapter},
+			))
+		}
+		return volumes, nil
+	}
+
+	var size int64 = 0
+	var volIdx int
+	chaptersCant := len(chaptersMetadata)
+	var chapters []*Chapter
+
+	for idx, metadata := range chaptersMetadata {
+		size += metadata.Snd
+		isLast := idx >= chaptersCant-1
+		chapters = append(chapters, NewChapter(metadata.Fst))
+		
+		if size < this.TargetSize && !isLast { continue }
+
+		volumes = append(volumes, NewVolume(
+			fmt.Sprintf("%s Vol_%d", this.Title, volIdx+1),
+			chapters,
+		))
+
+		chapters = []*Chapter{}
+		volIdx++
+		size = 0
+	}
+	
+	return volumes ,nil
+}
+
+func (this *ConverterOptions) getChaptersMetadata(path string) ([]Utils.Pair[string, int64], error) {
+	isDir, err := FileUtils.IsDir(path)
+	if err != nil { return nil, err }
 
 	var data []Utils.Pair[string, int64]
 
-	if len(this.Inputs) > 1 {
-		for _, path := range this.Inputs {
-			info, err := os.Stat(path)
-			if err != nil {
-				return err
-			}
-			data = append(data, Utils.Pair[string, int64]{
-				Fst: path,
-				Snd: info.Size(),
-			})
-		}
-	} else {
-		ok, err := FileUtils.IsDir(this.Inputs[0])
-		if err != nil {
-			return err
-		}
-		if !ok {
-			return fmt.Errorf("Not a directory")
-		}
-
-		data, err = SysUtils.GetChildsInfo(this.Inputs[0])
-		if err != nil {
-			return err
-		}
+	if isDir {
+		data, err = SysUtils.GetChildsInfo(path)
+		if err != nil { return nil, err }
+	} else{
+		info, err := os.Stat(path)
+		if err != nil { return nil, err }
+		data = append(data, Utils.Pair[string, int64]{
+			Fst: path,
+			Snd: info.Size(),
+		})
 	}
 
-	for _, value := range data {
-		this.InputData = append(
-			this.InputData,
-			NewChapterData(value.Fst, value.Snd),
-		)
-	}
-
-	slices.SortFunc(this.InputData, func(a, b *ChapterData) int {
-		return FileUtils.FilenameCmp(a.Path, b.Path)
-	})
-
-	return nil
+	return data, nil
 }
+
+// func (this *ConverterOptions) normalizeInputs() error {
+// 	if len(this.Inputs) < 1 {
+// 		return fmt.Errorf("No inputs")
+// 	}
+
+// 	var data []Utils.Pair[string, int64]
+
+// 	if len(this.Inputs) > 1 {
+// 		for _, path := range this.Inputs {
+// 			info, err := os.Stat(path)
+// 			if err != nil {
+// 				return err
+// 			}
+// 			data = append(data, Utils.Pair[string, int64]{
+// 				Fst: path,
+// 				Snd: info.Size(),
+// 			})
+// 		}
+// 	} else {
+// 		ok, err := FileUtils.IsDir(this.Inputs[0])
+// 		if err != nil {
+// 			return err
+// 		}
+// 		if !ok {
+// 			return fmt.Errorf("Not a directory")
+// 		}
+
+// 		data, err = SysUtils.GetChildsInfo(this.Inputs[0])
+// 		if err != nil {
+// 			return err
+// 		}
+// 	}
+
+// 	for _, value := range data {
+// 		this.InputData = append(
+// 			this.InputData,
+// 			NewChapterData(value.Fst, value.Snd),
+// 		)
+// 	}
+
+// 	slices.SortFunc(this.InputData, func(a, b *ChapterData) int {
+// 		return FileUtils.FilenameCmp(a.Path, b.Path)
+// 	})
+
+// 	return nil
+// }

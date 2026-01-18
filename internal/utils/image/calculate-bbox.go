@@ -40,12 +40,13 @@ func (this *side) getSide(img image.Image, checkWhite bool) int {
 	return this.origin
 }
 
-func CalculateBbox(img image.Image, bgColor string) BBox {
+func CalculateBbox(img image.Image, hasWhiteBg bool) BBox {
 	dim := img.Bounds()
 	w, h := dim.Dx(), dim.Dy()
 	maxX := int(0.1 * float64(w))
 	maxY := int(0.1 * float64(h))
-	checkWhite := bgColor != "white"
+	checkWhite := !hasWhiteBg
+
 
 	top := side{
 		vector: 1,
@@ -88,6 +89,6 @@ func CalculateBbox(img image.Image, bgColor string) BBox {
 }
 
 
-func CalculateBboxAgresive(img image.Image, bgColor string) BBox {
-	return CalculateBbox(img, bgColor)
+func CalculateBboxAgresive(img image.Image, hasWhiteBg bool) BBox {
+	return CalculateBbox(img, hasWhiteBg)
 }

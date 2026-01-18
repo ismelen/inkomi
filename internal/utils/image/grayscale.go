@@ -6,6 +6,6 @@ import (
 	"github.com/disintegration/imaging"
 )
 
-func ConvertToGrayscale(payload *manga.PagePayload) {
+func ConvertToGrayscale(payload *manga.PagePart) {
 	(*payload.Image) = imaging.Grayscale((*payload.Image))
 }

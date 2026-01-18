@@ -7,13 +7,13 @@ import (
 	"github.com/disintegration/imaging"
 )
 
-func SplitCheck(img *image.Image, tw, th int, opts *manga.Options) (payloads [3]*manga.PagePayload, count int8) {
+func SplitCheck(img *image.Image, tw, th int, opts *manga.ConverterOptions) (payloads [3]*manga.PagePart, count int8) {
 	w := (*img).Bounds().Dx()
 	h := (*img).Bounds().Dy()
 
 	if (w > h) == (tw > th) {
 		// page.Payloads = append(page.Payloads, manga.NewPagePayload('N', img))
-		payloads[count] = manga.NewPagePayload('N', img)
+		payloads[count] = manga.NewPagePart('N', img)
 		count++
 		return
 	}
@@ -26,7 +26,7 @@ func SplitCheck(img *image.Image, tw, th int, opts *manga.Options) (payloads [3]
 		// 	'R', 
 		// 	&spread,
 		// ))
-		payloads[count] = manga.NewPagePayload('R', &spread)
+		payloads[count] = manga.NewPagePart('R', &spread)
 		count++
 		return
 	}
@@ -50,14 +50,14 @@ func SplitCheck(img *image.Image, tw, th int, opts *manga.Options) (payloads [3]
 			pageTwo = imaging.Crop(*img, rightBox)
 		}
 
-		payloads[count] = manga.NewPagePayload('1', &pageOne)
-		payloads[count+1] = manga.NewPagePayload('2', &pageTwo)
+		payloads[count] = manga.NewPagePart('1', &pageOne)
+		payloads[count+1] = manga.NewPagePart('2', &pageTwo)
 		count += 2
 	}
 
 	if opts.SpreadSplitter == 1 {
 		spread := image.Image(imaging.Rotate270(*img))
-		payloads[count] = manga.NewPagePayload('R', &spread)
+		payloads[count] = manga.NewPagePart('R', &spread)
 		count++
 	}
 
