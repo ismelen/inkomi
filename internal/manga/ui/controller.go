@@ -22,11 +22,19 @@ func New(s *echo.Echo) {
 func convert(c echo.Context) error {
 	c.Logger().Info("Hola")
 	dto := new(MangaDtos.MangaConvertRequestDTO)
-	if err := c.Bind(dto); err != nil {
-		return c.JSON(http.StatusBadRequest, echo.Map{
-			"error": "Datos invalidos",
-		})
-	}
+
+	dto.Author = c.FormValue("author")
+	// dto.GoogleCloudFolder = c.FormValue("googleCloudFolder")
+	dto.Merge = c.FormValue("merge") == "true"
+	dto.Profile = c.FormValue("profile")
+	// dto.StartingVolumeCount, _ = strconv.Atoi(c.FormValue("startingVolumeCount"))
+	dto.Title = c.FormValue("title")
+	
+	// if err := c.Bind(dto); err != nil {
+	// 	return c.JSON(http.StatusBadRequest, echo.Map{
+	// 		"error": "Datos invalidos",
+	// 	})
+	// }
 
 	form, err := c.MultipartForm()
 	if err != nil {
@@ -35,6 +43,11 @@ func convert(c echo.Context) error {
 		})
 	}
 	files := form.File["files"]
+	if len(files) == 0 {
+		return c.JSON(http.StatusInternalServerError, echo.Map{
+			"error": "No files",
+		})
+	}
 	tempDir := SysUtils.NewTempDir("request")
 
 
@@ -62,14 +75,15 @@ func convert(c echo.Context) error {
 			})
 		}
 	}
-	
+
 	opts := manga.NewOptions(tempDir, dto.Profile, dto.Title, dto.Author, dto.Merge)
 	if err := opts.ValidateAndNormalize(); err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),
 		})
 	}
-	os.RemoveAll(tempDir)
+	defer os.RemoveAll(tempDir)
+	
 
 	w := c.Response().Writer
 	w.Header().Set("Content-Type", "text/event-stream")
@@ -77,13 +91,13 @@ func convert(c echo.Context) error {
 	w.Header().Set("Connection", "keep-alive")
 
 	notifier := SharedInterfaces.Notifier{}
-	observer := MangaConverter.MangaConverterObserver{}
+	observer := MangaConverter.NewObserver()
 	notifier.Register(&observer)
 
 	converter := MangaConverter.New(&opts, &notifier)
 	go converter.Convert()
 
-	paths := observer.ListenHttp(w, c)
+	paths := observer.ListenAndFlush(w, c)
 
 	return c.JSON(http.StatusOK, echo.Map{
 		"urls": paths,

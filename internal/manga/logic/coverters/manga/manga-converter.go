@@ -27,7 +27,7 @@ func New(options *manga.ConverterOptions, notifier *SharedInterfaces.Notifier) M
 }
 
 func (this *MangaConverter) Convert() ([]string, error) {
-	vols, err := this.options.GetVolumes()
+	vols, chaptersCant, err := this.options.GetVolumes()
 	if err != nil {
 		this.notifier.Notify(MangaConverterEvent{
 			Type: EventError,
@@ -42,6 +42,11 @@ func (this *MangaConverter) Convert() ([]string, error) {
 	results := &SharedModels.SyncList{}
 
 	this.launchPageWorkers(pageTasks)
+
+	this.notifier.Notify(MangaConverterEvent{
+		Type: EventStart,
+		Cant: chaptersCant,
+	})
 
 	for _, vol := range vols {
 		vol.Wg.Add(1)
@@ -128,7 +133,6 @@ func (this *MangaConverter) launchPageWorkers(pageTasks chan pageTask) {
 	for i := range cant {
 		go func(id int) {
 			for task := range pageTasks {
-				fmt.Printf("[Worker %d]\t Working on %s\n", id, task.page.Path)
 				converter, err := PageConverter.New(
 					task.page,
 					this.options,

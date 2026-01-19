@@ -7,6 +7,7 @@ const (
 	EventDone
 	EventChapterStart
 	EventPageFinished
+	EventStart
 )
 
 type MangaConverterEvent struct {

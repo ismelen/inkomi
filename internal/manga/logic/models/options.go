@@ -106,16 +106,16 @@ func (this *ConverterOptions) setTitle() {
 	this.Title = StringUtils.NormalizeString(this.Title)
 }
 
-func (this *ConverterOptions) GetVolumes() ([]Volume, error) {
+func (this *ConverterOptions) GetVolumes() ([]Volume, int, error) {
 	hasInputs := len(this.Inputs) > 0
-	if !hasInputs { return nil, fmt.Errorf("No inputs") }
+	if !hasInputs { return nil, 0, fmt.Errorf("No inputs") }
 
 	var chaptersMetadata []Utils.Pair[string, int64]
 
 	
 	for _, path := range this.Inputs {
 		metadata, err := this.getChaptersMetadata(path)
-		if err != nil { return nil, err }
+		if err != nil { return nil, 0, err }
 		
 		chaptersMetadata = append(chaptersMetadata, metadata...)
 	}
@@ -123,6 +123,8 @@ func (this *ConverterOptions) GetVolumes() ([]Volume, error) {
 	slices.SortFunc(chaptersMetadata, func(a, b Utils.Pair[string, int64]) int {
 		return FileUtils.FilenameCmp(a.Fst, b.Fst)
 	})
+
+	chaptersMetadata = chaptersMetadata[:10]
 
 	var volumes []Volume
 
@@ -134,7 +136,7 @@ func (this *ConverterOptions) GetVolumes() ([]Volume, error) {
 				[]*Chapter{chapter},
 			))
 		}
-		return volumes, nil
+		return volumes, len(chaptersMetadata), nil
 	}
 
 	var size int64 = 0
@@ -159,7 +161,7 @@ func (this *ConverterOptions) GetVolumes() ([]Volume, error) {
 		size = 0
 	}
 	
-	return volumes ,nil
+	return volumes , len(chaptersMetadata),nil
 }
 
 func (this *ConverterOptions) getChaptersMetadata(path string) ([]Utils.Pair[string, int64], error) {

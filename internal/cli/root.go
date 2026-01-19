@@ -5,6 +5,7 @@ import (
 	"ismelen/ermc/internal/api"
 	MangaConverter "ismelen/ermc/internal/manga/logic/coverters/manga"
 	manga "ismelen/ermc/internal/manga/logic/models"
+	SharedInterfaces "ismelen/ermc/internal/shared/logic/interfaces"
 	"log"
 
 	"github.com/spf13/cobra"
@@ -22,12 +23,14 @@ var rootCmd = &cobra.Command{
 			return
 		}
 
-		converter := MangaConverter.New(&opts, nil)
-		links, err := converter.Convert()
-		if err != nil {
-			log.Fatal(err)
-			return
-		}
+		notifier := SharedInterfaces.Notifier{}
+		observer := MangaConverter.NewObserver()
+		notifier.Register(&observer)
+
+		converter := MangaConverter.New(&opts, &notifier)
+		go converter.Convert()
+
+		links := observer.ListenAndShow()
 
 		fmt.Println("Outputs: ")
 		for _, link := range links {
