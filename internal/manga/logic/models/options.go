@@ -124,8 +124,6 @@ func (this *ConverterOptions) GetVolumes() ([]Volume, int, error) {
 		return FileUtils.FilenameCmp(a.Fst, b.Fst)
 	})
 
-	chaptersMetadata = chaptersMetadata[:10]
-
 	var volumes []Volume
 
 	if !this.FileFusion {
@@ -184,50 +182,3 @@ func (this *ConverterOptions) getChaptersMetadata(path string) ([]Utils.Pair[str
 
 	return data, nil
 }
-
-// func (this *ConverterOptions) normalizeInputs() error {
-// 	if len(this.Inputs) < 1 {
-// 		return fmt.Errorf("No inputs")
-// 	}
-
-// 	var data []Utils.Pair[string, int64]
-
-// 	if len(this.Inputs) > 1 {
-// 		for _, path := range this.Inputs {
-// 			info, err := os.Stat(path)
-// 			if err != nil {
-// 				return err
-// 			}
-// 			data = append(data, Utils.Pair[string, int64]{
-// 				Fst: path,
-// 				Snd: info.Size(),
-// 			})
-// 		}
-// 	} else {
-// 		ok, err := FileUtils.IsDir(this.Inputs[0])
-// 		if err != nil {
-// 			return err
-// 		}
-// 		if !ok {
-// 			return fmt.Errorf("Not a directory")
-// 		}
-
-// 		data, err = SysUtils.GetChildsInfo(this.Inputs[0])
-// 		if err != nil {
-// 			return err
-// 		}
-// 	}
-
-// 	for _, value := range data {
-// 		this.InputData = append(
-// 			this.InputData,
-// 			NewChapterData(value.Fst, value.Snd),
-// 		)
-// 	}
-
-// 	slices.SortFunc(this.InputData, func(a, b *ChapterData) int {
-// 		return FileUtils.FilenameCmp(a.Path, b.Path)
-// 	})
-
-// 	return nil
-// }
