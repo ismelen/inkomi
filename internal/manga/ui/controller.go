@@ -85,10 +85,10 @@ func convert(c echo.Context) error {
 	defer os.RemoveAll(tempDir)
 	
 
-	w := c.Response().Writer
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
+	c.Response().Header().Set(echo.HeaderContentType, "text/event-stream")
+	c.Response().Header().Set("Cache-Control", "no-cache")
+	c.Response().Header().Set("Connection", "keep-alive")
+	c.Response().WriteHeader(http.StatusOK)
 
 	notifier := SharedInterfaces.Notifier{}
 	observer := MangaConverter.NewObserver()
@@ -97,7 +97,7 @@ func convert(c echo.Context) error {
 	converter := MangaConverter.New(&opts, &notifier)
 	go converter.Convert()
 
-	paths := observer.ListenAndFlush(w, c)
+	paths := observer.ListenAndFlush(c)
 
 	return c.JSON(http.StatusOK, echo.Map{
 		"urls": paths,

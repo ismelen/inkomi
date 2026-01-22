@@ -33,7 +33,7 @@ func (this *MangaConverterObserver) ListenAndShow() []string {
 	})
 }
 
-func (this *MangaConverterObserver) ListenAndFlush(w http.ResponseWriter, c echo.Context) []string {
+func (this *MangaConverterObserver) ListenAndFlush(c echo.Context) []string {
 	return this.listen(func(text string, err error) {
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, echo.Map{
@@ -42,8 +42,8 @@ func (this *MangaConverterObserver) ListenAndFlush(w http.ResponseWriter, c echo
 			return
 		}
 		
-		fmt.Fprintf(w, "data: %s\n\n", text)
-		w.(http.Flusher).Flush()
+		fmt.Fprintf(c.Response(), "data: %s\n\n", text)
+		c.Response().Flush()
 	})
 }
 
