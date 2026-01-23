@@ -2,11 +2,12 @@ package MangaConverter
 
 import (
 	"fmt"
+	"ismelen/ermc/internal/manga/domain/MangaModels"
 	EpubBuilder "ismelen/ermc/internal/manga/logic/builders/epub"
 	PageConverter "ismelen/ermc/internal/manga/logic/coverters/page"
-	manga "ismelen/ermc/internal/manga/logic/models"
 	SharedInterfaces "ismelen/ermc/internal/shared/logic/interfaces"
 	SharedModels "ismelen/ermc/internal/shared/logic/models"
+	"os"
 	"path/filepath"
 	"runtime"
 	"sync"
@@ -15,11 +16,11 @@ import (
 )
 
 type MangaConverter struct {
-	options  *manga.ConverterOptions
+	options  *MangaModels.ConverterOptions
 	notifier *SharedInterfaces.Notifier
 }
 
-func New(options *manga.ConverterOptions, notifier *SharedInterfaces.Notifier) MangaConverter {
+func New(options *MangaModels.ConverterOptions, notifier *SharedInterfaces.Notifier) MangaConverter {
 	return MangaConverter{
 		options:  options,
 		notifier: notifier,
@@ -35,9 +36,10 @@ func (this *MangaConverter) Convert() ([]string, error) {
 		})
 		return nil, err
 	}
-
+	
 	pageTasks := make(chan pageTask)
 	chaptersDir := filepath.Join(this.options.Output, "chapters")
+	defer os.RemoveAll(chaptersDir)
 	var buildGroup errgroup.Group
 	results := &SharedModels.SyncList{}
 
@@ -51,7 +53,7 @@ func (this *MangaConverter) Convert() ([]string, error) {
 	for _, vol := range vols {
 		vol.Wg.Add(1)
 
-		go func(v manga.Volume) {
+		go func(v MangaModels.Volume) {
 			defer vol.Wg.Done()
 			for _, chap := range v.Chapters {
 				pages, err := chap.GetPages(chaptersDir)
@@ -100,11 +102,11 @@ func (this *MangaConverter) Convert() ([]string, error) {
 	}
 	close(pageTasks)
 
-	this.notifier.Notify(MangaConverterEvent{Type: EventDone})
+	this.notifier.Notify(MangaConverterEvent{Type: EventDone, Paths: results.Values})
 	return results.Values, nil
 }
 
-func (this *MangaConverter) generateOutput(dstFileName string, chapters ...*manga.Chapter) (path string, err error) {
+func (this *MangaConverter) generateOutput(dstFileName string, chapters ...*MangaModels.Chapter) (path string, err error) {
 	switch this.options.Format {
 	case "Auto", "CBZ", "PDF", "EPUB":
 		builder := EpubBuilder.New(this.options, dstFileName, chapters...)
@@ -119,7 +121,7 @@ func (this *MangaConverter) generateOutput(dstFileName string, chapters ...*mang
 }
 
 type pageTask struct {
-	page *manga.Page
+	page *MangaModels.Page
 	num  int
 	wg   *sync.WaitGroup
 }

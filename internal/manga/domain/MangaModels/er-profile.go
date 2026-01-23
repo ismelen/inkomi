@@ -1,4 +1,4 @@
-package manga
+package MangaModels
 
 type ERProfile struct {
 	Label   string

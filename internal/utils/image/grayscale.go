@@ -1,11 +1,11 @@
 package ImageUtils
 
 import (
-	manga "ismelen/ermc/internal/manga/logic/models"
+	"ismelen/ermc/internal/manga/domain/MangaModels"
 
 	"github.com/disintegration/imaging"
 )
 
-func ConvertToGrayscale(payload *manga.PagePart) {
+func ConvertToGrayscale(payload *MangaModels.PagePart) {
 	(*payload.Image) = imaging.Grayscale((*payload.Image))
 }

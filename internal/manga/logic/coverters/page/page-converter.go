@@ -3,7 +3,7 @@ package PageConverter
 import (
 	"fmt"
 	"image"
-	manga "ismelen/ermc/internal/manga/logic/models"
+	"ismelen/ermc/internal/manga/domain/MangaModels"
 	FileUtils "ismelen/ermc/internal/utils/file"
 	ImageUtils "ismelen/ermc/internal/utils/image"
 	"path/filepath"
@@ -14,12 +14,12 @@ import (
 )
 
 type PageConverter struct {
-	page *manga.Page
-	opts *manga.ConverterOptions
+	page *MangaModels.Page
+	opts *MangaModels.ConverterOptions
 	chapterName string
 }
 
-func New(page *manga.Page, opts *manga.ConverterOptions) (*PageConverter, error) {
+func New(page *MangaModels.Page, opts *MangaModels.ConverterOptions) (*PageConverter, error) {
 	img, err := imaging.Open(page.Path)
 	if err != nil {
 		return nil, err
@@ -57,7 +57,7 @@ func (t *PageConverter) Convert(pageNum int) error {
 	return nil
 }
 
-func (t *PageConverter) ConvertPayload(pageNum int, part *manga.PagePart) error{
+func (t *PageConverter) ConvertPayload(pageNum int, part *MangaModels.PagePart) error{
 	switch t.opts.CroppingMode {
 	case 2:
 		ImageUtils.CropPageNumber(
@@ -94,7 +94,7 @@ func (t *PageConverter) ConvertPayload(pageNum int, part *manga.PagePart) error{
 }
 
 
-func (t *PageConverter) isColor(payload *manga.PagePart) bool {
+func (t *PageConverter) isColor(payload *MangaModels.PagePart) bool {
 	switch (*payload.Image).(type) {
 	case *image.Gray:
 		return false
@@ -107,7 +107,7 @@ func (t *PageConverter) isColor(payload *manga.PagePart) bool {
 	return detector.CalculateColor(*payload.Image)
 }
 
-func (t *PageConverter) SaveToDir(pageNum int, payload *manga.PagePart) error {
+func (t *PageConverter) SaveToDir(pageNum int, payload *MangaModels.PagePart) error {
 	title := fmt.Sprintf("ermc-%d%s", pageNum, payload.TargetPathOrder)
 	path, err := FileUtils.SaveWithCodec(
 		payload.Image,

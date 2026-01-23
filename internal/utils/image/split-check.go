@@ -2,18 +2,18 @@ package ImageUtils
 
 import (
 	"image"
-	manga "ismelen/ermc/internal/manga/logic/models"
+	"ismelen/ermc/internal/manga/domain/MangaModels"
 
 	"github.com/disintegration/imaging"
 )
 
-func SplitCheck(img *image.Image, tw, th int, opts *manga.ConverterOptions) (payloads [3]*manga.PagePart, count int8) {
+func SplitCheck(img *image.Image, tw, th int, opts *MangaModels.ConverterOptions) (payloads [3]*MangaModels.PagePart, count int8) {
 	w := (*img).Bounds().Dx()
 	h := (*img).Bounds().Dy()
 
 	if (w > h) == (tw > th) {
-		// page.Payloads = append(page.Payloads, manga.NewPagePayload('N', img))
-		payloads[count] = manga.NewPagePart('N', img)
+		// page.Payloads = append(page.Payloads, MangaModels.NewPagePayload('N', img))
+		payloads[count] = MangaModels.NewPagePart('N', img)
 		count++
 		return
 	}
@@ -22,11 +22,11 @@ func SplitCheck(img *image.Image, tw, th int, opts *manga.ConverterOptions) (pay
 		h <= tw && 
 		opts.SpreadSplitter == 2 {
 		spread := image.Image(imaging.Rotate270(*img))
-		// page.Payloads = append(page.Payloads, manga.NewPagePayload(
+		// page.Payloads = append(page.Payloads, MangaModels.NewPagePayload(
 		// 	'R', 
 		// 	&spread,
 		// ))
-		payloads[count] = manga.NewPagePart('R', &spread)
+		payloads[count] = MangaModels.NewPagePart('R', &spread)
 		count++
 		return
 	}
@@ -50,14 +50,14 @@ func SplitCheck(img *image.Image, tw, th int, opts *manga.ConverterOptions) (pay
 			pageTwo = imaging.Crop(*img, rightBox)
 		}
 
-		payloads[count] = manga.NewPagePart('1', &pageOne)
-		payloads[count+1] = manga.NewPagePart('2', &pageTwo)
+		payloads[count] = MangaModels.NewPagePart('1', &pageOne)
+		payloads[count+1] = MangaModels.NewPagePart('2', &pageTwo)
 		count += 2
 	}
 
 	if opts.SpreadSplitter == 1 {
 		spread := image.Image(imaging.Rotate270(*img))
-		payloads[count] = manga.NewPagePart('R', &spread)
+		payloads[count] = MangaModels.NewPagePart('R', &spread)
 		count++
 	}
 

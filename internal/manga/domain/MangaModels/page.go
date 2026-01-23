@@ -1,4 +1,4 @@
-package manga
+package MangaModels
 
 type Page struct {
 	Count      int8

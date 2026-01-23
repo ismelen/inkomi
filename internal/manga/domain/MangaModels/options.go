@@ -1,4 +1,4 @@
-package manga
+package MangaModels
 
 import (
 	"fmt"
@@ -48,7 +48,7 @@ func NewOptions(input, profile, title, author string, merge bool) ConverterOptio
 		Author: author,
 		Format: "EPUB",
 		TargetSize: 200,
-		LowRAM: true,
+		LowRAM: false,
 
 		Manga: true,
 		SpreadShift: true,

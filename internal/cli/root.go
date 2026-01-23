@@ -3,15 +3,15 @@ package cli
 import (
 	"fmt"
 	"ismelen/ermc/internal/api"
+	"ismelen/ermc/internal/manga/domain/MangaModels"
 	MangaConverter "ismelen/ermc/internal/manga/logic/coverters/manga"
-	manga "ismelen/ermc/internal/manga/logic/models"
 	SharedInterfaces "ismelen/ermc/internal/shared/logic/interfaces"
 	"log"
 
 	"github.com/spf13/cobra"
 )
 
-var opts = manga.ConverterOptions{}
+var opts = MangaModels.ConverterOptions{}
 
 var rootCmd = &cobra.Command{
 	Use:   "ermc",

@@ -1,8 +1,8 @@
 package ImageUtils
 
-import manga "ismelen/ermc/internal/manga/logic/models"
+import "ismelen/ermc/internal/manga/domain/MangaModels"
 
-func OptimizeForDisplay(payload *manga.PagePart) {
+func OptimizeForDisplay(payload *MangaModels.PagePart) {
 	bounds := (*payload.Image).Bounds()
 	if bounds.Dx() > 1 && bounds.Dy() > 1 {
 		EraseRainbowArtifacts(payload.Image)

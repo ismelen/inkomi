@@ -3,6 +3,7 @@ package MangaConverter
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/labstack/echo/v4"
 )
@@ -17,14 +18,14 @@ func NewObserver() MangaConverterObserver {
 	}
 }
 
-func (this *MangaConverterObserver) OnNotify(event any) {
+func (this MangaConverterObserver) OnNotify(event any) {
 	e := event.(MangaConverterEvent)
 	this.EventChan <- e
 }
 
 
 func (this *MangaConverterObserver) ListenAndShow() []string {
-	return this.listen(func(text string, err error) {
+	return this.Listen(func(text string, err error) {
 		if err != nil {
 			fmt.Println(err.Error())
 			return
@@ -33,25 +34,53 @@ func (this *MangaConverterObserver) ListenAndShow() []string {
 	})
 }
 
-func (this *MangaConverterObserver) ListenAndFlush(c echo.Context) []string {
-	return this.listen(func(text string, err error) {
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, echo.Map{
-				"error": err.Error(),
-			})
-			return
+func (this *MangaConverterObserver) ListenAndFlush(c echo.Context, timeSpan time.Duration) []string {
+	ticker := time.NewTicker(timeSpan)
+	defer ticker.Stop()
+	paths := []string{}
+
+	var lastMsg *string
+	errChan := make(chan string)
+
+	ctx := c.Request().Context()
+
+	go func() {
+		paths = this.Listen(func(text string, err error) {
+			if err != nil {
+				errChan <- err.Error()
+				return
+			}
+			lastMsg = &text
+		})
+	}()
+
+	for {
+		if len(paths) > 0 { break }
+		select{
+			case <-ctx.Done():{
+				return nil
+			}
+			case  <- ticker.C: {
+				if lastMsg == nil { continue }
+				fmt.Fprintf(c.Response(), "data: %s\n\n", *lastMsg)
+				c.Response().Flush()
+				lastMsg = nil
+			}
+			case err := <- errChan: {
+				c.JSON(http.StatusInternalServerError, echo.Map{
+					"error": err,
+				})
+			}
 		}
-		
-		fmt.Fprintf(c.Response(), "data: %s\n\n", text)
-		c.Response().Flush()
-	})
+	}
+
+	return paths
 }
 
-func (this *MangaConverterObserver) listen(onEvent func(text string, err error)) []string {
+func (this *MangaConverterObserver) Listen(onEvent func(text string, err error)) []string {
 	var paths []string
 	var cantChapters, totalChapters, pagesCompleted int
 	var avgPagesPerChapter float64
-
 
 	for event := range this.EventChan {
 		switch event.Type {

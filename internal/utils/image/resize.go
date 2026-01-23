@@ -1,7 +1,7 @@
 package ImageUtils
 
 import (
-	manga "ismelen/ermc/internal/manga/logic/models"
+	"ismelen/ermc/internal/manga/domain/MangaModels"
 
 	"github.com/disintegration/imaging"
 )
@@ -13,7 +13,7 @@ var filters = map[string]imaging.ResampleFilter{
 
 const AUTO_CROP_THRESHOLD = 0.015
 
-func ResizeImage(payload *manga.PagePart, stretchUpscaleMode int, tW, tH int) {
+func ResizeImage(payload *MangaModels.PagePart, stretchUpscaleMode int, tW, tH int) {
 	
 	bounds := (*payload.Image).Bounds()
 	imgH, imgW := bounds.Dy(), bounds.Dx()

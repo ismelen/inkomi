@@ -2,20 +2,20 @@ package ImageUtils
 
 import (
 	"image"
-	manga "ismelen/ermc/internal/manga/logic/models"
+	"ismelen/ermc/internal/manga/domain/MangaModels"
 
 	"github.com/disintegration/imaging"
 )
 
-func CropPageNumber(payload *manga.PagePart, hasWhiteBg bool, preserveMargin float64) {
+func CropPageNumber(payload *MangaModels.PagePart, hasWhiteBg bool, preserveMargin float64) {
 	cropFunc(payload, hasWhiteBg, preserveMargin, CalculateBboxAgresive)
 }
 
-func CropMargins(payload *manga.PagePart, hasWhiteBg bool, preserveMargin float64) {
+func CropMargins(payload *MangaModels.PagePart, hasWhiteBg bool, preserveMargin float64) {
 	cropFunc(payload, hasWhiteBg, preserveMargin, CalculateBbox)
 }
 
-func cropFunc(payload *manga.PagePart, hasWhiteBg bool, preserveMargin float64, cropper func (img image.Image, hasWhiteBg bool) BBox) {
+func cropFunc(payload *MangaModels.PagePart, hasWhiteBg bool, preserveMargin float64, cropper func (img image.Image, hasWhiteBg bool) BBox) {
 	img := image.Image(imaging.AdjustContrast(*payload.Image, 100))
 	img = imaging.Grayscale(img)
 	

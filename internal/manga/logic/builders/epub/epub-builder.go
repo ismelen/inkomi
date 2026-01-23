@@ -6,7 +6,7 @@ import (
 	"context"
 	"fmt"
 	"io"
-	manga "ismelen/ermc/internal/manga/logic/models"
+	"ismelen/ermc/internal/manga/domain/MangaModels"
 	EpubTemplates "ismelen/ermc/internal/manga/logic/templates/epub"
 	"math"
 	"os"
@@ -19,15 +19,15 @@ import (
 )
 
 type EpubBuilder struct {
-	opts        *manga.ConverterOptions
-	chapters    []*manga.Chapter
+	opts        *MangaModels.ConverterOptions
+	chapters    []*MangaModels.Chapter
 	dstFileName string
 }
 
 var imagesPath = filepath.Join("OEBPS", "Images")
 var textPath = filepath.Join("OEBPS", "Text")
 
-func New(opts *manga.ConverterOptions, dstFileName string, chapters ...*manga.Chapter) *EpubBuilder {
+func New(opts *MangaModels.ConverterOptions, dstFileName string, chapters ...*MangaModels.Chapter) *EpubBuilder {
 	return &EpubBuilder{opts, chapters, dstFileName}
 }
 
@@ -198,7 +198,7 @@ func (this *EpubBuilder) addFile(z *zip.Writer, zipPath string, content string) 
 	return &w, nil
 }
 
-func (this *EpubBuilder) BuildHTML(z *zip.Writer, payload *manga.PagePart, page *manga.Page, chapterName string) (err error) {
+func (this *EpubBuilder) BuildHTML(z *zip.Writer, payload *MangaModels.PagePart, page *MangaModels.Page, chapterName string) (err error) {
 	aditionalStyle := ""
 	if !page.HasWhiteBg {
 		aditionalStyle = "background-color:#000000;"
