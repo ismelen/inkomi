@@ -3,7 +3,7 @@ package PageConverter
 import (
 	"fmt"
 	"image"
-	"ismelen/ermc/internal/manga/domain/MangaModels"
+	MangaModels "ismelen/ermc/internal/manga/domain/models"
 	FileUtils "ismelen/ermc/internal/utils/file"
 	ImageUtils "ismelen/ermc/internal/utils/image"
 	"path/filepath"

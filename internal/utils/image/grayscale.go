@@ -1,7 +1,7 @@
 package ImageUtils
 
 import (
-	"ismelen/ermc/internal/manga/domain/MangaModels"
+	MangaModels "ismelen/ermc/internal/manga/domain/models"
 
 	"github.com/disintegration/imaging"
 )

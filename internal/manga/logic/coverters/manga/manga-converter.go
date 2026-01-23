@@ -2,7 +2,7 @@ package MangaConverter
 
 import (
 	"fmt"
-	"ismelen/ermc/internal/manga/domain/MangaModels"
+	MangaModels "ismelen/ermc/internal/manga/domain/models"
 	EpubBuilder "ismelen/ermc/internal/manga/logic/builders/epub"
 	PageConverter "ismelen/ermc/internal/manga/logic/coverters/page"
 	SharedInterfaces "ismelen/ermc/internal/shared/logic/interfaces"

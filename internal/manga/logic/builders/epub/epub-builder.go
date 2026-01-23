@@ -6,7 +6,7 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"ismelen/ermc/internal/manga/domain/MangaModels"
+	MangaModels "ismelen/ermc/internal/manga/domain/models"
 	EpubTemplates "ismelen/ermc/internal/manga/logic/templates/epub"
 	"math"
 	"os"

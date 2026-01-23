@@ -1,6 +1,6 @@
 package ImageUtils
 
-import "ismelen/ermc/internal/manga/domain/MangaModels"
+import MangaModels "ismelen/ermc/internal/manga/domain/models"
 
 func OptimizeForDisplay(payload *MangaModels.PagePart) {
 	bounds := (*payload.Image).Bounds()

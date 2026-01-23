@@ -3,7 +3,7 @@ package cli
 import (
 	"fmt"
 	"ismelen/ermc/internal/api"
-	"ismelen/ermc/internal/manga/domain/MangaModels"
+	MangaModels "ismelen/ermc/internal/manga/domain/models"
 	MangaConverter "ismelen/ermc/internal/manga/logic/coverters/manga"
 	SharedInterfaces "ismelen/ermc/internal/shared/logic/interfaces"
 	"log"

@@ -3,8 +3,8 @@ package MangaController
 import (
 	"fmt"
 	"io"
-	"ismelen/ermc/internal/manga/domain/MangaModels"
 	MangaDtos "ismelen/ermc/internal/manga/domain/dtos"
+	MangaModels "ismelen/ermc/internal/manga/domain/models"
 	MangaConverter "ismelen/ermc/internal/manga/logic/coverters/manga"
 	SharedInterfaces "ismelen/ermc/internal/shared/logic/interfaces"
 	SysUtils "ismelen/ermc/internal/utils/sys"
