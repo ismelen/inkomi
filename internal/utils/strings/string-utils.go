@@ -35,3 +35,10 @@ func NormalizeString(value string) string {
 
 	return result
 }
+
+func Toggle(value, fst, snd string) string {
+	if value == fst {
+		return snd
+	}
+	return fst
+}

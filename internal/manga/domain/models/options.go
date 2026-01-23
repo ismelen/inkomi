@@ -182,3 +182,32 @@ func (this *ConverterOptions) getChaptersMetadata(path string) ([]Utils.Pair[str
 
 	return data, nil
 }
+
+func (this *ConverterOptions) GetWritingMode() string {
+	if this.Manga {
+		return "horizontal-rl" 
+	}
+	return "horizontal-lr"
+}
+
+func (this *ConverterOptions) GetPageProgression() string {
+	if this.Manga {
+		return "rtl"
+	}
+	return "ltr"
+}
+
+func (this *ConverterOptions) GetPageSide() string {
+	if this.Manga {
+		return "right"
+	}
+	return "left"
+}
+
+func (this *ConverterOptions) GetSpreadShiftPageSide() string {
+	side := this.GetPageSide()
+	if this.SpreadShift {
+		return StringUtils.Toggle(side, "right", "left")
+	}
+	return side
+}

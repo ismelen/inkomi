@@ -2,6 +2,7 @@ package MangaModels
 
 import (
 	"image"
+	"math"
 )
 
 type PagePart struct {
@@ -22,6 +23,12 @@ var PathOrders = map[rune]string{
 	'R': "-ermc-d",
 	'1': "-ermc-b",
 	'2': "-ermc-c",
+}
+
+var SpreadProperties = map[rune]string {
+	'R': "center",
+	'1': "right",
+	'2': "left",
 }
 
 func NewPagePart(mode rune, img *image.Image) *PagePart {
@@ -47,4 +54,9 @@ func NewPagePart(mode rune, img *image.Image) *PagePart {
 	payload.Rotated = mode == 'R'
 
 	return payload
+}
+
+func (this *PagePart) GetTopMargin(deviceHeight int) float64 {
+	y := ((deviceHeight - this.H) / 2) / deviceHeight * 100
+	return math.Round(float64(y*10)) / 10
 }

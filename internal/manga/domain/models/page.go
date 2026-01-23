@@ -10,3 +10,11 @@ type Page struct {
 func NewPage(path string) *Page {
 	return &Page{Path: path, Count: 1}
 }
+
+func (this *Page) GetCSSBgStyle() string {
+	if !this.HasWhiteBg {
+		return ""
+	}
+
+	return "background-color:#000000;"
+}
