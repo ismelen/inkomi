@@ -1,17 +1,12 @@
-package ImageUtils
+package image
 
 import (
-	"image"
 	"image/color"
 )
 
-type ColorDetector struct {
-	ForceColor bool
-}
-
-func (d *ColorDetector) CalculateColor(img image.Image) bool {
+func (ip *ImageProcessor) IsColored() bool {
 	// 1. Obtener histogramas de Cb y Cr
-	cbHist, crHist := getYCbCrHistograms(img)
+	cbHist, crHist := ip.getYCbCrHistograms()
 
 	// Definición de las pasadas (cutoff, diffThreshold)
 	// Nota: En tu Python usas floats (.2) y enteros (3). Aquí los manejamos como floats.
@@ -25,7 +20,7 @@ func (d *ColorDetector) CalculateColor(img image.Image) bool {
 	}
 
 	for _, step := range steps {
-		done, decision := d.colorPrecision(cbHist, crHist, step.cutoff, step.diffThreshold)
+		done, decision := ip.colorPrecision(cbHist, crHist, step.cutoff, step.diffThreshold)
 		if done {
 			return decision
 		}
@@ -34,11 +29,11 @@ func (d *ColorDetector) CalculateColor(img image.Image) bool {
 	return false
 }
 
-func getYCbCrHistograms(img image.Image) (cbHist [256]int, crHist [256]int) {
-	bounds := img.Bounds()
+func (ip *ImageProcessor) getYCbCrHistograms() (cbHist [256]int, crHist [256]int) {
+	bounds := (*ip.Img).Bounds()
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
-			c := img.At(x, y)
+			c := (*ip.Img).At(x, y)
 			// Convertimos el color actual a YCbCr
 			cycbcr := color.YCbCrModel.Convert(c).(color.YCbCr)
 			cbHist[cycbcr.Cb]++
@@ -48,7 +43,7 @@ func getYCbCrHistograms(img image.Image) (cbHist [256]int, crHist [256]int) {
 	return
 }
 
-func (d *ColorDetector) colorPrecision(cbHistOrig, crHistOrig [256]int, cutoff float64, diffThreshold int) (bool, bool) {
+func (d *ImageProcessor) colorPrecision(cbHistOrig, crHistOrig [256]int, cutoff float64, diffThreshold int) (bool, bool) {
 	// Aplicar cutoff (limpieza de ruido en los extremos del histograma)
 	cbHist := applyCutoff(cbHistOrig, cutoff)
 	crHist := applyCutoff(crHistOrig, cutoff)
@@ -66,7 +61,7 @@ func (d *ColorDetector) colorPrecision(cbHistOrig, crHistOrig [256]int, cutoff f
 
 	const SpreadThreshold = 7
 
-	if d.ForceColor {
+	if d.forceColor {
 		if cbMin > 128 || crMin > 128 || cbMax < 128 || crMax < 128 {
 			return true, true
 		}
@@ -87,7 +82,7 @@ func applyCutoff(hist [256]int, cutoff float64) [256]int {
 	if cutoff <= 0 {
 		return hist
 	}
-	
+
 	total := 0
 	for _, v := range hist {
 		total += v
