@@ -68,9 +68,9 @@ func NewSettings(author, title, profile string, merge bool, FirstVolumeNum int) 
 		return nil, err
 	}
 
-	var targetSize int64 = 200
-	if !merge {
-		targetSize = 0
+	var targetSize int64 
+	if merge {
+		targetSize = 200 << 20
 	}
 
 	if title == "" {
@@ -82,6 +82,7 @@ func NewSettings(author, title, profile string, merge bool, FirstVolumeNum int) 
 		Title:      title,
 		Profile:    &eReaderProfile,
 		TargetSize: targetSize,
+		Merge: merge,
 		Output: OutputPaths{
 			Base:     output,
 			Chapters: filepath.Join(output, "chapters"),
