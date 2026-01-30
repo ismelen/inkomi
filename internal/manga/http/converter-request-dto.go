@@ -7,4 +7,6 @@ type ConverterRequestDTO struct {
 	Merge          bool   `form:"merge"`
 	FirstVolumeNum int    `form:"firstVolumeNum"`
 	Format         string `form:"format"`
+	CloudToken     string `form:"cloudToken"`
+	CloudFolder    string `from:"cloudFolder"`
 }

@@ -2,6 +2,7 @@ package manga
 
 import (
 	"fmt"
+	"ismelen/ermc/internal/cloud"
 	"ismelen/ermc/internal/domain"
 	"ismelen/ermc/internal/manga"
 	"ismelen/ermc/internal/pkg"
@@ -36,6 +37,18 @@ func (h *Handler) handleConvert(c echo.Context) error {
 		return err
 	}
 
+	
+	cloudService := "google"
+	if dto.CloudToken == "" {
+		cloudService = "tempfile"
+	}
+
+	cloud, err := cloud.GetCloud(cloudService)
+	if err != nil {
+		// TODO: Return user
+	}
+	cloud.Init(dto.CloudToken, dto.CloudFolder)
+
 	settings, err := domain.NewSettings(
 		dto.Author,
 		dto.Title,
@@ -66,6 +79,14 @@ func (h *Handler) handleConvert(c echo.Context) error {
 	if err != nil {
 		fmt.Println(err)
 		return err
+	}
+
+	for _, path := range paths {
+		if err := cloud.Upload(path); err != nil {
+			return c.JSON(http.StatusInternalServerError, echo.Map{
+				"error": "Couldn't upload files to cloud",
+			})
+		}
 	}
 
 	return c.JSON(http.StatusOK, echo.Map{
