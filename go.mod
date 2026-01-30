@@ -6,9 +6,9 @@ require (
 	github.com/disintegration/imaging v1.6.2
 	github.com/google/uuid v1.6.0
 	github.com/labstack/echo/v4 v4.15.0
-	github.com/mjibson/go-dsp v0.0.0-20180508042940-11479a337f12
 	github.com/pgaskin/kepubify/v4 v4.0.4
 	github.com/spf13/cobra v1.10.2
+	golang.org/x/image v0.34.0
 	golang.org/x/sync v0.19.0
 	golang.org/x/text v0.32.0
 )
@@ -26,7 +26,6 @@ require (
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
 	golang.org/x/crypto v0.46.0 // indirect
-	golang.org/x/image v0.34.0 // indirect
 	golang.org/x/net v0.48.0 // indirect
 	golang.org/x/sys v0.39.0 // indirect
 	golang.org/x/time v0.14.0 // indirect
