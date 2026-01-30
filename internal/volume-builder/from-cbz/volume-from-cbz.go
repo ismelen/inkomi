@@ -5,7 +5,6 @@ import (
 	"ismelen/ermc/internal/domain"
 	"ismelen/ermc/internal/pkg"
 	"mime/multipart"
-	"os"
 )
 
 type VolumeFromCbz struct{}
@@ -60,7 +59,7 @@ func (v *VolumeFromCbz) FromMultipart(settings *domain.Settings, files ...*multi
 	return volumes, nil
 }
 
-func (v *VolumeFromCbz) FromPaths(settings *domain.Settings, files ...os.DirEntry) ([]*domain.Volume, error) {
+func (v *VolumeFromCbz) FromPaths(settings *domain.Settings, files ...pkg.Pair[string, int64]) ([]*domain.Volume, error) {
 	var volumes []*domain.Volume
 	var size int64
 	volIdx := settings.FirstVolumeNum
@@ -71,24 +70,20 @@ func (v *VolumeFromCbz) FromPaths(settings *domain.Settings, files ...os.DirEntr
 	}
 
 	for idx, file := range files {
-		info, err := file.Info()
-		if err != nil {
-			return nil, err
-		}
-
-		size += info.Size()
+		size += file.Snd
 		isLast := idx >= len(files)-1
 
-		pagePaths, err := pkg.UnizpFile(file, settings.Output.Chapters)
+		pagePaths, err := pkg.UnizpFile(file.Fst, settings.Output.Chapters)
 		if err != nil {
 			return nil, err
 		}
 
 		var pages []*domain.Page
 		for _, path := range pagePaths {
+			if !pkg.IsImage(path) { continue }
 			pages = append(pages, domain.NewPage(path))
 		}
-		chapter := domain.NewChapter(file.Name(), info.Size(), pages)
+		chapter := domain.NewChapter(file.Fst, file.Snd, pages)
 		chapters = append(chapters, chapter)
 
 		if size < settings.TargetSize && !isLast {
