@@ -3,6 +3,7 @@ package domain
 import (
 	"image"
 	IMG "ismelen/ermc/internal/image"
+	"ismelen/ermc/internal/pkg"
 	"math"
 	"path/filepath"
 	"strings"
@@ -30,6 +31,7 @@ type PagePart struct {
 	Width, Height int
 	Path          string
 	Name          string
+	Ext string
 	ChapterName   string
 	Split         IMG.SplitOperation
 }
@@ -58,13 +60,14 @@ func NewPagePart(img *image.Image, splitOperation IMG.SplitOperation) *PagePart 
 }
 
 func (pp *PagePart) SetPath(path string) {
-	chapterName := filepath.Dir(path)
+	chapterName := filepath.Base(filepath.Dir(path))
 	ext := filepath.Ext(path)
 	name := strings.TrimSuffix(filepath.Base(path), ext)
 
 	pp.Path = path
 	pp.Name = name
-	pp.ChapterName = chapterName
+	pp.Ext = ext
+	pp.ChapterName = pkg.NormalizeString(chapterName)
 }
 
 func (pp *PagePart) GetTopMargin(deviceHeight int) float64 {
