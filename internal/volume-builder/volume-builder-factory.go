@@ -10,7 +10,7 @@ import (
 
 func GetBuilder(fileExt string) (BuilderI, error) {
 	switch fileExt {
-	case "cbz":
+	case ".cbz":
 		return &fromCbz.VolumeFromCbz{}, nil
 	default:
 		return nil, echo.NewHTTPError(
