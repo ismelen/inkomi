@@ -8,6 +8,7 @@ import (
 	volumeBuilder "ismelen/ermc/internal/volume-builder"
 	"log"
 	"path/filepath"
+	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -19,6 +20,8 @@ var Cmd = &cobra.Command{
 	Short: "The converter",
 	Long:  "This converter will merge all chapters (if checked) in chunks of 200 MB",
 	Run: func(cmd *cobra.Command, args []string) {
+		start := time.Now()
+		
 		settings, err := domain.NewSettings(
 			request.Author,
 			request.Title,
@@ -48,6 +51,8 @@ var Cmd = &cobra.Command{
 		for _, path := range paths {
 			fmt.Println(path)
 		}
+
+		fmt.Printf("Time elapsed: %v\n", time.Since(start))
 	},
 }
 
@@ -64,6 +69,13 @@ func init() {
 
 func getVolumes(dir string, settings *domain.Settings) ([]*domain.Volume, error) {
 	files, err := pkg.GetChildsInfo(dir)
+
+	var size int64
+	for _, file := range files {
+		size += file.Snd
+	}
+	fmt.Printf("Total processed: %v MB\n", size >> 20)
+	
 	if err != nil {
 		log.Fatal(err)
 	}
