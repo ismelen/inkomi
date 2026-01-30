@@ -7,7 +7,8 @@ import (
 )
 
 func (ip *ImageProcessor) CropMargins() {
-	img := image.Image(imaging.AdjustContrast(*ip.Img, 100))
+	img := *ip.Img
+	img = image.Image(imaging.AdjustContrast(img, 100))
 	img = imaging.Grayscale(img)
 
 	box := ip.GetBBox(img, ip.hasWhiteBg)

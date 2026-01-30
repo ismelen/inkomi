@@ -28,7 +28,6 @@ func (ip *ImageProcessor) GetBBox(img image.Image, checkWhite bool) bBox {
 	w, h := dim.Dx(), dim.Dy()
 	maxX := int(0.1 * float64(w))
 	maxY := int(0.1 * float64(h))
-	checkWhite = !checkWhite
 
 	top := side{
 		vector:       1,
