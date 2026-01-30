@@ -2,12 +2,11 @@ package manga
 
 import (
 	"fmt"
-	documentBuilder "ismelen/ermc/internal/document-builder"
 	"ismelen/ermc/internal/domain"
 	"ismelen/ermc/internal/manga"
+	"ismelen/ermc/internal/pkg"
 	volumeBuilder "ismelen/ermc/internal/volume-builder"
 	"log"
-	"os"
 	"path/filepath"
 
 	"github.com/spf13/cobra"
@@ -32,18 +31,15 @@ var Cmd = &cobra.Command{
 		}
 
 		volumes, err := getVolumes(request.InputDir, settings)
+		if err != nil {
+			log.Fatal(err)
+		}
 
 		settings.SetImageSettings(domain.NewDefaultImageSettings())
 		settings.SetVolumes(volumes)
 
-		documentBuilder, err := documentBuilder.GetBuilder(request.Format)
-		if err != nil {
-			log.Fatal(err)
-		}
-		documentBuilder.SetSettings(settings)
-
-		converter := manga.NewConverter(settings, documentBuilder, int64(request.RamLimit))
-		paths, err := converter.Convert()
+		converter := manga.NewConverter(settings, int64(request.RamLimit))
+		paths, err := converter.Convert(request.Format)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -63,19 +59,16 @@ func init() {
 	Cmd.PersistentFlags().IntVarP(&request.FirstVolumeNum, "firstVolumeNum", "n", 0, "Volume num to start counting")
 	Cmd.PersistentFlags().StringVarP(&request.Format, "format", "f", "epub", "Result format")
 	Cmd.PersistentFlags().StringVarP(&request.InputDir, "input", "i", "", "Input directory")
-	Cmd.PersistentFlags().IntVarP(&request.RamLimit, "ram", "r", 8000, "Ram limit")
+	Cmd.PersistentFlags().IntVarP(&request.RamLimit, "ram", "r", 3000, "Ram limit")
 }
 
 func getVolumes(dir string, settings *domain.Settings) ([]*domain.Volume, error) {
-	files, err := os.ReadDir(dir)
+	files, err := pkg.GetChildsInfo(dir)
 	if err != nil {
 		log.Fatal(err)
 	}
-	if len(files) == 0 {
-		log.Fatal(fmt.Errorf("No files to convert"))
-	}
 
-	fileExt := filepath.Ext(files[0].Name())
+	fileExt := filepath.Ext(files[0].Fst)
 
 	builder, err := volumeBuilder.GetBuilder(fileExt)
 	if err != nil {
