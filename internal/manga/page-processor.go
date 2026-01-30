@@ -32,47 +32,33 @@ func (pp *PageProcessor) ProcessNewPage(page *domain.Page, num int) error {
 	}
 
 	page.HasWhiteBg = processor.HasWhiteBg()
+	processor.CropMargins()
 
 	isColor := pp.settings.ForceColor && processor.IsColored()
 	if !isColor {
 		processor.Grayscale()
 	}
 
-	if pp.settings.RemoveRainbowEffect {
+	if pp.settings.RemoveRainbowEffect && isColor {
 		processor.RemoveRainbowEffect()
 	}
 
-	partProcessors := processor.TrySplit(pp.settings.SpreadSplitter == 2)
-	if pp.settings.SpreadSplitter != 1 && len(partProcessors) > 2 {
-		partProcessors = partProcessors[:2]
+	partPrcs := processor.TrySplit(pp.settings.SpreadSplitter == 2)
+	
+	if pp.settings.SpreadSplitter != 1 && len(partPrcs) > 2 {
+		partPrcs = partPrcs[:2]
 	}
 
-	if len(partProcessors) >= 2 && pp.settings.RightToLeft {
-		aux := partProcessors[1]
-		partProcessors[1] = partProcessors[0]
-		partProcessors[0] = aux
-	}
-
-	dir := filepath.Dir(page.Path)
-
-	for _, partProcessor := range partProcessors {
-		partProcessor.Resize()
+	for _, partPrc := range partPrcs {
+		partPrc.Resize()
 		part := domain.NewPagePart(
-			partProcessor.Img,
-			partProcessor.SplitOperation,
+			partPrc.Img,
+			partPrc.SplitOperation,
 		)
 
-		if pp.settings.RightToLeft {
-			switch partProcessor.SplitOperation {
-			case image.ToLeft:
-				partProcessor.SplitOperation = image.ToRight
-			case image.ToRight:
-				partProcessor.SplitOperation = image.ToLeft
-			}
-		}
-
+		dir := filepath.Dir(page.Path)
 		path := filepath.Join(dir, fmt.Sprintf("ermc-%d%c", num, part.PathOrder))
-		path, err = partProcessor.SaveToDir(path)
+		path, err = partPrc.SaveToDir(path)
 		if err != nil {
 			return err
 		}
