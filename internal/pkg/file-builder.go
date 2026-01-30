@@ -3,7 +3,6 @@ package pkg
 import (
 	"archive/zip"
 	"fmt"
-	"path/filepath"
 	"strings"
 )
 
@@ -24,7 +23,7 @@ func (this *FileBuilder) Add(value string) *FileBuilder {
 }
 
 func (this *FileBuilder) BuildToZip(z *zip.Writer, path string) error {
-	w, err := z.Create(filepath.ToSlash(path))
+	w, err := z.Create(path)
 	if err != nil {
 		return err
 	}
