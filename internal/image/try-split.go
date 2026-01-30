@@ -18,6 +18,7 @@ func (ip *ImageProcessor) TrySplit(rotated bool) []*ImageProcessor {
 		h <= ip.targetW &&
 		rotated {
 		spread := image.Image(imaging.Rotate270(*ip.Img))
+		ip.Img = nil
 		return []*ImageProcessor{ip.Copy(&spread, Rotated)}
 	}
 
@@ -44,5 +45,6 @@ func (ip *ImageProcessor) TrySplit(rotated bool) []*ImageProcessor {
 	spread := image.Image(imaging.Rotate270(*ip.Img))
 	processors = append(processors, ip.Copy(&spread, Rotated))
 
+	ip.Img = nil
 	return processors
 }
