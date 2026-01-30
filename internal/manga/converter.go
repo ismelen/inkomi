@@ -29,8 +29,10 @@ func NewConverter(settings *domain.Settings, ramLimit int64) *converter {
 
 func (c *converter) Convert(format string) ([]string, error) {
 	defer os.RemoveAll(c.settings.Output.Chapters)
+	
 	jobChan := make(chan func())
 	c.launchPageWorkers(jobChan)
+
 	var buildGroup errgroup.Group
 	results := pkg.NewSyncList()
 
@@ -98,8 +100,7 @@ func (c *converter) getOutput(volume *domain.Volume, format string) (string, err
 }
 
 func (c *converter) launchPageWorkers(jobChan chan func()) {
-	//TODO: Change to read RAM available
-	threadAmount := int(c.ramLimit / 200)
+	threadAmount := int(c.ramLimit / 60)
 	if threadAmount == 0 {
 		threadAmount = 1
 	}
