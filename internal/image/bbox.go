@@ -69,11 +69,6 @@ func (ip *ImageProcessor) GetBBox(img image.Image, checkWhite bool) bBox {
 	}
 }
 
-func (ip *ImageProcessor) CalculateBboxAgresive(img image.Image, checkWhite bool) bBox {
-	//TODO: Implement, without page number
-	return ip.GetBBox(img, checkWhite)
-}
-
 func (this *side) getSide(img image.Image, checkWhite bool) int {
 
 	var c color.Gray
