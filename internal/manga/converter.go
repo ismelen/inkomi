@@ -4,8 +4,9 @@ import (
 	documentBuilder "ismelen/ermc/internal/document-builder"
 	"ismelen/ermc/internal/domain"
 	"ismelen/ermc/internal/pkg"
+	"log"
+	"os"
 	"runtime"
-	"sync"
 
 	"golang.org/x/sync/errgroup"
 )
@@ -17,43 +18,37 @@ type converter struct {
 	ramLimit        int64 // MB
 }
 
-type pageTask struct {
-	page *domain.Page
-	num  int
-	wg   *sync.WaitGroup
-	db   documentBuilder.BuilderI
-}
 
-func NewConverter(settings *domain.Settings, documentBuilder documentBuilder.BuilderI, ramLimit int64) *converter {
+func NewConverter(settings *domain.Settings, ramLimit int64) *converter {
 	return &converter{
 		settings:        settings,
 		ramLimit:        ramLimit,
-		documentBuilder: documentBuilder,
+		pageProcessor: NewPageProcessor(settings),
 	}
 }
 
-func (c *converter) Convert() ([]string, error) {
-	pageChan := make(chan pageTask)
-	c.launchPageWorkers(pageChan)
+func (c *converter) Convert(format string) ([]string, error) {
+	defer os.RemoveAll(c.settings.Output.Chapters)
+	jobChan := make(chan func())
+	c.launchPageWorkers(jobChan)
 	var buildGroup errgroup.Group
 	results := pkg.NewSyncList()
 
-	volDocumentBuilders := map[string]documentBuilder.BuilderI{}
-
-	for i, vol := range c.settings.Volumes {
+	for i, volume := range c.settings.Volumes {
+		vol := volume
 		vol.Wg.Add(1)
-		volDocumentBuilders[vol.Name] = c.documentBuilder.Copy().Start(vol)
 
 		go func(v *domain.Volume) {
 			defer v.Wg.Done()
 			for _, chapter := range v.Chapters {
+				v.Wg.Add(len(chapter.Pages))
 				for i, page := range chapter.Pages {
-					v.Wg.Add(1)
-					pageChan <- pageTask{
-						page: page,
-						num:  i + 1,
-						wg:   v.Wg,
-						db:   volDocumentBuilders[v.Name],
+					jobChan <- func(){
+						err := c.pageProcessor.ProcessNewPage(page, i+1)
+						if err != nil {
+							log.Fatal(err)
+						}
+						v.Wg.Done()
 					}
 				}
 			}
@@ -62,9 +57,7 @@ func (c *converter) Convert() ([]string, error) {
 		idx := i
 		buildGroup.Go(func() error {
 			vol.Wg.Wait()
-			path, err := volDocumentBuilders[vol.Name].Build()
-
-			delete(volDocumentBuilders, vol.Name)
+			path, err := c.getOutput(vol, format)
 			c.settings.Volumes[idx] = nil
 			runtime.GC()
 
@@ -80,26 +73,42 @@ func (c *converter) Convert() ([]string, error) {
 	if err := buildGroup.Wait(); err != nil {
 		return nil, err
 	}
-	close(pageChan)
+	close(jobChan)
 
 	return results.Values, nil
 }
 
-func (c *converter) launchPageWorkers(pageChan chan pageTask) {
+func (c *converter) getOutput(volume *domain.Volume, format string) (string, error) {
+	db, err := documentBuilder.GetBuilder(format)
+	if err != nil {
+		return "", err
+	}
+
+	db.SetSettings(c.settings)
+	db.Start(volume.Name)
+	
+	for _, chapter := range volume.Chapters {
+		for i, page := range chapter.Pages {
+			db.AddPage(page, i == 0)
+			page.Parts = nil
+		}
+	}
+
+	return db.Build()
+}
+
+func (c *converter) launchPageWorkers(jobChan chan func()) {
 	//TODO: Change to read RAM available
 	threadAmount := int(c.ramLimit / 200)
 	if threadAmount == 0 {
-		threadAmount = 100
+		threadAmount = 1
 	}
 
-	for i := range threadAmount {
-		go func(id int) {
-			for job := range pageChan {
-				c.pageProcessor.ProcessNewPage(job.page, job.num)
-				runtime.GC()
-				job.db.AddPage(job.page)
-				job.wg.Done()
+	for range threadAmount {
+		go func() {
+			for job := range jobChan {
+				job()
 			}
-		}(i)
+		}()
 	}
 }
