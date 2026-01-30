@@ -3,6 +3,7 @@ package pkg
 import (
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 )
@@ -60,4 +61,26 @@ func CopyFile(src, dst string) error {
 		return err
 	}
 	return nil
+}
+
+func GetChildsInfo(path string) (infos []Pair[string, int64], err error) {
+	err = filepath.WalkDir(path, func(path string, d fs.DirEntry, err error) error {
+		if d.IsDir() {
+			return nil
+		}
+
+		info, err := d.Info()
+		if err != nil {
+			return nil
+		}
+
+		infos = append(infos, Pair[string, int64]{
+			Fst: path,
+			Snd: info.Size(),
+		})
+
+		return nil
+	})
+
+	return
 }
