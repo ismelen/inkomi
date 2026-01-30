@@ -30,6 +30,7 @@ func (v *VolumeFromCbz) FromMultipart(settings *domain.Settings, files ...*multi
 
 		var pages []*domain.Page
 		for _, path := range pagePaths {
+			if !pkg.IsImage(path) { continue }
 			pages = append(pages, domain.NewPage(path))
 		}
 		chapter := domain.NewChapter(file.Filename, file.Size, pages)
