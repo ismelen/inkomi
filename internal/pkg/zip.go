@@ -9,24 +9,16 @@ import (
 	"strings"
 )
 
-func UnizpFile(src os.DirEntry, dir string) ([]string, error) {
-	filename := filepath.Base(src.Name())
+func UnizpFile(src, dir string) ([]string, error) {
+	filename := filepath.Base(src)
 	ext := filepath.Ext(filename)
 	dirName := strings.TrimSuffix(filename, ext)
 	dstPath := filepath.Join(dir, dirName)
-
-	file, err := os.OpenFile(src.Name(), os.O_RDONLY, os.ModeAppend)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	info, err := src.Info()
-	if err != nil {
+	if err := os.MkdirAll(dstPath, os.ModePerm); err != nil {
 		return nil, err
 	}
 
-	reader, err := zip.NewReader(file, info.Size())
+	reader, err := zip.OpenReader(src)
 	if err != nil {
 		return nil, err
 	}
