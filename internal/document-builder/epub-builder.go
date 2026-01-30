@@ -2,14 +2,16 @@ package documentBuilder
 
 import (
 	"archive/zip"
-	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"ismelen/ermc/internal/domain"
+	"ismelen/ermc/internal/image"
 	"ismelen/ermc/internal/pkg"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -18,52 +20,60 @@ import (
 
 type EpubBuilder struct {
 	settings                                                            *domain.Settings
-	uuid                                                                uuid.UUID
-	ncxBuilder, navBuilder, navElemsBuilder, opfBuilder, opfRefsBuilder *pkg.FileBuilder
+	builders builders
 	writer                                                              *zip.Writer
-	buf                                                                 *bytes.Buffer
-	paths                                                               struct {
-		text   string
-		images string
-	}
-	volume   *domain.Volume
+	out *os.File
+	name string
 	pageSide string
+	hasCover bool
+	mu sync.Mutex
 }
 
-func (b *EpubBuilder) Copy() BuilderI {
-	copy := *b
-	return &copy
+type builders struct {
+	ncx, nav, navElems, opf, opfRefs *pkg.FileBuilder
 }
+
+var PATHS = struct{ text, images string }{
+	text:   filepath.Join("OEBPS", "Text"),
+	images: filepath.Join("OEBPS", "Images"),
+}
+
+const (
+	PAGE_RIGHT = "right"
+	PAGE_LEFT = "left"
+)
 
 func (b *EpubBuilder) SetSettings(settings *domain.Settings) BuilderI {
 	b.settings = settings
 	return b
 }
 
-func (b *EpubBuilder) Start(volume *domain.Volume) BuilderI {
-	pageSide := "right"
+func (b *EpubBuilder) Start(name string) BuilderI {
+	pageSide := PAGE_RIGHT
 	if b.settings.RightToLeft {
-		pageSide = "left"
+		pageSide = PAGE_LEFT
 	}
 
-	buf := new(bytes.Buffer)
+	path := filepath.Join(b.settings.Output.Base, name+".epub")
+	out, err := os.Create(path)
+	if err != nil {
+		fmt.Println(err)
+		return b
+	}
+
 	*b = EpubBuilder{
 		settings: b.settings,
-		uuid:     uuid.New(),
-		buf:      buf,
-		writer:   zip.NewWriter(buf),
-		volume:   volume,
+		out:      out,
+		writer:   zip.NewWriter(out),
+		name:   name,
 		pageSide: pageSide,
-		paths: struct{ text, images string }{
-			text:   filepath.Join("OEBPS", "Text"),
-			images: filepath.Join("OEBPS", "Images"),
-		},
+		mu: sync.Mutex{},
 	}
 
 	b.startBuilders()
 	b.addHeaders()
 	b.addFile(
-		filepath.Join("META-INF", "container.xml"),
+		filepath.ToSlash(filepath.Join("META-INF", "container.xml")),
 		XML,
 	)
 	b.addStyles()
@@ -72,41 +82,6 @@ func (b *EpubBuilder) Start(volume *domain.Volume) BuilderI {
 }
 
 func (b *EpubBuilder) Build() (string, error) {
-	b.copyFile(
-		b.volume.Chapters[0].Pages[0].Parts[0].Path,
-		filepath.Join(
-			b.paths.images,
-			"cover.jpg",
-		),
-	)
-
-	for _, chapter := range b.volume.Chapters {
-		path := chapter.Pages[0].Parts[0].Path
-		ext := filepath.Ext(path)
-		partName := strings.TrimSuffix(filepath.Base(path), ext)
-
-		folder := filepath.Join(
-			"Text",
-			chapter.Name,
-			partName+".xhtml",
-		)
-
-		// NCX
-		b.ncxBuilder.AddFromTemplate(
-			NCXNavPoint,
-			strings.Replace(folder, string(filepath.Separator), "_", -1),
-			chapter.Name,
-			filepath.ToSlash(folder),
-		)
-
-		// NAV
-		b.navElemsBuilder.AddFromTemplate(
-			NAVLiElem,
-			filepath.ToSlash(folder),
-			chapter.Name,
-		)
-	}
-
 	if err := b.closeBuilders(); err != nil {
 		return "", err
 	}
@@ -115,71 +90,95 @@ func (b *EpubBuilder) Build() (string, error) {
 		return "", err
 	}
 
+	b.out.Close()
+	
 	if b.settings.Profile.IsKepub {
 		return b.ConvertToKepub()
 	}
-
-	path := filepath.Join(b.settings.Output.Base, b.volume.Name+".epub")
-	out, err := os.Create(path)
-	if err != nil {
-		return path, err
-	}
-	defer out.Close()
-
-	if _, err := io.Copy(out, b.buf); err != nil {
-		return "", err
-	}
-
-	return path, nil
+	
+	return b.out.Name(), nil
 }
 
-func (b *EpubBuilder) AddPage(page *domain.Page) BuilderI {
-	for _, part := range page.Parts {
+func (b *EpubBuilder) AddPage(page *domain.Page, fstPage bool) BuilderI {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	if !b.hasCover {
+		part := page.Parts[0]
 		b.copyFile(
 			part.Path,
-			filepath.Join(
-				b.paths.images,
-				part.ChapterName,
-				part.Name,
-			),
+			filepath.ToSlash(filepath.Join(
+				PATHS.images,
+				"cover.jpg",
+			)),
+		)
+		b.hasCover = true
+	}
+
+	if fstPage {
+		part := page.Parts[0]
+
+		folder := filepath.Join(
+			"Text",
+			part.ChapterName,
+			part.Name+".xhtml",
+		)
+
+		b.builders.ncx.AddFromTemplate(
+			NCXNavPoint,
+			strings.Replace(folder, string(filepath.Separator), "_", -1),
+			part.ChapterName,
+			filepath.ToSlash(folder),
+		)
+
+		b.builders.navElems.AddFromTemplate(
+			NAVLiElem,
+			filepath.ToSlash(folder),
+			part.ChapterName,
+		)
+	}
+	
+	for _, part := range page.Parts {
+		path := filepath.Join(
+			PATHS.images,
+			part.ChapterName,
+			part.Name,
+		)
+		b.copyFile(
+			part.Path,
+			filepath.ToSlash(path+part.Ext),
 		)
 		b.addHTML(part, page.GetCSSBgStyle())
 
 		nonExtPath := filepath.Join(part.ChapterName, part.Name)
 		id := strings.Replace(nonExtPath, string(filepath.Separator), "_", -1)
 
-		switch part.PathOrder {
-		case 'X', 'D': // Normal & Rotated
-			b.pageSide = pkg.Toggle(b.pageSide, "right", "left")
-		case 'B': // Double splitted left
-			b.pageSide = "left"
-			if b.settings.RightToLeft {
-				b.pageSide = "right"
-			}
-		case 'C': // Double splitted right
-			b.pageSide = "right"
-			if b.settings.RightToLeft {
-				b.pageSide = "left"
-			}
+		switch part.Split {
+		case image.None, image.Rotated:
+			b.pageSide = pkg.Toggle(b.pageSide, PAGE_RIGHT, PAGE_LEFT)
+		case image.ToLeft: 
+			b.pageSide = PAGE_LEFT
+		case image.ToRight:
+			b.pageSide = PAGE_RIGHT 
 		}
 
-		b.opfRefsBuilder.AddFromTemplate(
+		b.builders.opfRefs.AddFromTemplate(
 			OPFItemRef,
 			id,
 			b.pageSide,
 		)
 
-		b.opfBuilder.
+		b.builders.opf.
 			AddFromTemplate(
 				OPFItem,
 				"page_"+id,
-				filepath.ToSlash(filepath.Join("Text", filepath.ToSlash(nonExtPath)+".xhtml")),
+				filepath.ToSlash(filepath.Join("Text", nonExtPath+".xhtml")),
 				"application/xhtml+xml",
 			).
 			AddFromTemplate(
 				OPFItem,
 				"img_"+id,
-				filepath.ToSlash(filepath.Join("Images", filepath.ToSlash(nonExtPath)+".jpg")),
+				filepath.ToSlash(filepath.Join("Images", nonExtPath+".jpg")),
 				"image/jpeg",
 			)
 	}
@@ -194,7 +193,7 @@ func (b *EpubBuilder) copyFile(srcPath, dstPath string) error {
 	}
 	defer src.Close()
 
-	w, err := b.writer.Create(filepath.ToSlash(dstPath))
+	w, err := b.writer.Create(dstPath)
 	if err != nil {
 		return err
 	}
@@ -204,22 +203,24 @@ func (b *EpubBuilder) copyFile(srcPath, dstPath string) error {
 }
 
 func (b *EpubBuilder) startBuilders() {
-	b.ncxBuilder = pkg.NewFileBuilder().AddFromTemplate(
+	uuid := uuid.New()
+
+	b.builders.ncx = pkg.NewFileBuilder().AddFromTemplate(
 		NCXStart,
-		b.uuid,
-		b.volume.Name,
+		uuid,
+		b.name,
 	)
 
-	b.navBuilder = pkg.NewFileBuilder().AddFromTemplate(
+	b.builders.nav = pkg.NewFileBuilder().AddFromTemplate(
 		NAVStart,
-		b.volume.Name,
+		b.name,
 	)
 
-	b.opfBuilder = pkg.NewFileBuilder().
+	b.builders.opf = pkg.NewFileBuilder().
 		AddFromTemplate(
 			OPFStart,
-			b.volume.Name,
-			b.uuid,
+			b.name,
+			uuid,
 			"0.0",
 		).
 		AddFromTemplate(
@@ -231,26 +232,27 @@ func (b *EpubBuilder) startBuilders() {
 			false,
 		)
 
-	b.opfRefsBuilder = pkg.NewFileBuilder()
+	b.builders.opfRefs = pkg.NewFileBuilder()
+	b.builders.navElems = pkg.NewFileBuilder()
 }
 
 func (b *EpubBuilder) closeBuilders() error {
-	b.ncxBuilder.AddFromTemplate(NCXEnd)
-	if err := b.ncxBuilder.BuildToZip(b.writer, filepath.Join("OEBPS", "toc.NCX")); err != nil {
+	b.builders.ncx.AddFromTemplate(NCXEnd)
+	if err := b.builders.ncx.BuildToZip(b.writer, filepath.ToSlash(filepath.Join("OEBPS", "toc.ncx"))); err != nil {
 		return err
 	}
 
-	navLiElems := b.navElemsBuilder.Build()
-	b.navBuilder.
+	navLiElems := b.builders.navElems.Build()
+	b.builders.nav.
 		Add(navLiElems).
 		Add(NAVBetweenList).
 		Add(navLiElems).
 		Add(NAVEnd)
-	if err := b.navBuilder.BuildToZip(b.writer, filepath.Join("OEBPS", "nav.xhtml")); err != nil {
+	if err := b.builders.nav.BuildToZip(b.writer, filepath.ToSlash(filepath.Join("OEBPS", "nav.xhtml"))); err != nil {
 		return err
 	}
 
-	b.opfBuilder.
+	b.builders.opf.
 		AddFromTemplate(
 			OPFItem,
 			"css",
@@ -261,10 +263,10 @@ func (b *EpubBuilder) closeBuilders() error {
 			OPFPageProgression,
 			b.settings.GetPageProgression(),
 		).
-		Add(b.opfRefsBuilder.Build()).
+		Add(b.builders.opfRefs.Build()).
 		Add(OPFEnd)
 
-	if err := b.opfBuilder.BuildToZip(b.writer, filepath.Join("OEBPS", "content.opf")); err != nil {
+	if err := b.builders.opf.BuildToZip(b.writer, filepath.ToSlash(filepath.Join("OEBPS", "content.opf"))); err != nil {
 		return err
 	}
 
@@ -300,23 +302,23 @@ func (b *EpubBuilder) addFile(zipPath string, content string) (*io.Writer, error
 }
 
 func (b *EpubBuilder) addStyles() error {
-	_, err := b.addFile(
-		filepath.Join(b.paths.text, "style.css"),
-		Styles,
-	)
-
-	return err
+	return pkg.NewFileBuilder().
+		Add(Styles).
+		BuildToZip(
+			b.writer, 
+			filepath.ToSlash(filepath.Join(PATHS.text, "style.css")),
+		)
 }
 
 func (b *EpubBuilder) ConvertToKepub() (string, error) {
-	kPath := filepath.Join(b.settings.Output.Base, b.volume.Name+".kepub.epub")
+	kPath := filepath.Join(b.settings.Output.Base, b.name+".kepub.epub")
 	out, err := os.Create(kPath)
 	if err != nil {
 		return "", err
 	}
 	defer out.Close()
 
-	in, err := zip.NewReader(bytes.NewReader(b.buf.Bytes()), int64(b.buf.Len()))
+	in, err := zip.OpenReader(b.out.Name())
 	if err != nil {
 		return "", err
 	}
@@ -328,7 +330,7 @@ func (b *EpubBuilder) ConvertToKepub() (string, error) {
 }
 
 func (b *EpubBuilder) addHTML(part *domain.PagePart, CSSBgStyle string) error {
-	relPath := filepath.ToSlash(filepath.Join("..", "..", "Images", part.ChapterName, part.Name))
+	relPath := filepath.ToSlash(filepath.Join("..", "..", "Images", part.ChapterName, part.Name+part.Ext))
 
 	builder := pkg.NewFileBuilder().
 		AddFromTemplate(
@@ -346,6 +348,6 @@ func (b *EpubBuilder) addHTML(part *domain.PagePart, CSSBgStyle string) error {
 			relPath,
 		)
 
-	zipPath := filepath.Join(b.paths.text, part.ChapterName, part.Name+".xhtml")
-	return builder.BuildToZip(b.writer, zipPath)
+	zipPath := filepath.Join(PATHS.text, part.ChapterName, part.Name+".xhtml")
+	return builder.BuildToZip(b.writer, filepath.ToSlash(zipPath))
 }
