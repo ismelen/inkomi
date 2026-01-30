@@ -14,5 +14,6 @@ func NewVolume(name string, chapters ...*Chapter) *Volume {
 	return &Volume{
 		Name:     name,
 		Chapters: chapters,
+		Wg: &sync.WaitGroup{},
 	}
 }
