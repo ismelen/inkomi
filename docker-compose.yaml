@@ -1,0 +1,15 @@
+services:
+  ermc-api:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - RAM=6144
+    deploy:
+      resources:
+        limits:
+          # --- CONFIGURACIÓN DE RECURSOS ---
+          # Puedes ajustar estos valores según tus necesidades:
+          cpus: '2'         # Límite de 1 núcleo (puedes usar '0.5', '2.0', etc.)
+          memory: 6G       # Límite de RAM (puedes usar 512M, 2G, etc.)
+    restart: always
