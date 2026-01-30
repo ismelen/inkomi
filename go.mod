@@ -8,6 +8,7 @@ require (
 	github.com/labstack/echo/v4 v4.15.0
 	github.com/pgaskin/kepubify/v4 v4.0.4
 	github.com/spf13/cobra v1.10.2
+	go.uber.org/automaxprocs v1.6.0
 	golang.org/x/image v0.34.0
 	golang.org/x/sync v0.19.0
 	golang.org/x/text v0.32.0

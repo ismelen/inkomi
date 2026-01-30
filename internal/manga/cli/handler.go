@@ -8,6 +8,7 @@ import (
 	volumeBuilder "ismelen/ermc/internal/volume-builder"
 	"log"
 	"path/filepath"
+	"slices"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -69,6 +70,10 @@ func init() {
 
 func getVolumes(dir string, settings *domain.Settings) ([]*domain.Volume, error) {
 	files, err := pkg.GetChildsInfo(dir)
+
+	slices.SortFunc(files, func (a, b pkg.Pair[string, int64]) int {
+		return pkg.FilenameCmp(a.Fst, b.Fst)
+	})
 
 	var size int64
 	for _, file := range files {
