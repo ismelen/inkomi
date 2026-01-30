@@ -1,7 +1,6 @@
 package manga
 
 import (
-	documentBuilder "ismelen/ermc/internal/document-builder"
 	"ismelen/ermc/internal/domain"
 	"ismelen/ermc/internal/manga"
 	volumeBuilder "ismelen/ermc/internal/volume-builder"
@@ -46,14 +45,8 @@ func (h *Handler) handleConvert(c echo.Context) error {
 	settings.SetImageSettings(domain.NewDefaultImageSettings())
 	settings.SetVolumes(volumes)
 
-	documentBuilder, err := documentBuilder.GetBuilder(dto.Format)
-	if err != nil {
-		return err
-	}
-	documentBuilder.SetSettings(settings)
-
-	converter := manga.NewConverter(settings, documentBuilder, 1000)
-	paths, err := converter.Convert()
+	converter := manga.NewConverter(settings, 1000)
+	paths, err := converter.Convert(dto.Format)
 	if err != nil {
 		return err
 	}
