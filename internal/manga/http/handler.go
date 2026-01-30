@@ -1,7 +1,6 @@
 package manga
 
 import (
-	"fmt"
 	"ismelen/ermc/internal/cloud"
 	"ismelen/ermc/internal/domain"
 	"ismelen/ermc/internal/manga"
@@ -24,8 +23,32 @@ func NewHandler(serv *echo.Echo) *Handler {
 	handler := &Handler{}
 
 	serv.POST("/manga/convert", handler.handleConvert)
+	serv.GET("/manga/:dir/:filename", handler.download)
 
 	return handler
+}
+
+func (h *Handler) download(c echo.Context) error {
+	dir := c.Param("dir")
+	filename := c.Param("filename")
+
+	path := filepath.Join(os.TempDir(), dir, filename)
+
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return c.JSON(http.StatusNotFound, echo.Map{"message": "Archivo no encontrado"})
+	}
+
+	err := c.Attachment(path, filename)
+	if err == nil {
+		_ = os.Remove(path)
+	}
+
+	dirPath := filepath.Join(os.TempDir(), dir)
+	if pkg.IsDirEmpty(dirPath) {
+		os.RemoveAll(dirPath)
+	}
+
+	return nil
 }
 
 func (h *Handler) handleConvert(c echo.Context) error {
@@ -33,14 +56,13 @@ func (h *Handler) handleConvert(c echo.Context) error {
 	
 	dto := new(ConverterRequestDTO)
 	if err := c.Bind(dto); err != nil {
-		fmt.Println(err)
 		return err
 	}
 
 	
 	cloudService := "google"
 	if dto.CloudToken == "" {
-		cloudService = "tempfile"
+		cloudService = "local"
 	}
 
 	cloud, err := cloud.GetCloud(cloudService)
@@ -57,13 +79,11 @@ func (h *Handler) handleConvert(c echo.Context) error {
 		dto.FirstVolumeNum,
 	)
 	if err != nil {
-		fmt.Println(err)
 		return err
 	}
 
 	volumes, err := getVolumes(c, settings)
 	if err != nil {
-		fmt.Println(err)
 		return err
 	}
 
@@ -74,19 +94,19 @@ func (h *Handler) handleConvert(c echo.Context) error {
 	if err != nil {
 		ramLimit = 0
 	}
-	converter := manga.NewConverter(settings, int64(ramLimit))
-	paths, err := converter.Convert(dto.Format)
-	if err != nil {
-		fmt.Println(err)
-		return err
-	}
 
-	for _, path := range paths {
-		if err := cloud.Upload(path); err != nil {
+	resultChan := make(chan string)	
+	var paths []string
+	go manga.NewConverter(settings, int64(ramLimit), resultChan)
+
+	for path := range resultChan {
+		newPath, err := cloud.Upload(path)
+		if err != nil {
 			return c.JSON(http.StatusInternalServerError, echo.Map{
 				"error": "Couldn't upload files to cloud",
 			})
 		}
+		paths = append(paths, newPath)
 	}
 
 	return c.JSON(http.StatusOK, echo.Map{

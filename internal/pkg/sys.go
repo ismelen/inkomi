@@ -17,6 +17,15 @@ func NewTempDir(suffix string) (string, error) {
 	return tmp, nil
 }
 
+func IsDirEmpty(path string) bool {
+	files, err := os.ReadDir(path)
+	if err != nil || len(files) == 0 {
+		return false
+	}
+
+	return true
+}
+
 func CopyDirFiles(srcDir, dstDir string) error {
 	entries, err := os.ReadDir(srcDir)
 	if err != nil {

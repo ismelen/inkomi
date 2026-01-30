@@ -16,14 +16,16 @@ type converter struct {
 	pageProcessor   *PageProcessor
 	documentBuilder documentBuilder.BuilderI
 	ramLimit        int64 // MB
+	resultChan chan string
 }
 
 
-func NewConverter(settings *domain.Settings, ramLimit int64) *converter {
+func NewConverter(settings *domain.Settings, ramLimit int64, resultChan chan string) *converter {
 	return &converter{
 		settings:        settings,
 		ramLimit:        ramLimit,
 		pageProcessor: NewPageProcessor(settings),
+		resultChan: resultChan,
 	}
 }
 
@@ -67,6 +69,7 @@ func (c *converter) Convert(format string) ([]string, error) {
 				return err
 			}
 
+			c.resultChan <- path
 			results.Add(path)
 			return nil
 		})
@@ -76,7 +79,8 @@ func (c *converter) Convert(format string) ([]string, error) {
 		return nil, err
 	}
 	close(jobChan)
-
+	close(c.resultChan)
+	
 	return results.Values, nil
 }
 

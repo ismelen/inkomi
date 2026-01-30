@@ -32,10 +32,10 @@ func (gc *GoogleCloud) Init(accessToken, folder string) error {
 	return err
 }
 
-func (gc *GoogleCloud) Upload(path string) error {
+func (gc *GoogleCloud) Upload(path string) (string, error) {
 	file, err := os.Open(path)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer file.Close()
 
@@ -47,5 +47,5 @@ func (gc *GoogleCloud) Upload(path string) error {
 	}
 
 	_, err = gc.service.Files.Create(f).Media(file).Do()
-	return err
+	return "", err
 }

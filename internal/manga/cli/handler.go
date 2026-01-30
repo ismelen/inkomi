@@ -42,7 +42,7 @@ var Cmd = &cobra.Command{
 		settings.SetImageSettings(domain.NewDefaultImageSettings())
 		settings.SetVolumes(volumes)
 
-		converter := manga.NewConverter(settings, int64(request.RamLimit))
+		converter := manga.NewConverter(settings, int64(request.RamLimit), nil)
 		paths, err := converter.Convert(request.Format)
 		if err != nil {
 			log.Fatal(err)
