@@ -16,7 +16,6 @@ type GoogleCloud struct {
 }
 
 func (gc *GoogleCloud) Init(accessToken, folder string) error {
-
 	token := &oauth2.Token{AccessToken: accessToken}
 	ctx := context.Background()
 
@@ -24,10 +23,8 @@ func (gc *GoogleCloud) Init(accessToken, folder string) error {
 
 	service, err := drive.NewService(ctx, option.WithHTTPClient(httpClient))
 
-	gc = &GoogleCloud{
-		folder:  folder,
-		service: service,
-	}
+	gc.folder = folder
+	gc.service = service
 
 	return err
 }

@@ -30,11 +30,13 @@ func NewConverter(settings *domain.Settings, ramLimit int64, resultChan chan str
 }
 
 func (c *converter) Convert(format string) ([]string, error) {
-	defer os.RemoveAll(c.settings.Output.Chapters)
-	
 	jobChan := make(chan func())
-	c.launchPageWorkers(jobChan)
+	
+	defer os.RemoveAll(c.settings.Output.Chapters)
+	defer close(jobChan)
+	defer close(c.resultChan)
 
+	c.launchPageWorkers(jobChan)
 	var buildGroup errgroup.Group
 	results := pkg.NewSyncList()
 
@@ -78,8 +80,7 @@ func (c *converter) Convert(format string) ([]string, error) {
 	if err := buildGroup.Wait(); err != nil {
 		return nil, err
 	}
-	close(jobChan)
-	close(c.resultChan)
+
 	
 	return results.Values, nil
 }

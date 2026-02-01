@@ -56,10 +56,9 @@ func (h *Handler) handleConvert(c echo.Context) error {
 	
 	dto := new(ConverterRequestDTO)
 	if err := c.Bind(dto); err != nil {
-		return err
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
 	}
 
-	
 	cloudService := "google"
 	if dto.CloudToken == "" {
 		cloudService = "local"
@@ -67,9 +66,11 @@ func (h *Handler) handleConvert(c echo.Context) error {
 
 	cloud, err := cloud.GetCloud(cloudService)
 	if err != nil {
-		// TODO: Return user
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
 	}
-	cloud.Init(dto.CloudToken, dto.CloudFolder)
+	if err := cloud.Init(dto.CloudToken, dto.CloudFolder); err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
+	}
 
 	settings, err := domain.NewSettings(
 		dto.Author,
@@ -79,12 +80,12 @@ func (h *Handler) handleConvert(c echo.Context) error {
 		dto.FirstVolumeNum,
 	)
 	if err != nil {
-		return err
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
 	}
 
 	volumes, err := getVolumes(c, settings)
 	if err != nil {
-		return err
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
 	}
 
 	settings.SetImageSettings(domain.NewDefaultImageSettings())
@@ -97,13 +98,21 @@ func (h *Handler) handleConvert(c echo.Context) error {
 
 	resultChan := make(chan string)	
 	var paths []string
-	go manga.NewConverter(settings, int64(ramLimit), resultChan)
+	converter :=  manga.NewConverter(settings, int64(ramLimit), resultChan)
+	go func() {
+		_, err := converter.Convert(dto.Format)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, echo.Map{
+				"error": err.Error(),
+			})
+		}
+	}()
 
 	for path := range resultChan {
 		newPath, err := cloud.Upload(path)
 		if err != nil {
 			return c.JSON(http.StatusInternalServerError, echo.Map{
-				"error": "Couldn't upload files to cloud",
+				"error": err.Error(),
 			})
 		}
 		paths = append(paths, newPath)

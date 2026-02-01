@@ -8,5 +8,5 @@ type ConverterRequestDTO struct {
 	FirstVolumeNum int    `form:"firstVolumeNum"`
 	Format         string `form:"format"`
 	CloudToken     string `form:"cloudToken"`
-	CloudFolder    string `from:"cloudFolder"`
+	CloudFolder    string `form:"cloudFolder"`
 }
