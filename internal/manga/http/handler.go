@@ -120,6 +120,7 @@ func (h *Handler) handleConvert(c echo.Context) error {
 		}
 
 		endTime = endTime.Add(volume.GetConversionDuration())
+		// TODO: Adjust end time according to queue length
 
 		paths = append(paths, PathTime{
 			Path: path,
