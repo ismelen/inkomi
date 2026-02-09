@@ -5,7 +5,6 @@ go 1.25.0
 require (
 	github.com/disintegration/imaging v1.6.2
 	github.com/google/uuid v1.6.0
-	github.com/joho/godotenv v1.5.1
 	github.com/labstack/echo/v4 v4.15.0
 	github.com/pgaskin/kepubify/v4 v4.0.4
 	github.com/spf13/cobra v1.10.2
