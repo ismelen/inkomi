@@ -52,25 +52,24 @@ func (h *Handler) download(c echo.Context) error {
 }
 
 func (h *Handler) handleConvert(c echo.Context) error {
-	start := time.Now()
+	//TODO: Get estimated time per each volume or file, return file link path (optional) and its aprox finish time
 	
 	dto := new(ConverterRequestDTO)
 	if err := c.Bind(dto); err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
 	}
 
-	cloudService := "google"
+	
+	cloudType := "google"
 	if dto.CloudToken == "" {
-		cloudService = "local"
+		cloudType = "local"
 	}
 
-	cloud, err := cloud.GetCloud(cloudService)
+	cloudService, err := cloud.GetCloud(cloudType)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
+		return err
 	}
-	if err := cloud.Init(dto.CloudToken, dto.CloudFolder); err != nil {
-		return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
-	}
+	cloudService.Init(dto.CloudToken, dto.CloudFolder)
 
 	settings, err := domain.NewSettings(
 		dto.Author,
@@ -88,39 +87,61 @@ func (h *Handler) handleConvert(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
 	}
 
-	settings.SetImageSettings(domain.NewDefaultImageSettings())
-	settings.SetVolumes(volumes)
+	type PathTime struct {
+		Path string `json:"path"`
+		EndTime time.Time `json:"endTime"`
+	}
+	
+	var paths []PathTime
+	endTime := time.Now()
+	for _, volume := range volumes {
+		var path string
+		if (cloudType == "local") {
+			path = filepath.Join(settings.Output.Base, volume.Name)
+			if(settings.Profile.IsKepub){
+				path += ".kepub"
+			}
+			path += ".epub"
+		} else {
+			path = volume.Name
+		}
 
-	ramLimit, err := strconv.Atoi(os.Getenv("RAM"))
-	if err != nil {
-		ramLimit = 0
+		endTime = endTime.Add(volume.GetConversionDuration())
+
+		paths = append(paths, PathTime{
+			Path: path,
+			EndTime: endTime,
+		})
 	}
 
-	resultChan := make(chan string)	
-	var paths []string
-	converter :=  manga.NewConverter(settings, int64(ramLimit), resultChan)
 	go func() {
-		_, err := converter.Convert(dto.Format)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, echo.Map{
-				"error": err.Error(),
-			})
-		}
-	}()
+		start := time.Now()
+		
+		settings.SetImageSettings(domain.NewDefaultImageSettings())
+		settings.SetVolumes(volumes)
 
-	for path := range resultChan {
-		newPath, err := cloud.Upload(path)
+		ramLimit, err := strconv.Atoi(os.Getenv("RAM"))
 		if err != nil {
-			return c.JSON(http.StatusInternalServerError, echo.Map{
-				"error": err.Error(),
-			})
+			c.Echo().Logger.Error(err)
+			ramLimit = 0
 		}
-		paths = append(paths, newPath)
-	}
+		
+		resultChan := make(chan string)	
+		converter := manga.NewConverter(settings, int64(ramLimit), resultChan)
+		go converter.Convert(dto.Format)
+		
+		for path := range resultChan {
+			_, err = cloudService.Upload(path)
+			if err != nil {
+				c.Echo().Logger.Error(err)
+			}
+		}
+
+		c.Echo().Logger.Print(time.Since(start).String())
+	}()
 
 	return c.JSON(http.StatusOK, echo.Map{
 		"paths": paths,
-		"elapsed": time.Since(start),
 	})
 }
 
