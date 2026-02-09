@@ -17,10 +17,19 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-type Handler struct{}
+const REQUEST_LIMITS = 2
+const MAX_CONCURRENT_CONVERSION = 2
+
+type Handler struct{
+	queue chan struct{}
+	sem chan struct{}
+}
 
 func NewHandler(serv *echo.Echo) *Handler {
-	handler := &Handler{}
+	handler := &Handler{
+		queue: make(chan struct{}, REQUEST_LIMITS),
+		sem: make(chan struct{}, MAX_CONCURRENT_CONVERSION),
+	}
 
 	serv.POST("/manga/convert", handler.handleConvert)
 	serv.GET("/manga/:dir/:filename", handler.download)
@@ -35,7 +44,7 @@ func (h *Handler) download(c echo.Context) error {
 	path := filepath.Join(os.TempDir(), dir, filename)
 
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		return c.JSON(http.StatusNotFound, echo.Map{"message": "Archivo no encontrado"})
+		return c.JSON(http.StatusNotFound, echo.Map{"error": "Archivo no encontrado"})
 	}
 
 	err := c.Attachment(path, filename)
@@ -52,8 +61,12 @@ func (h *Handler) download(c echo.Context) error {
 }
 
 func (h *Handler) handleConvert(c echo.Context) error {
-	//TODO: Get estimated time per each volume or file, return file link path (optional) and its aprox finish time
-	
+	select {
+	case h.queue <- struct{}{}:
+	default: 
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "Try in a few minutes"})
+	}
+
 	dto := new(ConverterRequestDTO)
 	if err := c.Bind(dto); err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
@@ -115,6 +128,7 @@ func (h *Handler) handleConvert(c echo.Context) error {
 	}
 
 	go func() {
+		h.sem <- struct{}{}
 		start := time.Now()
 		
 		settings.SetImageSettings(domain.NewDefaultImageSettings())
@@ -128,7 +142,12 @@ func (h *Handler) handleConvert(c echo.Context) error {
 		
 		resultChan := make(chan string)	
 		converter := manga.NewConverter(settings, int64(ramLimit), resultChan)
-		go converter.Convert(dto.Format)
+		go func(){
+			_, err := converter.Convert(dto.Format)
+			if err != nil {
+				c.Echo().Logger.Error(err)
+			}
+		}()
 		
 		for path := range resultChan {
 			_, err = cloudService.Upload(path)
@@ -138,12 +157,15 @@ func (h *Handler) handleConvert(c echo.Context) error {
 		}
 
 		c.Echo().Logger.Print(time.Since(start).String())
+		<- h.queue
+		<- h.sem
 	}()
 
 	return c.JSON(http.StatusOK, echo.Map{
 		"paths": paths,
 	})
 }
+
 
 func getVolumes(c echo.Context, settings *domain.Settings) ([]*domain.Volume, error) {
 	form, err := c.MultipartForm()
