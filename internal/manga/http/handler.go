@@ -17,18 +17,27 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-const REQUEST_LIMITS = 2
-const MAX_CONCURRENT_CONVERSION = 2
+const REQUEST_LIMIT = 10
+const MAX_CONCURRENT_CONVERSIONS = 2
 
 type Handler struct{
 	queue chan struct{}
-	sem chan struct{}
+	semConvert chan struct{}
+	semCalculateTime chan struct{}
+	lastTimes [MAX_CONCURRENT_CONVERSIONS]time.Time
 }
 
 func NewHandler(serv *echo.Echo) *Handler {
+	var lastTimes [MAX_CONCURRENT_CONVERSIONS]time.Time
+	for i := range MAX_CONCURRENT_CONVERSIONS {
+		lastTimes[i] = time.Now()
+	}
+	
 	handler := &Handler{
-		queue: make(chan struct{}, REQUEST_LIMITS),
-		sem: make(chan struct{}, MAX_CONCURRENT_CONVERSION),
+		queue: make(chan struct{}, REQUEST_LIMIT),
+		semConvert: make(chan struct{}, MAX_CONCURRENT_CONVERSIONS),
+		lastTimes: lastTimes,
+		semCalculateTime: make(chan struct{}, 1),
 	}
 
 	serv.POST("/manga/convert", handler.handleConvert)
@@ -104,15 +113,22 @@ func (h *Handler) handleConvert(c echo.Context) error {
 		Path string `json:"path"`
 		EndTime time.Time `json:"endTime"`
 	}
-	
+
+	h.semCalculateTime <- struct{}{}
 	var paths []PathTime
 	endTime := time.Now()
+	lastTime, lastTimeIdx := h.GetMinTime()
+	if endTime.Before(lastTime) {
+		endTime = lastTime
+	}
+
 	for _, volume := range volumes {
 		var path string
-		if (cloudType == "local") {
+		if cloudType == "local" {
 			path = filepath.Join(settings.Output.Base, volume.Name)
 			if(settings.Profile.IsKepub){
 				path += ".kepub"
+
 			}
 			path += ".epub"
 		} else {
@@ -120,16 +136,17 @@ func (h *Handler) handleConvert(c echo.Context) error {
 		}
 
 		endTime = endTime.Add(volume.GetConversionDuration())
-		// TODO: Adjust end time according to queue length
 
 		paths = append(paths, PathTime{
 			Path: path,
 			EndTime: endTime,
 		})
 	}
+	h.lastTimes[lastTimeIdx] = endTime
+	<- h.semCalculateTime
 
 	go func() {
-		h.sem <- struct{}{}
+		h.semConvert <- struct{}{}
 		start := time.Now()
 		
 		settings.SetImageSettings(domain.NewDefaultImageSettings())
@@ -159,12 +176,27 @@ func (h *Handler) handleConvert(c echo.Context) error {
 
 		c.Echo().Logger.Print(time.Since(start).String())
 		<- h.queue
-		<- h.sem
+		<- h.semConvert
 	}()
 
 	return c.JSON(http.StatusOK, echo.Map{
 		"paths": paths,
 	})
+}
+
+func (h *Handler) GetMinTime() (time.Time, int) {
+	result := h.lastTimes[0]
+	idx := 0
+	
+	for i:=1; i<MAX_CONCURRENT_CONVERSIONS; i++ {
+		t := h.lastTimes[i]
+		if(t.Before(result)) {
+			result = t
+			idx = i
+		}
+	}
+
+	return result, idx
 }
 
 

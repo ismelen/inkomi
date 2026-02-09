@@ -38,7 +38,7 @@ func (c *converter) Convert(format string) ([]string, error) {
 
 	c.launchPageWorkers(jobChan)
 	var buildGroup errgroup.Group
-	results := pkg.NewSyncList()
+	results := pkg.NewSyncList[string]()
 
 	for i, volume := range c.settings.Volumes {
 		vol := volume
