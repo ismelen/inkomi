@@ -11,7 +11,7 @@ import (
 
 type Handler struct{}
 
-func New(serv *echo.Echo) *Handler {
+func NewHandler(serv *echo.Echo) *Handler {
 	handler := &Handler{}
 
 	serv.GET("/download/:dir/:filename", handler.download)

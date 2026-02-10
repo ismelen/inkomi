@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	downlolad "ismelen/ermc/internal/download/http"
+	kepubify "ismelen/ermc/internal/kepubify/http"
 	manga "ismelen/ermc/internal/manga/http"
 	"log"
 
@@ -31,6 +33,8 @@ func startServer(port string) error {
 	server.Use(middleware.CORS())
 
 	manga.NewHandler(server)
+	kepubify.NewHandler(server)
+	downlolad.NewHandler(server)
 
 	return server.Start(":" + port)
 }
