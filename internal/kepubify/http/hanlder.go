@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"context"
 	"fmt"
+	"io"
 	"ismelen/ermc/internal/cloud"
 	"ismelen/ermc/internal/pkg"
 	"mime/multipart"
@@ -56,11 +57,11 @@ func (h *Handler) handleRequest(c echo.Context) error {
 	for _, file := range files {
 		path, err := kepubify(file, dst)
 		if err != nil {
-			continue
+			return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
 		}
 		newPath, err := cloudService.Upload(path)
 		if err != nil {
-			continue
+			return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
 		}
 		paths = append(paths, newPath)
 	}
@@ -86,6 +87,7 @@ func kepubify(file *multipart.FileHeader, dst string) (string, error) {
 	ext := filepath.Ext(file.Filename)
 	noExtName := strings.TrimSuffix(file.Filename, ext)
 	kpath := filepath.Join(dst, noExtName+".kepub.epub")
+	oPath := filepath.Join(dst, noExtName+".epub")
 
 	out, err := os.Create(kpath)
 	if err != nil {
@@ -93,27 +95,37 @@ func kepubify(file *multipart.FileHeader, dst string) (string, error) {
 	}
 	defer out.Close()
 
+	if _, err = saveFile(file, oPath); err != nil {
+		return "", err
+	}
+
+	in, err := zip.OpenReader(oPath)
+	if err != nil {
+		return "", err
+	}
+	defer in.Close()
+
+	ctx := context.Background()
+	converter := kepub.NewConverter()
+	return kpath, converter.Convert(ctx, out, in)
+}
+
+func saveFile(file *multipart.FileHeader, dst string) (string, error) {
 	src, err := file.Open()
 	if err != nil {
 		return "", err
 	}
 	defer src.Close()
 
-	tempFile, err := os.Create(filepath.Join(dst, file.Filename))
+	out, err := os.Create(dst)
 	if err != nil {
 		return "", err
 	}
-	defer os.Remove(tempFile.Name())
-	defer tempFile.Close()
+	defer out.Close()
 
-	in, err := zip.OpenReader(tempFile.Name())
-	if err != nil {
+	if _, err = io.Copy(out, src); err != nil {
 		return "", err
 	}
-	defer in.Close()
 
-	converter := kepub.NewConverter()
-	ctx := context.Background()
-
-	return kpath, converter.Convert(ctx, out, in)
-}
+	return dst, nil
+} 
