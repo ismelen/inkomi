@@ -1,0 +1,50 @@
+package domain
+
+import "fmt"
+
+type Profile struct {
+	Width, Height int
+	IsKepub       bool
+}
+
+func NewProfile(label string) (*Profile, error) {
+	profile, ok := Profiles[label]
+	if !ok {
+		return nil, fmt.Errorf("profile not available")
+	}
+	return &profile, nil
+}
+
+var Profiles = map[string]Profile{
+	"K1":    {600, 670, false},
+	"K2":    {600, 670, false},
+	"KDX":   {824, 1000, false},
+	"K34":   {600, 800, false},
+	"K57":   {600, 800, false},
+	"KPW":   {758, 1024, false},
+	"KV":    {1072, 1448, false},
+	"KPW34": {1072, 1448, false},
+	"K810":  {600, 800, false},
+	"KO":    {1264, 1680, false},
+	"K11":   {1072, 1448, false},
+	"KPW5":  {1236, 1648, false},
+	"KS":    {1860, 2480, false},
+	"KCS":   {1264, 1680, false},
+
+	// Kobo
+	"KoMT":   {600, 800, true},
+	"KoG":    {768, 1024, true},
+	"KoGHD":  {1072, 1448, true},
+	"KoA":    {758, 1024, true},
+	"KoAHD":  {1080, 1440, true},
+	"KoAH2O": {1080, 1430, true},
+	"KoAO":   {1404, 1872, true},
+	"KoN":    {758, 1024, true},
+	"KoC":    {1072, 1448, true},
+	"KoCC":   {1072, 1448, true},
+	"KoL":    {1264, 1680, true},
+	"KoLC":   {1264, 1680, true},
+	"KoF":    {1440, 1920, true},
+	"KoS":    {1440, 1920, true},
+	"KoE":    {1404, 1872, true},
+}

@@ -1,0 +1,24 @@
+package image
+
+import (
+	"image"
+
+	"github.com/disintegration/imaging"
+)
+
+func (ip *ImageEditor) CropMargins() {
+	img := *ip.Img
+	img = image.Image(imaging.AdjustContrast(img, 100))
+	img = imaging.Grayscale(img)
+
+	box := ip.GetBBox(img, ip.hasWhiteBg)
+
+	rect := image.Rect(
+		box.left,
+		box.top,
+		box.right,
+		box.bottom,
+	)
+
+	(*ip.Img) = imaging.Crop(*ip.Img, rect)
+}

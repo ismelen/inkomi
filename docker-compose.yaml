@@ -8,8 +8,6 @@ services:
     deploy:
       resources:
         limits:
-          # --- CONFIGURACIÓN DE RECURSOS ---
-          # Puedes ajustar estos valores según tus necesidades:
-          cpus: '2'         # Límite de 1 núcleo (puedes usar '0.5', '2.0', etc.)
-          memory: 6G       # Límite de RAM (puedes usar 512M, 2G, etc.)
+          cpus: "2"
+          memory: 6G
     restart: always

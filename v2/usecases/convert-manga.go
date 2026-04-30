@@ -1,0 +1,104 @@
+package usecases
+
+import (
+	"fmt"
+	"ismelen/ermc/v2/domain"
+	epubBuilder "ismelen/ermc/v2/infra/builders/epub-builder"
+	"ismelen/ermc/v2/infra/image"
+	"path/filepath"
+)
+
+
+type ConvertMangaUC struct{
+	config *domain.ConvertConfig
+	profile *domain.Profile
+	imageSettings *domain.ImageSettings
+}
+
+func NewConvertMangaUC() *ConvertMangaUC { return &ConvertMangaUC{
+	imageSettings: domain.NewDefaultImageSettings(),
+} }
+
+func (c *ConvertMangaUC) Execute(chapters []*domain.Chapter, config *domain.ConvertConfig, dstPath string) error {
+	if config.Title == "" {
+		config.Title = filepath.Base(chapters[0].Path)
+	}
+	if err := c.setParams(config); err != nil {
+		return err
+	}
+
+	epubBuilder := epubBuilder.New()
+	epubBuilder.SetSettings(c.imageSettings, c.profile)
+	epubBuilder.Start(config.Title, dstPath)
+	
+	for _, chapter := range chapters {
+		for pIdx, pagePath := range chapter.PagePaths {
+			page, err := c.processPage(pagePath, pIdx+1)
+			if err != nil {
+				return err
+			}
+			epubBuilder.AddPage(page, pIdx == 0)
+		}
+	}
+
+	_, err := epubBuilder.Build()
+	return err
+}
+
+func (c *ConvertMangaUC) setParams(config *domain.ConvertConfig) error {
+	c.config = config
+	profile, err := domain.NewProfile(config.Profile)
+	if err != nil {
+		return err
+	}
+	c.profile = profile
+	return nil
+}
+
+func (c *ConvertMangaUC) processPage(path string, idx int) (*domain.Page, error) {
+	page := domain.NewPage(path)
+	
+	editor, err := image.NewEditor(
+		path,
+		c.profile.Width,
+		c.profile.Height,
+		c.imageSettings.ForceColor,
+	)
+	if err != nil { return nil, err }
+
+	page.HasWhiteBg = editor.HasWhiteBg()
+	editor.CropMargins()
+
+	isColor := c.imageSettings.ForceColor && editor.IsColored()
+	if !isColor {
+		editor.Grayscale()
+	}
+	if c.imageSettings.RemoveRainbowEffect && isColor {
+		editor.RemoveRainbowEffect()
+	}
+
+	partEditors := editor.TrySplit(c.imageSettings.SpreadSplitter == 2)
+	if c.imageSettings.SpreadSplitter != 1 && len(partEditors) > 2 {
+		partEditors = partEditors[:2]
+	}
+
+	for _, partEditor := range partEditors {
+		partEditor.Resize()
+		part := domain.NewPagePart(
+			partEditor.Img,
+			partEditor.SplitOperation,
+		)
+
+		partPath := filepath.Join(
+			filepath.Dir(path),
+			fmt.Sprintf("ermc-%d%c", idx, part.PathOrder),
+		)
+		if partPath, err = partEditor.SaveToDir(partPath); err != nil {
+			return nil, err
+		}
+		part.Clean()
+		page.Parts = append(page.Parts, part)
+	}
+
+	return page, nil
+}
