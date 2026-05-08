@@ -5,6 +5,7 @@ import (
 	"ismelen/ermc/v2/domain"
 	epubBuilder "ismelen/ermc/v2/infra/builders/epub-builder"
 	"ismelen/ermc/v2/infra/image"
+	"ismelen/ermc/v2/infra/state"
 	"path/filepath"
 )
 
@@ -19,12 +20,38 @@ func NewConvertMangaUC() *ConvertMangaUC { return &ConvertMangaUC{
 	imageSettings: domain.NewDefaultImageSettings(),
 } }
 
-func (c *ConvertMangaUC) Execute(chapters []*domain.Chapter, config *domain.ConvertConfig, dstPath string) error {
-	if config.Title == "" {
-		config.Title = filepath.Base(chapters[0].Path)
+func (c *ConvertMangaUC) Execute(chapters []*domain.Chapter, config *domain.ConvertConfig, dstPath string) {
+	stateManager := state.GetManager()
+	stateManager.StartTransaction(config.Id, dstPath, c.getTransactionSize(chapters))
+	
+	progressChan := make(chan int64)
+
+	go func() {
+		resultPath, err := c.runConversion(chapters, config, dstPath, progressChan)
+		if err != nil {
+			//TODO: Send notification to user
+			stateManager.SetError(config.Id, err)
+			return 
+		}
+		stateManager.SetResultPath(config.Id, resultPath)
+		if config.Cloud {
+			//TODO: Send and notify
+		} else {
+			//TODO: Notify
+		}
+	}()
+	
+	for processedSize := range progressChan {
+		stateManager.UpdateProgress(config.Id, processedSize)
 	}
+
+	stateManager.SetDone(config.Id)
+}
+
+func (c *ConvertMangaUC) runConversion(chapters []*domain.Chapter, config *domain.ConvertConfig, dstPath string, progressChan chan int64) (string, error) {
+	defer close(progressChan)
 	if err := c.setParams(config); err != nil {
-		return err
+		return "", err
 	}
 
 	epubBuilder := epubBuilder.New()
@@ -35,14 +62,23 @@ func (c *ConvertMangaUC) Execute(chapters []*domain.Chapter, config *domain.Conv
 		for pIdx, pagePath := range chapter.PagePaths {
 			page, err := c.processPage(pagePath, pIdx+1)
 			if err != nil {
-				return err
+				return "", err
 			}
 			epubBuilder.AddPage(page, pIdx == 0)
 		}
+		progressChan <- chapter.Size
 	}
 
-	_, err := epubBuilder.Build()
-	return err
+	path, err := epubBuilder.Build()
+	return path, err
+}
+
+func (c *ConvertMangaUC) getTransactionSize(chapters []*domain.Chapter) int64 {
+	var res int64
+	for _, chapter := range chapters {
+		res += chapter.Size
+	}
+	return res
 }
 
 func (c *ConvertMangaUC) setParams(config *domain.ConvertConfig) error {

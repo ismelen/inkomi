@@ -6,14 +6,14 @@ import (
 	"mime/multipart"
 )
 
-func FormFilesToChapters(formFiles []*multipart.FileHeader, dstPath string) ([]*domain.Chapter, error) {
+func FilesToChapters(formFiles []*multipart.FileHeader, dstPath string) ([]*domain.Chapter, error) {
 	var chapters []*domain.Chapter
 	for _, formFile := range formFiles {
 		chapterPath, pages, err := files.UnzipFormFile(formFile, dstPath)
 		if err != nil {
 			return nil, err
 		}
-		chapters = append(chapters, domain.NewChapter(chapterPath, pages))
+		chapters = append(chapters, domain.NewChapter(chapterPath, pages, formFile.Size))
 	}
 	return chapters, nil
 }
