@@ -68,7 +68,16 @@ func (ch *ConvertHandler) CheckStatus(c echo.Context) error {
 }
 
 func (ch *ConvertHandler) Download(c echo.Context) error {
-	return nil
+	id := c.Param("id")
+	stateMng := state.GetManager()
+
+	path, err := stateMng.GetResultPath(id)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": err.Error()}) 
+	}
+
+	c.File(path)
+	// TODO!: RETURN FILE
 }
 
 func (ch *ConvertHandler) Dispatch(c echo.Context) error {

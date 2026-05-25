@@ -93,6 +93,22 @@ func (t *TransactionStateManager) DeleteTransaction(id string) { syncFunc(func()
 	delete(t.transactions, id)
 }) }
 
+func (t *TransactionStateManager) GetResultPath(id string) (string, error) {
+	mu.RLock()
+	trans, ok := t.transactions[id]
+	mu.RUnlock()
+
+	if !ok {
+		return "", fmt.Errorf("transaction doesn't exists")
+	}
+
+	if !trans.Done || trans.ResultPath == "" {
+		return "", fmt.Errorf("transaction hasn't yet been completed")
+	}
+
+	return trans.ResultPath, nil
+}
+
 func syncFunc(f func()) {
 	mu.Lock()
 	f()
