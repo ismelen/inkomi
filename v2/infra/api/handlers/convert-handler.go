@@ -76,8 +76,7 @@ func (ch *ConvertHandler) Download(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": err.Error()}) 
 	}
 
-	c.File(path)
-	// TODO!: RETURN FILE
+	return c.File(path)
 }
 
 func (ch *ConvertHandler) Dispatch(c echo.Context) error {
