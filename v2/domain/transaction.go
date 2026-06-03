@@ -11,4 +11,5 @@ type Transaction struct {
 	Current int64
 	Error error
 	Done bool
+	Canceled bool
 }

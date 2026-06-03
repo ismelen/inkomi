@@ -45,12 +45,12 @@ func (t *TransactionStateManager) StartTransaction(id, path string, transactionS
 func (t *TransactionStateManager) UpdateProgress(id string, processedSize int64) bool {
 	mu.Lock()
 	defer mu.Unlock()
-	
+
 	tran, ok := t.transactions[id]
 	if(!ok) { return false }
 	tran.Current += processedSize
 
-	return true
+	return !tran.Canceled
 }
 
 func (t *TransactionStateManager) CheckProgress(id string) (int64, error) {
@@ -80,6 +80,13 @@ func (t *TransactionStateManager) SetError(id string, err error) {syncFunc(func(
 	if(!ok) { return }
 
 	tran.Error = err
+}) }
+
+func (t *TransactionStateManager) Cancel(id string) {syncFunc(func() {
+	tran, ok := t.transactions[id]
+	if(!ok) { return }
+
+	tran.Canceled = true
 }) }
 
 func (t *TransactionStateManager) SetResultPath(id string, path string) { syncFunc(func() {

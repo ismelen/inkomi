@@ -83,7 +83,7 @@ func (ch *ConvertHandler) Cancel(c echo.Context) error {
 	id := c.Param(("id"))
 	stateMng := state.GetManager()
 
-	stateMng.DeleteTransaction(id)
+	stateMng.Cancel(id)
 
 	return nil
 }

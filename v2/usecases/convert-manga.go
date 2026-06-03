@@ -32,7 +32,11 @@ func (c *ConvertMangaUC) Execute(chapters []*domain.Chapter, config *domain.Conv
 		resultPath, err := c.runConversion(ctx, chapters, config, dstPath, progressChan)
 		if err != nil {
 			//TODO: Send notification to user
-			stateManager.SetError(config.Id, err)
+			if canceled := ctx.Err(); canceled != nil {
+				stateManager.DeleteTransaction(config.Id)				
+			} else {
+				stateManager.SetError(config.Id, err)
+			}
 			return 
 		}
 		stateManager.SetResultPath(config.Id, resultPath)
