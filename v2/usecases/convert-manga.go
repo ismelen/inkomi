@@ -1,6 +1,7 @@
 package usecases
 
 import (
+	"context"
 	"fmt"
 	"ismelen/ermc/v2/domain"
 	epubBuilder "ismelen/ermc/v2/infra/builders/epub-builder"
@@ -25,9 +26,10 @@ func (c *ConvertMangaUC) Execute(chapters []*domain.Chapter, config *domain.Conv
 	stateManager.StartTransaction(config.Id, dstPath, c.getTransactionSize(chapters))
 	
 	progressChan := make(chan int64)
+	ctx, cancel := context.WithCancel(context.Background())
 
 	go func() {
-		resultPath, err := c.runConversion(chapters, config, dstPath, progressChan)
+		resultPath, err := c.runConversion(ctx, chapters, config, dstPath, progressChan)
 		if err != nil {
 			//TODO: Send notification to user
 			stateManager.SetError(config.Id, err)
@@ -42,13 +44,23 @@ func (c *ConvertMangaUC) Execute(chapters []*domain.Chapter, config *domain.Conv
 	}()
 	
 	for processedSize := range progressChan {
-		stateManager.UpdateProgress(config.Id, processedSize)
+		if updated := stateManager.UpdateProgress(config.Id, processedSize); !updated {
+			cancel()
+			return
+		}
 	}
 
+	cancel()
 	stateManager.SetDone(config.Id)
 }
 
-func (c *ConvertMangaUC) runConversion(chapters []*domain.Chapter, config *domain.ConvertConfig, dstPath string, progressChan chan int64) (string, error) {
+func (c *ConvertMangaUC) runConversion(
+	ctx context.Context, 
+	chapters []*domain.Chapter, 
+	config *domain.ConvertConfig, 
+	dstPath string, 
+	progressChan chan int64,
+) (string, error) {
 	defer close(progressChan)
 	if err := c.setParams(config); err != nil {
 		return "", err
@@ -60,6 +72,9 @@ func (c *ConvertMangaUC) runConversion(chapters []*domain.Chapter, config *domai
 	
 	for _, chapter := range chapters {
 		for pIdx, pagePath := range chapter.PagePaths {
+			if err := ctx.Err(); err != nil {
+				return "", fmt.Errorf("Job canceled")
+			}
 			page, err := c.processPage(pagePath, pIdx+1)
 			if err != nil {
 				return "", err

@@ -10,6 +10,5 @@ func SetupConvertRoutes(api *echo.Echo, handler *handlers.ConvertHandler) {
 	api.POST("/convert", handler.Convert)
 	api.GET("/status/{id}", handler.CheckStatus)
 	api.GET("/download/{id}", handler.Download)
-	api.PUT("/output/{id}", handler.Dispatch)
 	api.PUT("/cancel/{id}", handler.Cancel)
 }

@@ -42,12 +42,16 @@ func (t *TransactionStateManager) StartTransaction(id, path string, transactionS
 	})
 }
 
-func (t *TransactionStateManager) UpdateProgress(id string, processedSize int64) { syncFunc(func(){
+func (t *TransactionStateManager) UpdateProgress(id string, processedSize int64) bool {
+	mu.Lock()
+	defer mu.Unlock()
+	
 	tran, ok := t.transactions[id]
-	if(!ok) { return }
-
+	if(!ok) { return false }
 	tran.Current += processedSize
-}) }
+
+	return true
+}
 
 func (t *TransactionStateManager) CheckProgress(id string) (int64, error) {
 	mu.RLock()

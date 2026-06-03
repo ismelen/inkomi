@@ -79,11 +79,12 @@ func (ch *ConvertHandler) Download(c echo.Context) error {
 	return c.File(path)
 }
 
-func (ch *ConvertHandler) Dispatch(c echo.Context) error {
-	return nil
-}
-
 func (ch *ConvertHandler) Cancel(c echo.Context) error {
+	id := c.Param(("id"))
+	stateMng := state.GetManager()
+
+	stateMng.DeleteTransaction(id)
+
 	return nil
 }
 
