@@ -1,0 +1,64 @@
+Table users [headercolor: #84cc68] {
+	id integer [ pk, increment, not null ]
+	google_id text(65535) [ unique ]
+	noti_id text(65535) [ unique ]
+	email text(65535) [ not null, unique ]
+	password text(65535) [ not null ]
+	name text(65535) [ not null ]
+	created_at datetime [ not null, default: CURRENT_TIMESTAMP ]
+	last_login datetime [ not null ]
+	device text(65535)
+}
+
+Table oauth_token [headercolor: #84cc68] {
+	id integer [ pk, increment, not null ]
+	user_id integer [ not null ]
+	refresh_token text(65535) [ not null ]
+	updated_at datetime [ not null, default: CURRENT_TIMESTAMP ]
+}
+
+Table watched_manga [headercolor: #175e7a] {
+	id integer [ pk, increment, not null ]
+	user_id integer [ not null ]
+	title text(65535)
+	author text(65535)
+	drive_folder_id text(65535)
+	last_volume integer
+	last_chapter integer
+	update_at datetime [ not null, default: CURRENT_TIMESTAMP ]
+	merge_files boolean [ not null, default: false ]
+	delete_original boolean [ not null, default: false ]
+	watch_path text(65535) [ not null ]
+	created_at datetime [ not null, default: CURRENT_TIMESTAMP ]
+	cover_path text(65535)
+}
+
+Table transaction [headercolor: #175e7a] {
+	id integer [ pk, increment, not null ]
+	user_id integer [ not null ]
+	type text(65535) [ not null, note: 'manga, book' ]
+	wathced_manga integer
+	drive_folder_id text(65535)
+	error_msg text(65535)
+	filenames text(65535) [ not null ]
+	crated_at datetime [ not null, default: CURRENT_TIMESTAMP ]
+	updated_at datetime [ not null, default: CURRENT_TIMESTAMP ]
+	finished_at datetime [ default: CURRENT_TIMESTAMP ]
+	cover_path text(65535)
+}
+
+Ref fk_oauth_token_user_id_users {
+	oauth_token.user_id > users.id [ delete: no action, update: no action ]
+}
+
+Ref fk_Manga_user_id_users {
+	watched_manga.user_id > users.id [ delete: no action, update: no action ]
+}
+
+Ref fk_transaction_user_id_users {
+	transaction.user_id > users.id [ delete: no action, update: no action ]
+}
+
+Ref fk_transaction_wathced_manga_watched_manga {
+	transaction.wathced_manga > watched_manga.id [ delete: no action, update: no action ]
+}
