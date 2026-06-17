@@ -5,6 +5,8 @@ services:
       - "8080:8080"
     environment:
       - RAM=6144
+    volumes:
+      - ./data:/root/data
     deploy:
       resources:
         limits:

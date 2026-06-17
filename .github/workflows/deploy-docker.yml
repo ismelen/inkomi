@@ -1,0 +1,48 @@
+name: Deploy Backend (Docker)
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'back/api/**'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Copy files via SSH
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          username: ${{ secrets.ORACLE_USERNAME }}
+          key: ${{ secrets.ORACLE_PRIVATE_KEY }}
+          source: "back/api/*"
+          target: "~/inkomi"
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          username: ${{ secrets.ORACLE_USERNAME }}
+          key: ${{ secrets.ORACLE_PRIVATE_KEY }}
+          script: |
+            # 1. Install Docker and Docker Compose if not present
+            if ! command -v docker &> /dev/null; then
+              echo "Docker not found. Installing Docker..."
+              sudo dnf update -y
+              sudo dnf install -y dnf-utils zip unzip
+              sudo dnf config-manager --add-repo=https://download.docker.com/linux/centos/docker-ce.repo
+              sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+              sudo systemctl enable docker --now
+              sudo usermod -aG docker $USER
+              echo "Docker installed successfully."
+            fi
+            
+            # 2. Deploy using Docker Compose
+            cd ~/inkomi/back/api
+            sudo docker compose up -d --build
