@@ -18,7 +18,7 @@ func main() {
 	convertHandler := handlers.NewConvertHandler()
 	routes.SetupConvertRoutes(api, convertHandler)
 
-	if err := api.Start(":300"); err != nil {
+	if err := api.Start(":3000"); err != nil {
 		log.Fatal(err)
 	}
 }
