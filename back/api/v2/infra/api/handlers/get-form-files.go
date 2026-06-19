@@ -3,19 +3,22 @@ package handlers
 import (
 	"fmt"
 	"mime/multipart"
-
-	"github.com/labstack/echo/v4"
+	"net/http"
 )
 
-func GetFormFiles(c echo.Context, key string) ([]*multipart.FileHeader, error) {
-	form, err := c.MultipartForm()
+func GetFormFiles(r *http.Request, key string) ([]*multipart.FileHeader, error) {
+	err := r.ParseMultipartForm(250 << 20)
 	if err != nil {
-		return nil, err 
+		return nil, err
 	}
-	
-	formFiles := form.File[key]
+
+	if r.MultipartForm == nil || r.MultipartForm.File == nil {
+		return nil, fmt.Errorf("no files attached")
+	}
+
+	formFiles := r.MultipartForm.File[key]
 	if len(formFiles) == 0 {
-		return nil,  fmt.Errorf("no files attached") 
+		return nil, fmt.Errorf("no files attached")
 	}
 
 	return formFiles, nil
