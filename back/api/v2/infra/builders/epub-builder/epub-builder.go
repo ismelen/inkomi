@@ -19,14 +19,14 @@ import (
 
 type EpubBuilder struct {
 	settings *domain.ImageSettings
-	profile *domain.Profile
+	profile  *domain.Profile
 	builders builders
-	writer *zip.Writer
-	out *os.File
-	name string
+	writer   *zip.Writer
+	out      *os.File
+	name     string
 	pageSide string
 	hasCover bool
-	mu sync.Mutex
+	mu       sync.Mutex
 }
 
 func New() *EpubBuilder { return &EpubBuilder{} }
@@ -42,12 +42,13 @@ var PATHS = struct{ text, images string }{
 
 const (
 	PAGE_RIGHT = "right"
-	PAGE_LEFT = "left"
+	PAGE_LEFT  = "left"
 )
 
 func (b *EpubBuilder) SetSettings(settings *domain.ImageSettings, profile *domain.Profile) *EpubBuilder {
 	b.settings = settings
 	b.profile = profile
+
 	return b
 }
 
@@ -64,14 +65,11 @@ func (b *EpubBuilder) Start(name string, outDir string) *EpubBuilder {
 		return b
 	}
 
-	*b = EpubBuilder{
-		settings: b.settings,
-		out:      out,
-		writer:   zip.NewWriter(out),
-		name:   name,
-		pageSide: pageSide,
-		mu: sync.Mutex{},
-	}
+	b.out = out
+	b.writer = zip.NewWriter(out)
+	b.name = name
+	b.pageSide = pageSide
+	b.mu = sync.Mutex{}
 
 	b.startBuilders()
 	b.addHeaders()
@@ -94,11 +92,11 @@ func (b *EpubBuilder) Build() (string, error) {
 	}
 
 	b.out.Close()
-	
+
 	// if b.profile.IsKepub {
 	// 	return b.ConvertToKepub()
 	// }
-	
+
 	return b.out.Name(), nil
 }
 
@@ -140,7 +138,7 @@ func (b *EpubBuilder) AddPage(page *domain.Page, fstPage bool) *EpubBuilder {
 			part.ChapterName,
 		)
 	}
-	
+
 	for _, part := range page.Parts {
 		path := filepath.Join(
 			PATHS.images,
@@ -159,10 +157,10 @@ func (b *EpubBuilder) AddPage(page *domain.Page, fstPage bool) *EpubBuilder {
 		switch part.Split {
 		case image.None, image.Rotated:
 			b.pageSide = pkg.Toggle(b.pageSide, PAGE_RIGHT, PAGE_LEFT)
-		case image.ToLeft: 
+		case image.ToLeft:
 			b.pageSide = PAGE_LEFT
 		case image.ToRight:
-			b.pageSide = PAGE_RIGHT 
+			b.pageSide = PAGE_RIGHT
 		}
 
 		b.builders.opfRefs.AddFromTemplate(
@@ -318,11 +316,10 @@ func (b *EpubBuilder) addStyles() error {
 	return fileBuilder.New().
 		Add(Styles).
 		BuildToZip(
-			b.writer, 
+			b.writer,
 			filepath.ToSlash(filepath.Join(PATHS.text, "style.css")),
 		)
 }
-
 
 // TODO: KEPUBIFY
 // func (b *EpubBuilder) ConvertToKepub() (string, error) {
