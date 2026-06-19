@@ -6,10 +6,12 @@ import (
 	"ismelen/ermc/v2/domain"
 	epubBuilder "ismelen/ermc/v2/infra/builders/epub-builder"
 	"ismelen/ermc/v2/infra/cloud"
+	"ismelen/ermc/v2/infra/helpers"
 	"ismelen/ermc/v2/infra/image"
 	"ismelen/ermc/v2/infra/state"
 	"ismelen/ermc/v2/ports"
 	"path/filepath"
+	"sort"
 )
 
 type ConvertMangaUC struct {
@@ -87,8 +89,12 @@ func (c *ConvertMangaUC) runConversion(
 	builder.SetSettings(c.imageSettings, c.profile)
 	builder.Start(config.Title, dstPath)
 
+	sort.Slice(chapters, func(i, j int) bool {
+		return helpers.AlphanumericCmp(chapters[i].Filename, chapters[j].Filename)
+	})
+
 	for _, chapter := range chapters {
-		for pIdx, pagePath := range chapter.PagePaths {
+		for pIdx, pagePath := range chapter.GetPagePaths() {
 			if err := ctx.Err(); err != nil {
 				return "", fmt.Errorf("Job canceled")
 			}
