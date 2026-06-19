@@ -16,10 +16,10 @@ var transactionManager *TransactionStateManager
 var once sync.Once
 var mu sync.RWMutex
 
-func GetManager() *TransactionStateManager { 
+func GetManager() *TransactionStateManager {
 	if transactionManager == nil {
 		once.Do(func() {
-			transactionManager =  &TransactionStateManager{
+			transactionManager = &TransactionStateManager{
 				transactions: make(map[string]*domain.Transaction),
 			}
 		})
@@ -30,13 +30,13 @@ func GetManager() *TransactionStateManager {
 func (t *TransactionStateManager) StartTransaction(id, path string, transactionSize int64) {
 	mu.Lock()
 	t.transactions[id] = &domain.Transaction{
-		Id: id,
+		Id:      id,
 		StartAt: time.Now(),
-		Size: transactionSize,
-		Path: path,
+		Size:    transactionSize,
+		Path:    path,
 	}
 	mu.Unlock()
-	
+
 	time.AfterFunc(90*time.Minute, func() {
 		t.DeleteTransaction(id)
 	})
@@ -47,7 +47,9 @@ func (t *TransactionStateManager) UpdateProgress(id string, processedSize int64)
 	defer mu.Unlock()
 
 	tran, ok := t.transactions[id]
-	if(!ok) { return false }
+	if !ok {
+		return false
+	}
 	tran.Current += processedSize
 
 	return !tran.Canceled
@@ -58,51 +60,73 @@ func (t *TransactionStateManager) CheckProgress(id string) (int64, error) {
 	tran, ok := t.transactions[id]
 	mu.RUnlock()
 
-	if(!ok) { return 0, fmt.Errorf("transaction doesn't exists") }
+	if !ok {
+		return 0, fmt.Errorf("transaction doesn't exists")
+	}
 
 	if tran.Error != nil {
 		defer t.DeleteTransaction(id)
 		return 0, tran.Error
 	}
 
-	return (tran.Current / tran.Size) * 100, nil
+	return tran.Current * 100 / tran.Size, nil
 }
 
-func (t *TransactionStateManager) SetDone(id string) { syncFunc(func() {
-	tran, ok := t.transactions[id]
-	if(!ok) { return }
+func (t *TransactionStateManager) SetDone(id string) {
+	syncFunc(func() {
+		tran, ok := t.transactions[id]
+		if !ok {
+			return
+		}
 
-	tran.Done = true
-}) }
+		tran.Done = true
+	})
+}
 
-func (t *TransactionStateManager) SetError(id string, err error) {syncFunc(func() {
-	tran, ok := t.transactions[id]
-	if(!ok) { return }
+func (t *TransactionStateManager) SetError(id string, err error) {
+	syncFunc(func() {
+		tran, ok := t.transactions[id]
+		if !ok {
+			return
+		}
 
-	tran.Error = err
-}) }
+		tran.Error = err
+	})
+}
 
-func (t *TransactionStateManager) Cancel(id string) {syncFunc(func() {
-	tran, ok := t.transactions[id]
-	if(!ok) { return }
+func (t *TransactionStateManager) Cancel(id string) {
+	syncFunc(func() {
+		tran, ok := t.transactions[id]
+		if !ok {
+			return
+		}
 
-	tran.Canceled = true
-}) }
+		tran.Canceled = true
+	})
+}
 
-func (t *TransactionStateManager) SetResultPath(id string, path string) { syncFunc(func() {
-	tran, ok := t.transactions[id]
-	if(!ok) { return }
+func (t *TransactionStateManager) SetResultPath(id string, path string) {
+	syncFunc(func() {
+		tran, ok := t.transactions[id]
+		if !ok {
+			return
+		}
 
-	tran.ResultPath = path
-}) }
+		tran.ResultPath = path
+	})
+}
 
-func (t *TransactionStateManager) DeleteTransaction(id string) { syncFunc(func() {
-	tran, ok := t.transactions[id]
-	if(!ok) { return }
+func (t *TransactionStateManager) DeleteTransaction(id string) {
+	syncFunc(func() {
+		tran, ok := t.transactions[id]
+		if !ok {
+			return
+		}
 
-	os.RemoveAll(tran.Path)
-	delete(t.transactions, id)
-}) }
+		os.RemoveAll(tran.Path)
+		delete(t.transactions, id)
+	})
+}
 
 func (t *TransactionStateManager) GetResultPath(id string) (string, error) {
 	mu.RLock()
