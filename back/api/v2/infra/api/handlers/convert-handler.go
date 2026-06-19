@@ -61,13 +61,6 @@ func (ch *ConvertHandler) Convert(r *http.Request) (any, error) {
 		return nil, domain.NewApiError(500, "No files attached")
 	}
 
-	for _, c := range chapters {
-		log.Println(c.Path)
-		for _, p := range c.PagePaths {
-			log.Println(p)
-		}
-	}
-
 	if req.Title == "" {
 		req.Title = filepath.Base(chapters[0].Path)
 	}
