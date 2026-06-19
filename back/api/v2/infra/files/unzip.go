@@ -9,6 +9,40 @@ import (
 	"strings"
 )
 
+func UnzipFormZip(src *multipart.FileHeader, outBase string) (string, []string, error) {
+	file, err := src.Open()
+	if err != nil {
+		return "", nil, err
+	}
+	defer file.Close()
+
+	reader, err := zip.NewReader(file, src.Size)
+	if err != nil {
+		return "", nil, err
+	}
+
+	fileName := strings.TrimSuffix(src.Filename, filepath.Ext(src.Filename))
+	sanitizedFilename, err := SanitizeFilename(fileName)
+	if err != nil {
+		return "", nil, err
+	}
+	dstPath := filepath.Join(outBase, "temp", sanitizedFilename)
+	if err := os.MkdirAll(dstPath, os.ModePerm); err != nil {
+		return "", nil, err
+	}
+
+	var paths []string
+	for _, file := range reader.File[1:] {
+		path := filepath.Join(dstPath, file.FileInfo().Name())
+		if err := ExtractFile(file, path); err != nil {
+			return "", nil, err
+		}
+		paths = append(paths, path)
+	}
+
+	return dstPath, paths, nil
+}
+
 func UnzipFormFile(src *multipart.FileHeader, outBase string) (string, string, []string, error) {
 	fileName := strings.TrimSuffix(src.Filename, filepath.Ext(src.Filename))
 	sanitizedFilename, err := SanitizeFilename(fileName)
@@ -21,13 +55,46 @@ func UnzipFormFile(src *multipart.FileHeader, outBase string) (string, string, [
 	}
 
 	file, err := src.Open()
-	if err != nil { return "", "", nil, err }
+	if err != nil {
+		return "", "", nil, err
+	}
 	defer file.Close()
 
 	reader, err := zip.NewReader(file, src.Size)
-	if err != nil { return "", "", nil, err }
-	
-	var paths[]string
+	if err != nil {
+		return "", "", nil, err
+	}
+
+	var paths []string
+	for _, file := range reader.File {
+		path := filepath.Join(dstPath, file.Name)
+		if err := ExtractFile(file, path); err != nil {
+			return "", "", nil, err
+		}
+		paths = append(paths, path)
+	}
+	return fileName, dstPath, paths, nil
+}
+
+func UnzipFile(src string, outBase string) (string, string, []string, error) {
+	name := filepath.Base(src)
+	fileName := strings.TrimSuffix(name, filepath.Ext(name))
+	sanitizedFilename, err := SanitizeFilename(fileName)
+	if err != nil {
+		return "", "", nil, err
+	}
+	dstPath := filepath.Join(outBase, sanitizedFilename)
+	if err := os.MkdirAll(dstPath, os.ModePerm); err != nil {
+		return "", "", nil, err
+	}
+
+	reader, err := zip.OpenReader(src)
+	if err != nil {
+		return "", "", nil, err
+	}
+	defer reader.Close()
+
+	var paths []string
 	for _, file := range reader.File {
 		path := filepath.Join(dstPath, file.Name)
 		if err := ExtractFile(file, path); err != nil {
