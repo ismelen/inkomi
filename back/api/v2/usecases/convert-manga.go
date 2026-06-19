@@ -7,6 +7,7 @@ import (
 	epubBuilder "ismelen/ermc/v2/infra/builders/epub-builder"
 	"ismelen/ermc/v2/infra/image"
 	"ismelen/ermc/v2/infra/state"
+	"ismelen/ermc/v2/ports"
 	"path/filepath"
 )
 
@@ -15,11 +16,15 @@ type ConvertMangaUC struct{
 	config *domain.ConvertConfig
 	profile *domain.Profile
 	imageSettings *domain.ImageSettings
+	pushNotifier ports.PushNotifier
 }
 
-func NewConvertMangaUC() *ConvertMangaUC { return &ConvertMangaUC{
-	imageSettings: domain.NewDefaultImageSettings(),
-} }
+func NewConvertMangaUC(pushNotifier ports.PushNotifier) *ConvertMangaUC { 
+	return &ConvertMangaUC{
+		imageSettings: domain.NewDefaultImageSettings(),
+		pushNotifier: pushNotifier,
+	} 
+}
 
 func (c *ConvertMangaUC) Execute(chapters []*domain.Chapter, config *domain.ConvertConfig, dstPath string) {
 	stateManager := state.GetManager()
@@ -31,8 +36,9 @@ func (c *ConvertMangaUC) Execute(chapters []*domain.Chapter, config *domain.Conv
 	go func() {
 		resultPath, err := c.runConversion(ctx, chapters, config, dstPath, progressChan)
 		if err != nil {
-			//TODO: Send notification to user
+			c.pushNotifier.Send(config.NotifyToken, "Error", fmt.Sprintf("Error: %s", err.Error()))
 			if canceled := ctx.Err(); canceled != nil {
+				c.pushNotifier.Send(config.NotifyToken, "Canceled", fmt.Sprintf("%s conversion canceled", config.Title))
 				stateManager.DeleteTransaction(config.Id)				
 			} else {
 				stateManager.SetError(config.Id, err)
@@ -41,9 +47,9 @@ func (c *ConvertMangaUC) Execute(chapters []*domain.Chapter, config *domain.Conv
 		}
 		stateManager.SetResultPath(config.Id, resultPath)
 		if config.Cloud {
-			//TODO: Send and notify
+			c.pushNotifier.Send(config.NotifyToken, "Success", fmt.Sprintf("Sending %s to cloud", filepath.Base(resultPath)))
 		} else {
-			//TODO: Notify
+			c.pushNotifier.Send(config.NotifyToken, "Success", fmt.Sprintf("%s conversion ready", filepath.Base(resultPath)))
 		}
 	}()
 	

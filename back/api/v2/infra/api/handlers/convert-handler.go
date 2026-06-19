@@ -16,14 +16,16 @@ import (
 
 type ConvertHandler struct{
 	basePath string
+	convertUC *usecases.ConvertMangaUC
 }
 
-func NewConvertHandler() *ConvertHandler {
+func NewConvertHandler(convertUC *usecases.ConvertMangaUC) *ConvertHandler {
 	tmp, err := os.MkdirTemp("", "ERMC(*)")
 	if err != nil { log.Fatal(err) }
 	
 	return &ConvertHandler{
 		basePath: tmp,
+		convertUC: convertUC,
 	}
 }
 
@@ -50,8 +52,7 @@ func (ch *ConvertHandler) Convert(c echo.Context) error {
 		req.Title = filepath.Base(chapters[0].Path)
 	}
 	
-	converter := usecases.NewConvertMangaUC()
-	go converter.Execute(chapters, req, dstPath)
+	go ch.convertUC.Execute(chapters, req, dstPath)
 	return c.JSON(http.StatusAccepted, echo.Map{"id": req.Id, "title": req.Title})
 }
 
