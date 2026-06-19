@@ -1,33 +1,22 @@
 meta {
   name: convert small
   type: http
-  seq: 2
+  seq: 1
 }
 
 post {
-  url: http://localhost:8080/manga/convert
+  url: http://localhost:3000/convert
   body: multipartForm
   auth: inherit
 }
 
 body:multipart-form {
-  title: Test
-  author: Yo
-  format: epub
+  title: One Piece
   profile: KoCC
   merge: true
-  firstVolumeNum: 0
-  files: @file(C:\Users\ismae\Proyectos\ERMC-back\tests\datasource\Chainsaw Man Small\Capítulo 1 — El perro y la motosierra_078c06.cbz)
-  files: @file(C:\Users\ismae\Proyectos\ERMC-back\tests\datasource\Chainsaw Man Small\Capítulo 10 — Kon_96f526.cbz)
-  files: @file(C:\Users\ismae\Proyectos\ERMC-back\tests\datasource\Chainsaw Man Small\Capítulo 2 — El paradero de Pochita_b4c8c2.cbz)
-  files: @file(C:\Users\ismae\Proyectos\ERMC-back\tests\datasource\Chainsaw Man Small\Capítulo 3 — Llegada a Tokio_c0379b.cbz)
-  files: @file(C:\Users\ismae\Proyectos\ERMC-back\tests\datasource\Chainsaw Man Small\Capítulo 4 — Power_3fd8b9.cbz)
-  files: @file(C:\Users\ismae\Proyectos\ERMC-back\tests\datasource\Chainsaw Man Small\Capítulo 5 — El camino para tocar pechos_14f246.cbz)
-  files: @file(C:\Users\ismae\Proyectos\ERMC-back\tests\datasource\Chainsaw Man Small\Capítulo 6 — Empezar a trabajar_c1340b.cbz)
-  files: @file(C:\Users\ismae\Proyectos\ERMC-back\tests\datasource\Chainsaw Man Small\Capítulo 7 — El paradero de Nyako_c30198.cbz)
-  files: @file(C:\Users\ismae\Proyectos\ERMC-back\tests\datasource\Chainsaw Man Small\Capítulo 7.50 — Extras Vol. 1_4c99cf.cbz)
-  files: @file(C:\Users\ismae\Proyectos\ERMC-back\tests\datasource\Chainsaw Man Small\Capítulo 8 — Motosierra vs Murciélago_174714.cbz)
-  files: @file(C:\Users\ismae\Proyectos\ERMC-back\tests\datasource\Chainsaw Man Small\Capítulo 9 — Rescate_5bfd6d.cbz)
+  cloud: false
+  files: @file(C:\Users\ismae\Desktop\Chainsaw Man Small.zip)
+  author: Eiichiro Oda
 }
 
 settings {

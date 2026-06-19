@@ -83,25 +83,28 @@ func (c *ConvertMangaUC) runConversion(
 		return "", err
 	}
 
-	epubBuilder := epubBuilder.New()
-	epubBuilder.SetSettings(c.imageSettings, c.profile)
-	epubBuilder.Start(config.Title, dstPath)
+	builder := epubBuilder.New()
+	builder.SetSettings(c.imageSettings, c.profile)
+	builder.Start(config.Title, dstPath)
 
 	for _, chapter := range chapters {
 		for pIdx, pagePath := range chapter.PagePaths {
 			if err := ctx.Err(); err != nil {
 				return "", fmt.Errorf("Job canceled")
 			}
+			if filepath.Ext(pagePath) == ".xml" {
+				continue
+			}
 			page, err := c.processPage(pagePath, pIdx+1)
 			if err != nil {
 				return "", err
 			}
-			epubBuilder.AddPage(page, pIdx == 0)
+			builder.AddPage(page, pIdx == 0)
 		}
 		progressChan <- chapter.Size
 	}
 
-	path, err := epubBuilder.Build()
+	path, err := builder.Build()
 	return path, err
 }
 
@@ -125,7 +128,6 @@ func (c *ConvertMangaUC) setParams(config *domain.ConvertConfig) error {
 
 func (c *ConvertMangaUC) processPage(path string, idx int) (*domain.Page, error) {
 	page := domain.NewPage(path)
-
 	editor, err := image.NewEditor(
 		path,
 		c.profile.Width,
@@ -161,11 +163,14 @@ func (c *ConvertMangaUC) processPage(path string, idx int) (*domain.Page, error)
 
 		partPath := filepath.Join(
 			filepath.Dir(path),
-			fmt.Sprintf("ermc-%d%c", idx, part.PathOrder),
+			fmt.Sprintf("inkomi-%d%c", idx, part.PathOrder),
 		)
-		if partPath, err = partEditor.SaveToDir(partPath); err != nil {
+		partPath, err = partEditor.SaveToDir(partPath)
+		if err != nil {
 			return nil, err
 		}
+
+		part.SetPath(partPath)
 		part.Clean()
 		page.Parts = append(page.Parts, part)
 	}

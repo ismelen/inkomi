@@ -31,6 +31,7 @@ func main() {
 	convertHandler := handlers.NewConvertHandler(convertUC)
 	routes.SetupConvertRoutes(api, convertHandler)
 
+	log.Println("Starting at port 3000")
 	if err := http.ListenAndServe(":3000", api); err != nil {
 		log.Fatal(err)
 	}

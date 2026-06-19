@@ -1,6 +1,6 @@
 {
   "version": "1",
-  "name": "ERMC",
+  "name": "inkomi",
   "type": "collection",
   "ignore": [
     "node_modules",
