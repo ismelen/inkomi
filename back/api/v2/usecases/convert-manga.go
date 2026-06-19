@@ -5,31 +5,31 @@ import (
 	"fmt"
 	"ismelen/ermc/v2/domain"
 	epubBuilder "ismelen/ermc/v2/infra/builders/epub-builder"
+	"ismelen/ermc/v2/infra/cloud"
 	"ismelen/ermc/v2/infra/image"
 	"ismelen/ermc/v2/infra/state"
 	"ismelen/ermc/v2/ports"
 	"path/filepath"
 )
 
-
-type ConvertMangaUC struct{
-	config *domain.ConvertConfig
-	profile *domain.Profile
+type ConvertMangaUC struct {
+	config        *domain.ConvertConfig
+	profile       *domain.Profile
 	imageSettings *domain.ImageSettings
-	pushNotifier ports.PushNotifier
+	pushNotifier  ports.PushNotifier
 }
 
-func NewConvertMangaUC(pushNotifier ports.PushNotifier) *ConvertMangaUC { 
+func NewConvertMangaUC(pushNotifier ports.PushNotifier) *ConvertMangaUC {
 	return &ConvertMangaUC{
 		imageSettings: domain.NewDefaultImageSettings(),
-		pushNotifier: pushNotifier,
-	} 
+		pushNotifier:  pushNotifier,
+	}
 }
 
 func (c *ConvertMangaUC) Execute(chapters []*domain.Chapter, config *domain.ConvertConfig, dstPath string) {
 	stateManager := state.GetManager()
 	stateManager.StartTransaction(config.Id, dstPath, c.getTransactionSize(chapters))
-	
+
 	progressChan := make(chan int64)
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -39,20 +39,27 @@ func (c *ConvertMangaUC) Execute(chapters []*domain.Chapter, config *domain.Conv
 			c.pushNotifier.Send(config.NotifyToken, "Error", fmt.Sprintf("Error: %s", err.Error()))
 			if canceled := ctx.Err(); canceled != nil {
 				c.pushNotifier.Send(config.NotifyToken, "Canceled", fmt.Sprintf("%s conversion canceled", config.Title))
-				stateManager.DeleteTransaction(config.Id)				
+				stateManager.DeleteTransaction(config.Id)
 			} else {
 				stateManager.SetError(config.Id, err)
 			}
-			return 
+			return
 		}
 		stateManager.SetResultPath(config.Id, resultPath)
 		if config.Cloud {
 			c.pushNotifier.Send(config.NotifyToken, "Success", fmt.Sprintf("Sending %s to cloud", filepath.Base(resultPath)))
+			gCloud, err := cloud.New(config.CloudToken, config.CloudFolder)
+
+			if err != nil {
+				c.pushNotifier.Send(config.NotifyToken, "Error", fmt.Sprintf("Cannot send %s to cloud", filepath.Base(resultPath)))
+				return
+			}
+			gCloud.Upload(resultPath)
 		} else {
 			c.pushNotifier.Send(config.NotifyToken, "Success", fmt.Sprintf("%s conversion ready", filepath.Base(resultPath)))
 		}
 	}()
-	
+
 	for processedSize := range progressChan {
 		if updated := stateManager.UpdateProgress(config.Id, processedSize); !updated {
 			cancel()
@@ -65,10 +72,10 @@ func (c *ConvertMangaUC) Execute(chapters []*domain.Chapter, config *domain.Conv
 }
 
 func (c *ConvertMangaUC) runConversion(
-	ctx context.Context, 
-	chapters []*domain.Chapter, 
-	config *domain.ConvertConfig, 
-	dstPath string, 
+	ctx context.Context,
+	chapters []*domain.Chapter,
+	config *domain.ConvertConfig,
+	dstPath string,
 	progressChan chan int64,
 ) (string, error) {
 	defer close(progressChan)
@@ -79,7 +86,7 @@ func (c *ConvertMangaUC) runConversion(
 	epubBuilder := epubBuilder.New()
 	epubBuilder.SetSettings(c.imageSettings, c.profile)
 	epubBuilder.Start(config.Title, dstPath)
-	
+
 	for _, chapter := range chapters {
 		for pIdx, pagePath := range chapter.PagePaths {
 			if err := ctx.Err(); err != nil {
@@ -118,14 +125,16 @@ func (c *ConvertMangaUC) setParams(config *domain.ConvertConfig) error {
 
 func (c *ConvertMangaUC) processPage(path string, idx int) (*domain.Page, error) {
 	page := domain.NewPage(path)
-	
+
 	editor, err := image.NewEditor(
 		path,
 		c.profile.Width,
 		c.profile.Height,
 		c.imageSettings.ForceColor,
 	)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 
 	page.HasWhiteBg = editor.HasWhiteBg()
 	editor.CropMargins()

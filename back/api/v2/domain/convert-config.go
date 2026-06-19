@@ -7,6 +7,7 @@ type ConvertConfig struct {
 	Merge       bool   `form:"merge"`
 	Id          string
 	Cloud       bool   `form:"cloud"`
-	CloudToken  string `form:"cloud_token"`
+	CloudToken  string `form:"cloud_token,omitempty"`
+	CloudFolder string `form:"cloud_folder,omitempty"`
 	NotifyToken string `form:"notify_token,omitempty"`
 }
