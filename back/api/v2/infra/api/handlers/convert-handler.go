@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"ismelen/ermc/v2/domain"
 	"ismelen/ermc/v2/infra/converters"
 	"ismelen/ermc/v2/infra/crypto"
@@ -13,6 +12,7 @@ import (
 	"path/filepath"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/gorilla/schema"
 )
 
 type ConvertHandler struct {
@@ -21,7 +21,7 @@ type ConvertHandler struct {
 }
 
 func NewConvertHandler(convertUC *usecases.ConvertMangaUC) *ConvertHandler {
-	tmp, err := os.MkdirTemp("", "ERMC(*)")
+	tmp, err := os.MkdirTemp("", "inkomi(*)")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -32,9 +32,16 @@ func NewConvertHandler(convertUC *usecases.ConvertMangaUC) *ConvertHandler {
 	}
 }
 
+var formDecoder = schema.NewDecoder()
+
 func (ch *ConvertHandler) Convert(r *http.Request) (any, error) {
+	err := r.ParseMultipartForm(250 << 20)
+	if err != nil {
+		return nil, err
+	}
+
 	req := new(domain.ConvertConfig)
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := formDecoder.Decode(req, r.MultipartForm.Value); err != nil {
 		return nil, err
 	}
 
@@ -46,9 +53,19 @@ func (ch *ConvertHandler) Convert(r *http.Request) (any, error) {
 	req.Id = crypto.GetRandomID(6)
 	dstPath := filepath.Join(ch.basePath, req.Id)
 
-	chapters, err := converters.FilesToChapters(formFiles, filepath.Join(dstPath, "chapters"))
+	chapters, err := converters.FormFilesToChapters(formFiles, filepath.Join(dstPath, "chapters"))
 	if err != nil {
 		return nil, err
+	}
+	if len(chapters) == 0 {
+		return nil, domain.NewApiError(500, "No files attached")
+	}
+
+	for _, c := range chapters {
+		log.Println(c.Path)
+		for _, p := range c.PagePaths {
+			log.Println(p)
+		}
 	}
 
 	if req.Title == "" {
