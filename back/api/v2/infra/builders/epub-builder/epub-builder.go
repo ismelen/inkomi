@@ -92,11 +92,6 @@ func (b *EpubBuilder) Build() (string, error) {
 	}
 
 	b.out.Close()
-
-	// if b.profile.IsKepub {
-	// 	return b.ConvertToKepub()
-	// }
-
 	return b.out.Name(), nil
 }
 

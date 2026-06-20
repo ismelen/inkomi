@@ -1,3 +1,4 @@
 /tests/datasource/
 .env
 /transactions
+/tmp

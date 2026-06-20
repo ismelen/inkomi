@@ -10,6 +10,8 @@ import (
 	"ismelen/ermc/v2/infra/image"
 	"ismelen/ermc/v2/infra/state"
 	"ismelen/ermc/v2/ports"
+	"log"
+	"os"
 	"path/filepath"
 	"sort"
 )
@@ -38,16 +40,17 @@ func (c *ConvertMangaUC) Execute(chapters []*domain.Chapter, config *domain.Conv
 	go func() {
 		resultPath, err := c.runConversion(ctx, chapters, config, dstPath, progressChan)
 		if err != nil {
-			c.pushNotifier.Send(config.NotifyToken, "Error", fmt.Sprintf("Error: %s", err.Error()))
 			if canceled := ctx.Err(); canceled != nil {
 				c.pushNotifier.Send(config.NotifyToken, "Canceled", fmt.Sprintf("%s conversion canceled", config.Title))
 				stateManager.DeleteTransaction(config.Id)
 			} else {
+				c.pushNotifier.Send(config.NotifyToken, "Error", fmt.Sprintf("Error: %s", err.Error()))
 				stateManager.SetError(config.Id, err)
 			}
 			return
 		}
 		stateManager.SetResultPath(config.Id, resultPath)
+
 		if config.Cloud {
 			c.pushNotifier.Send(config.NotifyToken, "Success", fmt.Sprintf("Sending %s to cloud", filepath.Base(resultPath)))
 			gCloud, err := cloud.New(config.CloudToken, config.CloudFolder)
@@ -58,7 +61,7 @@ func (c *ConvertMangaUC) Execute(chapters []*domain.Chapter, config *domain.Conv
 			}
 			gCloud.Upload(resultPath)
 		} else {
-			c.pushNotifier.Send(config.NotifyToken, "Success", fmt.Sprintf("%s conversion ready", filepath.Base(resultPath)))
+			c.pushNotifier.Send(config.NotifyToken, "Success", fmt.Sprintf("%s transaction ready", filepath.Base(resultPath)))
 		}
 	}()
 
@@ -111,6 +114,19 @@ func (c *ConvertMangaUC) runConversion(
 	}
 
 	path, err := builder.Build()
+	defer os.RemoveAll(filepath.Join(dstPath, "chapters"))
+
+	if err != nil {
+		return "", err
+	}
+
+	if c.profile.IsKepub {
+		kPath, err := ConvertToKepub(path, dstPath, config.Title)
+		if err := os.RemoveAll(path); err != nil {
+			log.Println(err.Error())
+		}
+		return kPath, err
+	}
 	return path, err
 }
 
