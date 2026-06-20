@@ -1,6 +1,9 @@
 package domain
 
-import "sort"
+import (
+	"path/filepath"
+	"sort"
+)
 
 type Chapter struct {
 	Path      string
@@ -22,5 +25,15 @@ func (c *Chapter) GetPagePaths() []string {
 	sort.Slice(c.pagePaths, func(i, j int) bool {
 		return c.pagePaths[i] < c.pagePaths[j]
 	})
+
+	var validPahts []string
+	for _, path := range c.pagePaths {
+		if filepath.Ext(path) == ".xml" {
+			continue
+		}
+		validPahts = append(validPahts, path)
+	}
+
+	c.pagePaths = validPahts
 	return c.pagePaths
 }

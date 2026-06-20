@@ -94,9 +94,6 @@ func (m *MangaTransactionUC) runConversion(
 			if err := ctx.Err(); err != nil {
 				return "", fmt.Errorf("Job canceled")
 			}
-			if filepath.Ext(pagePath) == ".xml" {
-				continue
-			}
 			page, err := m.processPage(pagePath, pIdx+1)
 			if err != nil {
 				return "", err
