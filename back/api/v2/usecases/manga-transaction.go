@@ -12,6 +12,9 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
+
+	"golang.org/x/sync/errgroup"
 )
 
 type MangaTransactionUC struct {
@@ -89,17 +92,40 @@ func (m *MangaTransactionUC) runConversion(
 	builder.SetSettings(m.imageSettings, m.profile)
 	builder.Start(config.Title, dstPath)
 
+	workersLimit := runtime.NumCPU()
+	if workersLimit > 4 {
+		workersLimit = 4
+	}
+
 	for _, chapter := range chapters {
-		for pIdx, pagePath := range chapter.GetPagePaths() {
-			if err := ctx.Err(); err != nil {
-				return "", fmt.Errorf("Job canceled")
-			}
-			page, err := m.processPage(pagePath, pIdx+1)
-			if err != nil {
-				return "", err
-			}
-			builder.AddPage(page, pIdx == 0)
+		group, gctx := errgroup.WithContext(ctx)
+		group.SetLimit(workersLimit)
+		pages := chapter.GetPagePaths()
+		processedPages := make([]*domain.Page, len(pages))
+
+		for pIdx, pagePath := range pages {
+			idx, path := pIdx, pagePath
+			group.Go(func() error {
+				if err := gctx.Err(); err != nil {
+					return fmt.Errorf("Job canceled")
+				}
+				page, err := m.processPage(path, idx+1)
+				if err != nil {
+					return err
+				}
+				processedPages[idx] = page
+				return nil
+			})
 		}
+
+		if err := group.Wait(); err != nil {
+			return "", err
+		}
+
+		for i, page := range processedPages {
+			builder.AddPage(page, i == 0)
+		}
+
 		progressChan <- chapter.Size
 	}
 
