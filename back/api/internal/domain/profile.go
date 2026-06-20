@@ -1,8 +1,18 @@
 package domain
 
+import "fmt"
+
 type Profile struct {
 	Width, Height int
 	IsKepub       bool
+}
+
+func NewProfile(label string) (*Profile, error) {
+	profile, ok := Profiles[label]
+	if !ok {
+		return nil, fmt.Errorf("profile not available")
+	}
+	return &profile, nil
 }
 
 var Profiles = map[string]Profile{

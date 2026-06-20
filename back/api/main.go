@@ -1,9 +1,9 @@
 package main
 
 import (
-	"ismelen/ermc/v2/infra/api/handlers"
-	"ismelen/ermc/v2/infra/api/routes"
-	"ismelen/ermc/v2/infra/notifications"
+	"ismelen/inkomi/internal/infra/api/handlers"
+	"ismelen/inkomi/internal/infra/api/routes"
+	"ismelen/inkomi/internal/infra/notifications"
 	"log"
 	"net/http"
 

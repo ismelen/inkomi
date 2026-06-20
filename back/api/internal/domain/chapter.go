@@ -1,24 +1,39 @@
 package domain
 
 import (
-	"ismelen/ermc/internal/pkg"
 	"path/filepath"
-	"strings"
+	"sort"
 )
 
 type Chapter struct {
-	Name  string
-	Size  int64 // MB
-	Pages []*Page
+	Path      string
+	Filename  string
+	Size      int64
+	pagePaths []string
 }
 
-func NewChapter(name string, size int64, pages []*Page) *Chapter {
-	ext := filepath.Ext(name)
-	name = strings.TrimSuffix(name, ext)
-
+func NewChapter(filename, path string, pagePahts []string, size int64) *Chapter {
 	return &Chapter{
-		Name:  pkg.NormalizeString(name),
-		Size:  size,
-		Pages: pages,
+		Path:      path,
+		pagePaths: pagePahts,
+		Size:      size,
+		Filename:  filename,
 	}
+}
+
+func (c *Chapter) GetPagePaths() []string {
+	sort.Slice(c.pagePaths, func(i, j int) bool {
+		return c.pagePaths[i] < c.pagePaths[j]
+	})
+
+	var validPahts []string
+	for _, path := range c.pagePaths {
+		if filepath.Ext(path) == ".xml" {
+			continue
+		}
+		validPahts = append(validPahts, path)
+	}
+
+	c.pagePaths = validPahts
+	return c.pagePaths
 }

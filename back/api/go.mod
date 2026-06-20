@@ -1,4 +1,4 @@
-module ismelen/ermc
+module ismelen/inkomi
 
 go 1.25.8
 
