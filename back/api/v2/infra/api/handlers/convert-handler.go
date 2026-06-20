@@ -21,13 +21,17 @@ type ConvertHandler struct {
 }
 
 func NewConvertHandler(convertUC *usecases.ConvertMangaUC) *ConvertHandler {
-	tmp, err := os.MkdirTemp("", "inkomi(*)")
+	wd, err := os.Getwd()
 	if err != nil {
+		log.Fatal(err)
+	}
+	path := filepath.Join(wd, "transactions")
+	if err := os.MkdirAll(path, os.ModePerm); err != nil {
 		log.Fatal(err)
 	}
 
 	return &ConvertHandler{
-		basePath:  tmp,
+		basePath:  path,
 		convertUC: convertUC,
 	}
 }
