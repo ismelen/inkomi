@@ -6,18 +6,16 @@ import (
 	"ismelen/ermc/v2/domain"
 	epubBuilder "ismelen/ermc/v2/infra/builders/epub-builder"
 	"ismelen/ermc/v2/infra/cloud"
-	"ismelen/ermc/v2/infra/helpers"
 	"ismelen/ermc/v2/infra/image"
 	"ismelen/ermc/v2/infra/state"
 	"ismelen/ermc/v2/ports"
 	"log"
 	"os"
 	"path/filepath"
-	"sort"
 )
 
 type ConvertMangaUC struct {
-	config        *domain.ConvertConfig
+	config        *domain.TransactionConfig
 	profile       *domain.Profile
 	imageSettings *domain.ImageSettings
 	pushNotifier  ports.PushNotifier
@@ -30,7 +28,7 @@ func NewConvertMangaUC(pushNotifier ports.PushNotifier) *ConvertMangaUC {
 	}
 }
 
-func (c *ConvertMangaUC) Execute(chapters []*domain.Chapter, config *domain.ConvertConfig, dstPath string) {
+func (c *ConvertMangaUC) Execute(chapters []*domain.Chapter, config *domain.TransactionConfig, dstPath string) {
 	stateManager := state.GetManager()
 	stateManager.StartTransaction(config.Id, dstPath, c.getTransactionSize(chapters))
 
@@ -79,7 +77,7 @@ func (c *ConvertMangaUC) Execute(chapters []*domain.Chapter, config *domain.Conv
 func (c *ConvertMangaUC) runConversion(
 	ctx context.Context,
 	chapters []*domain.Chapter,
-	config *domain.ConvertConfig,
+	config *domain.TransactionConfig,
 	dstPath string,
 	progressChan chan int64,
 ) (string, error) {
@@ -91,10 +89,6 @@ func (c *ConvertMangaUC) runConversion(
 	builder := epubBuilder.New()
 	builder.SetSettings(c.imageSettings, c.profile)
 	builder.Start(config.Title, dstPath)
-
-	sort.Slice(chapters, func(i, j int) bool {
-		return helpers.AlphanumericCmp(chapters[i].Filename, chapters[j].Filename)
-	})
 
 	for _, chapter := range chapters {
 		for pIdx, pagePath := range chapter.GetPagePaths() {
@@ -138,7 +132,7 @@ func (c *ConvertMangaUC) getTransactionSize(chapters []*domain.Chapter) int64 {
 	return res
 }
 
-func (c *ConvertMangaUC) setParams(config *domain.ConvertConfig) error {
+func (c *ConvertMangaUC) setParams(config *domain.TransactionConfig) error {
 	c.config = config
 	profile, err := domain.NewProfile(config.Profile)
 	if err != nil {
