@@ -4,7 +4,6 @@ import (
 	"ismelen/ermc/v2/infra/api/handlers"
 	"ismelen/ermc/v2/infra/api/routes"
 	"ismelen/ermc/v2/infra/notifications"
-	"ismelen/ermc/v2/usecases"
 	"log"
 	"net/http"
 
@@ -27,8 +26,7 @@ func main() {
 	pushNotifier := notifications.FirebasePushNotifier{}
 	pushNotifier.Init()
 
-	convertUC := usecases.NewConvertMangaUC(&pushNotifier)
-	convertHandler := handlers.NewConvertHandler(convertUC)
+	convertHandler := handlers.NewConvertHandler(&pushNotifier)
 	routes.SetupConvertRoutes(api, convertHandler)
 
 	log.Println("Starting at port 3000")

@@ -7,6 +7,25 @@ import (
 	"path/filepath"
 )
 
+func CopyFile(src string, outBase string) (string, error) {
+	file, err := os.Open(src)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	filename := filepath.Base(src)
+	dstPath := filepath.Join(outBase, filename)
+	out, err := os.Create(dstPath)
+	if err != nil {
+		return "", err
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, file)
+	return dstPath, err
+}
+
 func CopyFormFiles(files []*multipart.FileHeader, outBase string) (string, []string, error) {
 	basePath, err := CreateSanitizedFolder("", outBase)
 	if err != nil {
