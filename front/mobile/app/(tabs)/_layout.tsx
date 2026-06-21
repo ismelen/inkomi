@@ -1,35 +1,76 @@
 import { Tabs } from 'expo-router';
-import DatabaseIcon from '../../src/components/icons/databse-icon';
-import HomeIcon from '../../src/components/icons/home-icon';
-import SettingsIcon from '../../src/components/icons/settings-icon';
+import React from 'react';
 import { colors } from '../../src/theme/colors';
+import SIcon from '../../src/componentes/icons/SIcon';
+import { Image, Text, View } from 'react-native';
+import logo from '../../assets/icon.png';
 
 export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
-        headerShown: false,
-        headerStyle: {
+        sceneStyle: {
           backgroundColor: colors.background,
         },
         headerShadowVisible: false,
-        sceneStyle: {
-          paddingTop: 50,
+
+        header: () => (
+          <View
+            style={{
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexDirection: 'row',
+              gap: '8',
+            }}
+          >
+            <View style={{}}>
+              <Image source={logo} style={{ width: 38, height: 38 }} resizeMode="contain" />
+            </View>
+            <Text
+              style={{
+                fontSize: 32,
+                color: colors.primary,
+                fontFamily: 'Inter_700Bold',
+              }}
+            >
+              Inkomi
+            </Text>
+          </View>
+        ),
+
+        headerStyle: {
           backgroundColor: colors.background,
+          elevation: 0,
+          borderBottomWidth: 0,
         },
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.onCard,
+
+        tabBarActiveBackgroundColor: colors.secondary_container,
+        tabBarInactiveBackgroundColor: 'transparent',
+
+        tabBarItemStyle: {
+          overflow: 'hidden',
+          borderRadius: 12,
+          marginHorizontal: 15,
+          marginVertical: 8,
+          maxWidth: 80,
+        },
+
         tabBarStyle: {
-          backgroundColor: colors.background,
-          opacity: 90,
-          paddingTop: 10,
+          alignItems: 'center',
+          justifyContent: 'space-evenly',
           height: 70,
-          borderTopColor: colors.gray,
-          borderTopWidth: 1,
+          backgroundColor: colors.background,
+          borderTopWidth: 0,
+          elevation: 0,
+          shadowOpacity: 0,
         },
+
+        tabBarActiveTintColor: colors.on_secondary_container,
+        tabBarInactiveTintColor: colors.on_surface,
+
         tabBarLabelStyle: {
-          fontSize: 10,
-          fontWeight: 'medium',
+          fontSize: 12,
+          fontWeight: '900',
         },
       }}
     >
@@ -37,21 +78,37 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color, size }) => <HomeIcon size={`${size}px`} color={color} />,
+          tabBarIcon: ({ color, size, focused }) => (
+            <SIcon color={color} size={size} name="home" type={focused ? 'filled' : 'outlined'} />
+          ),
         }}
       />
       <Tabs.Screen
         name="queue"
         options={{
           title: 'Queue',
-          tabBarIcon: ({ color, size }) => <DatabaseIcon size={`${size}px`} color={color} />,
+          tabBarIcon: ({ color, size, focused }) => (
+            <SIcon
+              color={color}
+              size={size}
+              name="database"
+              type={focused ? 'filled' : 'outlined'}
+            />
+          ),
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
           title: 'Settings',
-          tabBarIcon: ({ color, size }) => <SettingsIcon size={`${size}px`} color={color} />,
+          tabBarIcon: ({ color, size, focused }) => (
+            <SIcon
+              color={color}
+              size={size}
+              name="settings"
+              type={focused ? 'filled' : 'outlined'}
+            />
+          ),
         }}
       />
     </Tabs>
