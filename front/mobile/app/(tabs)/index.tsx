@@ -4,6 +4,7 @@ import ActionCard from '../../src/components/home/action-card';
 import SText from '../../src/components/shared/SText';
 import { colors } from '../../src/theme/colors';
 import SButton from '../../src/components/shared/SButton';
+import { router } from 'expo-router';
 
 export default function HomePage() {
   return (
@@ -21,7 +22,7 @@ export default function HomePage() {
           title="Send Book"
           subtitle="Manage and transfer .epub files"
           tag=".epub management"
-          onClick={() => {}}
+          onClick={() => router.push('/send-book')}
         />
       </View>
 

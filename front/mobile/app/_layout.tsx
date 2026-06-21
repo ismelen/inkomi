@@ -25,8 +25,6 @@ export default function RootLayout() {
     black: Inter_900Black,
   });
 
-  const insets = useSafeAreaInsets();
-
   const onLayoutRootView = useCallback(async () => {
     if (fontsLoaded) {
       await SplashScreen.hideAsync();
@@ -39,13 +37,13 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }} onLayout={onLayoutRootView}>
-      <View style={{ height: insets.top }}></View>
       <Stack
         screenOptions={{
           headerShown: false,
           headerShadowVisible: false,
           contentStyle: {
             backgroundColor: colors.background,
+            paddingHorizontal: 24,
           },
         }}
       />

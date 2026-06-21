@@ -3,14 +3,17 @@ import React from 'react';
 import { colors } from '../../src/theme/colors';
 import SIcon from '../../src/components/icons/SIcon';
 import AppHeader from '../../src/components/app-header';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabsLayout() {
+  const insets = useSafeAreaInsets();
+
   return (
     <Tabs
       screenOptions={{
         sceneStyle: {
           backgroundColor: colors.background,
-          paddingHorizontal: 24,
+          paddingTop: insets.top,
         },
         headerShadowVisible: false,
 
