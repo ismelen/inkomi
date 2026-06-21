@@ -1,9 +1,8 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
 import { colors } from '../../src/theme/colors';
-import SIcon from '../../src/componentes/icons/SIcon';
-import { Image, Text, View } from 'react-native';
-import logo from '../../assets/icon.png';
+import SIcon from '../../src/components/icons/SIcon';
+import AppHeader from '../../src/components/app-header';
 
 export default function TabsLayout() {
   return (
@@ -11,32 +10,11 @@ export default function TabsLayout() {
       screenOptions={{
         sceneStyle: {
           backgroundColor: colors.background,
+          paddingHorizontal: 24,
         },
         headerShadowVisible: false,
 
-        header: () => (
-          <View
-            style={{
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexDirection: 'row',
-              gap: '8',
-            }}
-          >
-            <View style={{}}>
-              <Image source={logo} style={{ width: 38, height: 38 }} resizeMode="contain" />
-            </View>
-            <Text
-              style={{
-                fontSize: 32,
-                color: colors.primary,
-                fontFamily: 'Inter_700Bold',
-              }}
-            >
-              Inkomi
-            </Text>
-          </View>
-        ),
+        header: () => <AppHeader />,
 
         headerStyle: {
           backgroundColor: colors.background,
