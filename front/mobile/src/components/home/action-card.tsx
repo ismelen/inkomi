@@ -21,7 +21,7 @@ export default function ActionCard({ title, subtitle, icon, tag, onClick }: Prop
         flexDirection: 'row',
         borderRadius: 12,
         backgroundColor: colors.surface_container_lowest,
-        boxShadow: `0px 4px 12px 0px ${hexToRgba(colors.on_surface, 0.04)}`,
+        boxShadow: colors.boxShadow,
         padding: 16,
         overflow: 'hidden',
       }}

@@ -7,6 +7,8 @@ export function hexToRgba(hex: string, alpha: number) {
 }
 
 export const colors = {
+  boxShadow: `0px 4px 12px 0px ${hexToRgba('#131b2e', 0.04)}`,
+  
   surface: '#faf8ff',
   surface_dim: '#d2d9f4',
   surface_bright: '#faf8ff',
