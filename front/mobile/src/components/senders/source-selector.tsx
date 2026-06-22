@@ -33,7 +33,7 @@ export default function SourceSelector({ initSources, onChange }: Props) {
   }
 
   return (
-    <View style={{ flexDirection: 'row', gap: 16 }}>
+    <View style={{ flexDirection: 'row', gap: 10 }}>
       <Option label="Add Files" icon="upload_file" onClick={addFiles} />
       <Option label="Add Folder" icon="folder_open" onClick={addFolder} />
     </View>

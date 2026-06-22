@@ -15,7 +15,7 @@ export default function HomePage() {
           title="Send Comic"
           subtitle="Convert .cbz to .epub and send to device"
           tag=".cbz to .epub"
-          onClick={() => {}}
+          onClick={() => router.push('/send-comic')}
         />
         <ActionCard
           icon="book"
