@@ -43,7 +43,6 @@ export default function RootLayout() {
           headerShadowVisible: false,
           contentStyle: {
             backgroundColor: colors.background,
-            paddingHorizontal: 24,
           },
         }}
       />

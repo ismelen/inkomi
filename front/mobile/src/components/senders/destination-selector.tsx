@@ -28,6 +28,7 @@ export default function DestinationSelector({ initDestination, onChange }: Props
     >
       {destinations.map((dest) => (
         <SButton
+          key={dest}
           onPress={() => setDestination(dest)}
           style={{
             flex: 1,

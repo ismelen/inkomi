@@ -23,7 +23,7 @@ export default function SendBookPage() {
           headerTintColor: colors.primary,
         }}
       />
-      <View style={{ flex: 1, paddingBottom: 24 }}>
+      <View style={{ flex: 1, paddingBottom: 24, paddingHorizontal: 24 }}>
         <View style={{ flex: 1, gap: 32 }}>
           <View>
             <SText

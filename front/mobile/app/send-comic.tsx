@@ -1,6 +1,6 @@
 import { Stack } from 'expo-router';
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { colors } from '../src/theme/colors';
 import SText from '../src/components/shared/SText';
 import SourceSelector from '../src/components/senders/source-selector';
@@ -8,6 +8,7 @@ import DestinationSelector from '../src/components/senders/destination-selector'
 import OptionCardChecker from '../src/components/senders/option-card-checker';
 import SButton from '../src/components/shared/SButton';
 import MetadataSection from '../src/components/senders/metadata-section';
+import { FlatList } from 'react-native-gesture-handler';
 
 export default function SendComicPage() {
   return (
@@ -15,7 +16,7 @@ export default function SendComicPage() {
       <Stack.Screen
         options={{
           headerShown: true,
-          title: 'Send Book',
+          title: 'Send Comic',
           headerTitleStyle: { fontFamily: 'semibold', fontSize: 20, color: colors.on_background },
           headerTitleAlign: 'center',
           headerStyle: {
@@ -24,8 +25,8 @@ export default function SendComicPage() {
           headerTintColor: colors.primary,
         }}
       />
-      <View style={{ flex: 1, paddingBottom: 24 }}>
-        <View style={{ flex: 1, gap: 32 }}>
+      <ScrollView style={{ flex: 1, paddingBottom: 24, paddingHorizontal: 24 }}>
+        <View style={{ flex: 1, gap: 32, paddingBottom: 24, }}>
           <View style={styles.section}>
             <SText style={styles.title}>SOURCE</SText>
             <SourceSelector initSources={[]} onChange={(srcs) => {}} />
@@ -58,10 +59,12 @@ export default function SendComicPage() {
           </View>
         </View>
 
+      </ScrollView>
         <SButton
           onPress={() => {}} //TODO: Send
           style={{
             backgroundColor: colors.primary_container,
+            margin: 24,
             paddingVertical: 12,
             alignItems: 'center',
             justifyContent: 'center',
@@ -71,7 +74,6 @@ export default function SendComicPage() {
         >
           <SText style={{ fontFamily: 'semibold', color: colors.on_primary }}>Send</SText>
         </SButton>
-      </View>
     </>
   );
 }
