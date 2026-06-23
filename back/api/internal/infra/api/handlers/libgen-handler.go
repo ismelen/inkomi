@@ -64,7 +64,7 @@ func (l *LibgenHandler) HandleDownloadBook(r *http.Request) (any, error) {
 	}
 	id := crypto.GetRandomID(6)
 
-	path, err := filesHelper.CopyFromStream(result.Stream, filepath.Join(wd, "books", id))
+	path, err := filesHelper.CopyFromStream(result.Stream, filepath.Join(wd, "books", id, result.Filename))
 	if err != nil {
 		return nil, err
 	}
