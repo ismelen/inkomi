@@ -3,7 +3,9 @@ package routes
 import (
 	"fmt"
 	"ismelen/inkomi/internal/domain"
+	"log"
 	"net/http"
+	"os"
 
 	"github.com/go-chi/render"
 )
@@ -13,6 +15,7 @@ func Wrap(f func(r *http.Request) (any, error)) http.HandlerFunc {
 		data, err := f(r)
 
 		if err != nil {
+			log.Println(err.Error())
 			status := 500
 			if apiErr, ok := err.(*domain.ApiError); ok {
 				status = apiErr.Status
@@ -28,6 +31,8 @@ func Wrap(f func(r *http.Request) (any, error)) http.HandlerFunc {
 
 		switch v := data.(type) {
 		case domain.FileResponse:
+			defer os.RemoveAll(v.Path)
+
 			w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, v.Name))
 			w.Header().Set("Content-Type", "application/octet-stream")
 			http.ServeFile(w, r, v.Path)
