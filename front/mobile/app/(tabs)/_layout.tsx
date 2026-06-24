@@ -17,8 +17,7 @@ export default function TabsLayout() {
           paddingHorizontal: 24,
         },
         headerShadowVisible: false,
-
-        header: () => <AppHeader />,
+        headerShown: false,
 
         headerStyle: {
           backgroundColor: colors.background,

@@ -1,5 +1,5 @@
 import React from 'react';
-import { BackHandler, Pressable, View } from 'react-native';
+import { View } from 'react-native';
 import SText from '../shared/SText';
 import { colors, hexToRgba } from '../../theme/colors';
 import SIcon from '../icons/SIcon';

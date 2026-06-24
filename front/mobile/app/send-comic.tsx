@@ -1,4 +1,4 @@
-import { Stack } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import React from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { colors } from '../src/theme/colors';
@@ -8,9 +8,13 @@ import DestinationSelector from '../src/components/senders/destination-selector'
 import OptionCardChecker from '../src/components/senders/option-card-checker';
 import SButton from '../src/components/shared/SButton';
 import MetadataSection from '../src/components/senders/metadata-section';
-import { FlatList } from 'react-native-gesture-handler';
+import {  TransactionRequest } from '../src/models/transaction-request';
+import { useQueue } from '../src/hooks/useQueue';
 
 export default function SendComicPage() {
+  const req: Partial<TransactionRequest> = {}
+  const send = useQueue(s => s.send)
+  
   return (
     <>
       <Stack.Screen
@@ -29,39 +33,49 @@ export default function SendComicPage() {
         <View style={{ flex: 1, gap: 32, paddingBottom: 24, }}>
           <View style={styles.section}>
             <SText style={styles.title}>SOURCE</SText>
-            <SourceSelector initSources={[]} onChange={(srcs) => {}} />
+            <SourceSelector initSources={req.sources ?? []} onChange={(srcs) => req.sources = srcs} />
           </View>
 
           <View style={styles.section}>
             <SText style={styles.title}>METADATA</SText>
-            <MetadataSection initialMetadata={{}} onChange={(meta) => {}} />
+            <MetadataSection initialMetadata={{
+              title: req.title,
+              author: req.author
+            }} onChange={(meta) => {
+              req.author = meta.author
+              req.title = meta.title
+            }} />
           </View>
 
           <View style={styles.section}>
             <SText style={styles.title}>DESTINATION</SText>
-            <DestinationSelector initDestination="local" onChange={(dest) => {}} />
+            <DestinationSelector initDestination={req.destination ?? 'local'} onChange={(dest) => req.destination = dest} />
           </View>
 
           <View style={{ gap: 5 }}>
             <SText style={styles.title}>OPTIONS</SText>
             <OptionCardChecker
-              initialChecked={false}
+              initialChecked={req.merge ?? false}
               label="Merge chapters"
               text="Combine multiple chapters into a single volume"
-              onChange={(checked) => {}}
+              onChange={(checked) => req.merge = checked}
             />
             <OptionCardChecker
-              initialChecked={false}
+              initialChecked={req.deleteOrigin ?? false}
               label="Delete source"
               text="Remove original after successful upload"
-              onChange={(checked) => {}}
+              onChange={(checked) => req.deleteOrigin = checked}
             />
           </View>
         </View>
 
       </ScrollView>
         <SButton
-          onPress={() => {}} //TODO: Send
+          disabled={!req.sources || req.sources.length == 0}
+          onPress={async () => {
+            const done = await send(req)
+            if(done) router.navigate("/(tabs)/queue")
+          }}
           style={{
             backgroundColor: colors.primary_container,
             margin: 24,

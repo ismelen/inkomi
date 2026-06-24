@@ -3,8 +3,8 @@ import { View } from 'react-native';
 import { colors } from '../../theme/colors';
 import SButton from '../shared/SButton';
 import SText from '../shared/SText';
+import { Destination } from '../../models/transaction-request';
 
-type Destination = 'local' | 'cloud';
 const destinations: Destination[] = ['local', 'cloud'];
 
 interface Props {

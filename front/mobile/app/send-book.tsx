@@ -1,14 +1,19 @@
 import React from 'react';
 import { View } from 'react-native';
 import SText from '../src/components/shared/SText';
-import { Stack } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import { colors } from '../src/theme/colors';
 import SourceSelector from '../src/components/senders/source-selector';
 import DestinationSelector from '../src/components/senders/destination-selector';
 import OptionCardChecker from '../src/components/senders/option-card-checker';
 import SButton from '../src/components/shared/SButton';
+import { useQueue } from '../src/hooks/useQueue';
+import { TransactionRequest } from '../src/models/transaction-request';
 
 export default function SendBookPage() {
+  const send = useQueue(s => s.send)
+  const req: Partial<TransactionRequest> = {}
+  
   return (
     <>
       <Stack.Screen
@@ -36,7 +41,7 @@ export default function SendBookPage() {
             >
               SOURCE
             </SText>
-            <SourceSelector initSources={[]} onChange={(srcs) => {}} />
+            <SourceSelector initSources={req.sources ?? []} onChange={(srcs) => {req.sources = srcs}} />
           </View>
 
           <View>
@@ -50,7 +55,7 @@ export default function SendBookPage() {
             >
               DESTINATION
             </SText>
-            <DestinationSelector initDestination="local" onChange={(dest) => {}} />
+            <DestinationSelector initDestination={req.destination ?? 'local'} onChange={(dest) => {req.destination = dest}} />
           </View>
 
           <View>
@@ -65,16 +70,19 @@ export default function SendBookPage() {
               OPTIONS
             </SText>
             <OptionCardChecker
-              initialChecked={false}
+              initialChecked={req.deleteOrigin ?? false}
               label="Delete source"
               text="Remove original after successful upload"
-              onChange={(checked) => {}}
+              onChange={(checked) => {req.deleteOrigin = checked}}
             />
           </View>
         </View>
 
         <SButton
-          onPress={() => {}} //TODO: Send
+          onPress={async () => {
+            const done = await send(req)
+            if(done) router.navigate("/(tabs)/queue")
+          }}
           style={{
             backgroundColor: colors.primary_container,
             paddingVertical: 12,

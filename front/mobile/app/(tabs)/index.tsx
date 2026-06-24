@@ -4,32 +4,36 @@ import ActionCard from '../../src/components/home/action-card';
 import SText from '../../src/components/shared/SText';
 import { colors } from '../../src/theme/colors';
 import SButton from '../../src/components/shared/SButton';
-import { router } from 'expo-router';
+import { router, Tabs } from 'expo-router';
+import AppHeader from '../../src/components/app-header';
 
 export default function HomePage() {
   return (
-    <View style={{ gap: 32 }}>
-      <View style={{ gap: 16 }}>
-        <ActionCard
-          icon="menu_book"
-          title="Send Comic"
-          subtitle="Convert .cbz to .epub and send to device"
-          tag=".cbz to .epub"
-          onClick={() => router.push('/send-comic')}
-        />
-        <ActionCard
-          icon="book"
-          title="Send Book"
-          subtitle="Manage and transfer .epub files"
-          tag=".epub management"
-          onClick={() => router.push('/send-book')}
-        />
-      </View>
+    <>
+      <Tabs.Screen options={{headerShown: true, header: () => <AppHeader />}}/>
+      <View style={{ gap: 32 }}>
+        <View style={{ gap: 16 }}>
+          <ActionCard
+            icon="menu_book"
+            title="Send Comic"
+            subtitle="Convert .cbz to .epub and send to device"
+            tag=".cbz to .epub"
+            onClick={() => router.push('/send-comic')}
+          />
+          <ActionCard
+            icon="book"
+            title="Send Book"
+            subtitle="Manage and transfer .epub files"
+            tag=".epub management"
+            onClick={() => router.push('/send-book')}
+          />
+        </View>
 
-      <View>
-        <MonitoredFoldersTitle onClick={() => {}} />
+        <View>
+          <MonitoredFoldersTitle onClick={() => {}} />
+        </View>
       </View>
-    </View>
+    </>
   );
 }
 
