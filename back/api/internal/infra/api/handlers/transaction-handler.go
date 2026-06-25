@@ -103,6 +103,12 @@ func (ch *TransactionHandler) HandleConvert(r *http.Request) (any, error) {
 		}
 	}
 
+	profile, err := domain.NewProfile(config.Profile)
+	if err != nil {
+		return nil, err
+	}
+	config.ProfileData = profile
+
 	switch ext {
 	case ".zip":
 		return nil, domain.NewApiError(400, "Do not send nested zip files")
@@ -148,7 +154,16 @@ func (ch *TransactionHandler) handleEpubTransaction(files []string, config *doma
 			config:  newConfig,
 			file:    file,
 		})
-		responses = append(responses, domain.NewTransactionResponseDTO(id, newConfig.Title))
+
+		filename := filepath.Base(file)
+
+		if config.ProfileData.IsKepub {
+			ext := filepath.Ext(file)
+			name := strings.TrimSuffix(filename, ext)
+			filename = name + ".kepub" + ext
+		}
+
+		responses = append(responses, domain.NewTransactionResponseDTO(id, newConfig.Title, filename))
 	}
 
 	transactionUC := usecases.NewEpubTransactionUC(ch.pushNotifier)
@@ -201,7 +216,13 @@ func (ch *TransactionHandler) handleMangaTransaction(files []string, config *dom
 	responses := make([]domain.TransactionResponseDTO, 0, len(transactions))
 	for id, tran := range transactions {
 		tran.config.UpdateTitle(tran.chapters)
-		responses = append(responses, domain.NewTransactionResponseDTO(id, tran.config.Title))
+		filename := tran.config.Title
+		if config.ProfileData.IsKepub {
+			filename += ".kepub"
+		}
+		filename += ".epub"
+
+		responses = append(responses, domain.NewTransactionResponseDTO(id, tran.config.Title, filename))
 	}
 
 	transactionUC := usecases.NewMangaTransactionUC(ch.pushNotifier)

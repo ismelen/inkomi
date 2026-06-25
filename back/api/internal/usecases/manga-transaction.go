@@ -31,6 +31,7 @@ func NewMangaTransactionUC(pushNotifier ports.PushNotifier) *MangaTransactionUC 
 }
 
 func (m *MangaTransactionUC) Execute(chapters []*domain.Chapter, config *domain.TransactionConfig, dstPath string) {
+	m.profile = config.ProfileData
 	stateManager := state.GetManager()
 	stateManager.StartTransaction(config.Id, dstPath, m.getTransactionSize(chapters))
 
@@ -84,12 +85,9 @@ func (m *MangaTransactionUC) runConversion(
 	progressChan chan int64,
 ) (string, error) {
 	defer close(progressChan)
-	if err := m.setParams(config); err != nil {
-		return "", err
-	}
 
 	builder := epubBuilder.New()
-	builder.SetSettings(m.imageSettings, m.profile)
+	builder.SetSettings(m.imageSettings, config.ProfileData)
 	builder.Start(config.Title, dstPath)
 
 	workersLimit := runtime.NumCPU()
@@ -152,15 +150,6 @@ func (m *MangaTransactionUC) getTransactionSize(chapters []*domain.Chapter) int6
 		res += chapter.Size
 	}
 	return res
-}
-
-func (m *MangaTransactionUC) setParams(config *domain.TransactionConfig) error {
-	profile, err := domain.NewProfile(config.Profile)
-	if err != nil {
-		return err
-	}
-	m.profile = profile
-	return nil
 }
 
 func (m *MangaTransactionUC) processPage(path string, idx int) (*domain.Page, error) {

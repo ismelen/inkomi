@@ -15,6 +15,7 @@ type TransactionConfig struct {
 	CloudToken  string `form:"cloud_token,omitempty"`
 	CloudFolder string `form:"cloud_folder,omitempty"`
 	NotifyToken string `form:"notify_token,omitempty"`
+	ProfileData *Profile
 }
 
 func (t *TransactionConfig) WithId(id string) *TransactionConfig {
