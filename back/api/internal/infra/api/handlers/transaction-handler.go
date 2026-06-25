@@ -14,6 +14,7 @@ import (
 	"log"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -62,6 +63,9 @@ func (ch *TransactionHandler) HandleConvert(r *http.Request) (any, error) {
 
 	filenames := make([]string, 0, len(files))
 	for _, file := range files {
+		if decodedName, err := url.QueryUnescape(file.Filename); err == nil {
+			file.Filename = decodedName
+		}
 		filenames = append(filenames, file.Filename)
 	}
 
@@ -91,6 +95,12 @@ func (ch *TransactionHandler) HandleConvert(r *http.Request) (any, error) {
 	config := new(domain.TransactionConfig)
 	if err := formDecoder.Decode(config, r.MultipartForm.Value); err != nil {
 		return nil, err
+	}
+
+	if config.Title != "" {
+		if decodedTitle, err := url.QueryUnescape(config.Title); err == nil {
+			config.Title = decodedTitle
+		}
 	}
 
 	switch ext {

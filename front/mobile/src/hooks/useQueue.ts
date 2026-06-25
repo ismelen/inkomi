@@ -42,6 +42,11 @@ export const useQueue = create<State>((set, get) => ({
         method: 'GET',
       });
 
+      if (resp.status === 404) {
+        alert('File not available');
+        return false;
+      }
+
       if (resp.status !== 200) {
         const data = await resp.json();
         throw Error(data.error);
@@ -212,8 +217,6 @@ async function fetchStatus(id: string): Promise<number> {
   if (resp.status !== 200) {
     throw new Error(json.error);
   }
-
-  console.log(json);
 
   return json.progress;
 }
