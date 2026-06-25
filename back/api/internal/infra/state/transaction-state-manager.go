@@ -27,12 +27,12 @@ func GetManager() *TransactionStateManager {
 	return transactionManager
 }
 
-func (t *TransactionStateManager) StartTransaction(id, path string, transactionSize int64) {
+func (t *TransactionStateManager) StartTransaction(id, path string, pages int) {
 	mu.Lock()
 	t.transactions[id] = &domain.Transaction{
 		Id:      id,
 		StartAt: time.Now(),
-		Size:    transactionSize,
+		Pages:   pages,
 		Path:    path,
 	}
 	mu.Unlock()
@@ -42,7 +42,7 @@ func (t *TransactionStateManager) StartTransaction(id, path string, transactionS
 	})
 }
 
-func (t *TransactionStateManager) UpdateProgress(id string, processedSize int64) bool {
+func (t *TransactionStateManager) UpdateProgress(id string, processedPages int) bool {
 	mu.Lock()
 	defer mu.Unlock()
 
@@ -50,12 +50,12 @@ func (t *TransactionStateManager) UpdateProgress(id string, processedSize int64)
 	if !ok {
 		return false
 	}
-	tran.Current += processedSize
+	tran.Current += processedPages
 
 	return !tran.Canceled
 }
 
-func (t *TransactionStateManager) CheckProgress(id string) (int64, error) {
+func (t *TransactionStateManager) CheckProgress(id string) (int, error) {
 	mu.RLock()
 	tran, ok := t.transactions[id]
 	mu.RUnlock()
@@ -69,7 +69,7 @@ func (t *TransactionStateManager) CheckProgress(id string) (int64, error) {
 		return 0, tran.Error
 	}
 
-	return tran.Current * 100 / tran.Size, nil
+	return tran.Current * 100 / tran.Pages, nil
 }
 
 func (t *TransactionStateManager) SetDone(id string) {

@@ -10,5 +10,5 @@ func FileToChapter(file string, destPath string) (*domain.Chapter, error) {
 	if err != nil {
 		return nil, err
 	}
-	return domain.NewChapter(filename, chapterPath, pages, filesHelper.GetSize(file)), nil
+	return domain.NewChapter(filename, chapterPath, pages), nil
 }

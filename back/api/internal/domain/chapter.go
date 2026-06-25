@@ -8,32 +8,37 @@ import (
 type Chapter struct {
 	Path      string
 	Filename  string
-	Size      int64
-	pagePaths []string
+	PagePaths []string
+	ordered   bool
 }
 
-func NewChapter(filename, path string, pagePahts []string, size int64) *Chapter {
+func NewChapter(filename, path string, pagePahts []string) *Chapter {
 	return &Chapter{
 		Path:      path,
-		pagePaths: pagePahts,
-		Size:      size,
+		PagePaths: pagePahts,
 		Filename:  filename,
+		ordered:   false,
 	}
 }
 
-func (c *Chapter) GetPagePaths() []string {
-	sort.Slice(c.pagePaths, func(i, j int) bool {
-		return c.pagePaths[i] < c.pagePaths[j]
+func (c *Chapter) GetOrderedPagePaths() []string {
+	if c.ordered {
+		return c.PagePaths
+	}
+
+	sort.Slice(c.PagePaths, func(i, j int) bool {
+		return c.PagePaths[i] < c.PagePaths[j]
 	})
 
 	var validPahts []string
-	for _, path := range c.pagePaths {
+	for _, path := range c.PagePaths {
 		if filepath.Ext(path) == ".xml" {
 			continue
 		}
 		validPahts = append(validPahts, path)
 	}
 
-	c.pagePaths = validPahts
-	return c.pagePaths
+	c.PagePaths = validPahts
+	c.ordered = true
+	return c.PagePaths
 }

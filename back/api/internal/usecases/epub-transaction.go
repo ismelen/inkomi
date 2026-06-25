@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"ismelen/inkomi/internal/domain"
 	"ismelen/inkomi/internal/infra/cloud"
-	filesHelper "ismelen/inkomi/internal/infra/files-helper"
 	"ismelen/inkomi/internal/infra/state"
 	"ismelen/inkomi/internal/ports"
 	"os"
@@ -27,7 +26,7 @@ func NewEpubTransactionUC(pushNotifier ports.PushNotifier) *EpubTransactionUC {
 
 func (e *EpubTransactionUC) Execute(src string, config *domain.TransactionConfig, dstPath string) {
 	stateManager := state.GetManager()
-	stateManager.StartTransaction(config.Id, dstPath, filesHelper.GetSize(src))
+	stateManager.StartTransaction(config.Id, dstPath, 1)
 
 	profile, err := domain.NewProfile(config.Profile)
 	if err != nil {

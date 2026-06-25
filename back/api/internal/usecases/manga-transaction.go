@@ -33,9 +33,9 @@ func NewMangaTransactionUC(pushNotifier ports.PushNotifier) *MangaTransactionUC 
 func (m *MangaTransactionUC) Execute(chapters []*domain.Chapter, config *domain.TransactionConfig, dstPath string) {
 	m.profile = config.ProfileData
 	stateManager := state.GetManager()
-	stateManager.StartTransaction(config.Id, dstPath, m.getTransactionSize(chapters))
+	stateManager.StartTransaction(config.Id, dstPath, m.getTransactionPages(chapters))
 
-	progressChan := make(chan int64)
+	progressChan := make(chan int)
 	ctx, cancel := context.WithCancel(context.Background())
 
 	go func() {
@@ -66,8 +66,8 @@ func (m *MangaTransactionUC) Execute(chapters []*domain.Chapter, config *domain.
 		}
 	}()
 
-	for processedSize := range progressChan {
-		if updated := stateManager.UpdateProgress(config.Id, processedSize); !updated {
+	for range progressChan {
+		if updated := stateManager.UpdateProgress(config.Id, 1); !updated {
 			cancel()
 			return
 		}
@@ -82,7 +82,7 @@ func (m *MangaTransactionUC) runConversion(
 	chapters []*domain.Chapter,
 	config *domain.TransactionConfig,
 	dstPath string,
-	progressChan chan int64,
+	progressChan chan int,
 ) (string, error) {
 	defer close(progressChan)
 
@@ -98,7 +98,7 @@ func (m *MangaTransactionUC) runConversion(
 	for _, chapter := range chapters {
 		group, gctx := errgroup.WithContext(ctx)
 		group.SetLimit(workersLimit)
-		pages := chapter.GetPagePaths()
+		pages := chapter.GetOrderedPagePaths()
 		processedPages := make([]*domain.Page, len(pages))
 
 		for pIdx, pagePath := range pages {
@@ -112,6 +112,8 @@ func (m *MangaTransactionUC) runConversion(
 					return err
 				}
 				processedPages[idx] = page
+				progressChan <- 1
+
 				return nil
 			})
 		}
@@ -123,8 +125,6 @@ func (m *MangaTransactionUC) runConversion(
 		for i, page := range processedPages {
 			builder.AddPage(page, i == 0)
 		}
-
-		progressChan <- chapter.Size
 	}
 
 	path, err := builder.Build()
@@ -144,10 +144,10 @@ func (m *MangaTransactionUC) runConversion(
 	return path, err
 }
 
-func (m *MangaTransactionUC) getTransactionSize(chapters []*domain.Chapter) int64 {
-	var res int64
+func (m *MangaTransactionUC) getTransactionPages(chapters []*domain.Chapter) int {
+	var res int
 	for _, chapter := range chapters {
-		res += chapter.Size
+		res += len(chapter.GetOrderedPagePaths())
 	}
 	return res
 }
