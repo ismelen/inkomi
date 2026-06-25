@@ -4,8 +4,6 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: inkomi-api
-    cpus: 3.75
-    mem_limit: 4g
     restart: unless-stopped
     ports:
       - "3000:3000"

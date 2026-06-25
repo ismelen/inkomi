@@ -90,14 +90,11 @@ func (m *MangaTransactionUC) runConversion(
 	builder.SetSettings(m.imageSettings, config.ProfileData)
 	builder.Start(config.Title, dstPath)
 
-	workersLimit := runtime.NumCPU()
-	if workersLimit > 4 {
-		workersLimit = 4
-	}
+	workers := max(1, runtime.NumCPU()*3/4)
 
 	for _, chapter := range chapters {
 		group, gctx := errgroup.WithContext(ctx)
-		group.SetLimit(workersLimit)
+		group.SetLimit(workers)
 		pages := chapter.GetOrderedPagePaths()
 		processedPages := make([]*domain.Page, len(pages))
 
