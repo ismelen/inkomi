@@ -5,47 +5,92 @@ import { copyToCache } from '../../modules/file-handler';
 import mime from 'mime';
 import { BACKENDD_URL } from '../constants';
 import { FilesystemService } from '../services/filesystem-service';
+import { documentDirectory, EncodingType, writeAsStringAsync } from 'expo-file-system/legacy';
+import { isAvailableAsync, shareAsync } from 'expo-sharing';
+import { StorageService } from '../services/storage-service';
 
 interface State {
   transactions: QueueElement[];
   completedTransactions: QueueElement[];
   send(req: Partial<TransactionRequest>): Promise<boolean>;
   checkProgress(idx: number, id: string): Promise<void>;
+  download(id: string): Promise<boolean>;
+  init(): Promise<void>;
 }
 
+const TRANSACTIONS_KEY = 'transactions';
+const COMPLETE_TRANSACTIONS_KEY = 'complete_transactions';
+
 export const useQueue = create<State>((set, get) => ({
-  transactions: [
-    {
-      destination: 'local',
-      progress: 47,
-      title: 'El héroe de las eras',
-      id: 'asdfkjnasdkf',
-      sources: [],
-    },
-    {
-      destination: 'cloud',
-      progress: 93,
-      title: 'El imperio final',
-      id: 'adfasdf',
-      sources: [],
-    },
-  ],
-  completedTransactions: [
-    {
-      destination: 'local',
-      progress: 100,
-      title: 'El héroe de las eras',
-      id: 'asdfkjnasdkf',
-      sources: [],
-    },
-    {
-      destination: 'cloud',
-      progress: 100,
-      title: 'El imperio final',
-      id: 'asdfkjasdfasdfnasdkf',
-      sources: [],
-    },
-  ],
+  transactions: [],
+  completedTransactions: [],
+
+  async init() {
+    const trans = await StorageService.GetAsync<QueueElement[]>(TRANSACTIONS_KEY);
+    const completedTransactions =
+      await StorageService.GetAsync<QueueElement[]>(COMPLETE_TRANSACTIONS_KEY);
+
+    set({
+      transactions: trans ?? [],
+      completedTransactions: completedTransactions ?? [],
+    });
+  },
+
+  async download(id: string): Promise<boolean> {
+    try {
+      const resp = await fetch(`${BACKENDD_URL}/transaction/download/${id}`, {
+        method: 'GET',
+      });
+
+      if (resp.status !== 200) {
+        const data = await resp.json();
+        throw Error(data.error);
+      }
+
+      const contentDisposition = resp.headers.get('content-disposition');
+      let nombreArchivo = 'archivo_descargado.dat'; // Nombre por defecto
+
+      if (contentDisposition && contentDisposition.includes('filename=')) {
+        const match = contentDisposition.match(/filename=["']?([^"'\s]+)["']?/);
+        if (match && match[1]) {
+          nombreArchivo = match[1];
+        }
+      }
+
+      const blob = await resp.blob();
+
+      const reader = new FileReader();
+      reader.readAsDataURL(blob);
+
+      reader.onloadend = async () => {
+        const resultado = reader.result as string;
+        if (!resultado) return;
+
+        const base64data = resultado.split(',')[1];
+
+        const mimeTypeReal = resp.headers.get('content-type') || 'application/octet-stream';
+
+        const rutaLocal = `${documentDirectory}${nombreArchivo}`;
+        await writeAsStringAsync(rutaLocal, base64data, {
+          encoding: EncodingType.Base64,
+        });
+
+        if (await isAvailableAsync()) {
+          await shareAsync(rutaLocal, {
+            mimeType: mimeTypeReal,
+            dialogTitle: 'Guardar archivo',
+          });
+        } else {
+          alert('Error: La función de compartir no está disponible');
+        }
+      };
+    } catch (e: any) {
+      alert(e.message);
+      return false;
+    }
+
+    return true;
+  },
 
   async checkProgress(idx: number, id: string) {
     let progress = 0;
@@ -58,36 +103,35 @@ export const useQueue = create<State>((set, get) => ({
     try {
       progress = await fetchStatus(id);
     } catch (e: any) {
-      elem.error = (e as Error).message;
+      elem.error = e.message;
+      return;
     }
 
+    elem.progress = progress;
+
     if (progress === 100) {
-      elem.progress = progress;
       set({ transactions: [...elements.filter((_, i) => i !== idx)] });
       set((s) => ({ completedTransactions: [elem, ...s.completedTransactions] }));
+      StorageService.SetAsync(TRANSACTIONS_KEY, get().transactions);
+      StorageService.SetAsync(COMPLETE_TRANSACTIONS_KEY, get().completedTransactions);
       return;
     }
 
     set({ transactions: [...elements] });
   },
 
-  async send(req: Partial<TransactionRequest>): Promise<boolean> {
+  async send(req: TransactionRequest): Promise<boolean> {
     const isEmptySource = !req.sources || req.sources.length === 0;
     if (isEmptySource) {
       alert('No sources');
       return false;
     }
 
-    const isFolderWithoutChildren =
-      req.sources?.length === 1 && (req.sources[0].children ?? []).length === 0;
-    if (isFolderWithoutChildren) {
-      alert('Folder empty');
-      return false;
-    }
-
     const form = new FormData();
 
-    if (req.sources?.length === 1) {
+    const isFolder = req.sources?.length === 1 && (req.sources[0].children ?? []).length !== 0;
+
+    if (isFolder) {
       for (let path of req.sources[0].children!) {
         const name = decodeURIComponent(path).split('/').pop();
         if (!name) {
@@ -114,12 +158,12 @@ export const useQueue = create<State>((set, get) => ({
 
     const toCloud = (req.destination ?? 'local') === 'cloud';
 
-    form.append('proifle', 'KoCC'); //TODO: settings
+    form.append('profile', 'KoCC'); //TODO: settings
     form.append('title', req.title ?? '');
     form.append('author', req.author ?? '');
     form.append('cloud', `${toCloud}`);
     form.append('merge', `${req.merge ?? false}`);
-    form.append('notify_token', ''); //TODO: settings
+    // form.append('notify_token', ''); //TODO: settings
 
     if (toCloud) {
       form.append('cloud_token', ''); // TODO: cloud service
@@ -133,15 +177,18 @@ export const useQueue = create<State>((set, get) => ({
 
     if (resp.status !== 200) {
       const json = await resp.json();
+      console.log(json);
       alert(json.error);
       return false;
     }
 
-    const data: QueueElement = await resp.json();
-    data.sources = req.sources!;
-    data.destination = req.destination ?? 'local';
+    const data: QueueElement[] = await resp.json();
+    data.forEach((e) => {
+      e.destination = req.destination;
+    });
 
-    set((s) => ({ transactions: [...s.transactions, data] }));
+    set((s) => ({ transactions: [...s.transactions, ...data] }));
+    StorageService.SetAsync(TRANSACTIONS_KEY, get().transactions);
 
     if (req.deleteOrigin ?? false) {
       for (let src of req.sources!) {
@@ -165,6 +212,8 @@ async function fetchStatus(id: string): Promise<number> {
   if (resp.status !== 200) {
     throw new Error(json.error);
   }
+
+  console.log(json);
 
   return json.progress;
 }

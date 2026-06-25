@@ -11,18 +11,21 @@ import { useEffect } from 'react';
 
 interface Props {
   data: QueueElement;
+  autoCheck?: boolean;
   idx: number;
 }
 
-export default function QueueItemCard({ data, idx }: Props) {
+export default function QueueItemCard({ data, idx, autoCheck = false }: Props) {
   const checkProgress = useQueue((s) => s.checkProgress);
 
   useEffect(() => {
+    if (!autoCheck) return;
+
     checkProgress(idx, data.id);
     const interval = setInterval(() => checkProgress(idx, data.id), 2000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [autoCheck]);
 
   return (
     <View
@@ -48,6 +51,8 @@ export default function QueueItemCard({ data, idx }: Props) {
 }
 
 function LoadingSection({ data }: { data: QueueElement }) {
+  const download = useQueue((s) => s.download);
+
   return (
     <>
       {!data.error && data.progress === 100 ? (
@@ -69,7 +74,7 @@ function LoadingSection({ data }: { data: QueueElement }) {
 
       {data.progress === 100 && data.destination === 'local' && (
         <SButton
-          onPress={() => {}} //TODO: download
+          onPress={() => download(data.id)}
           style={{
             marginTop: 8,
             backgroundColor: colors.primary_container,

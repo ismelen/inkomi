@@ -19,7 +19,7 @@ export default function QueuePage() {
 
       <View style={{ marginTop: 16, gap: 10 }}>
         {transactions.map((e, i) => (
-          <QueueItemCard key={e.id} data={e} idx={i} />
+          <QueueItemCard key={e.id} data={e} idx={i} autoCheck />
         ))}
       </View>
 

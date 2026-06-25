@@ -1,5 +1,5 @@
 import { SplashScreen, Stack } from 'expo-router';
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
 import { colors } from '../src/theme/colors';
@@ -11,12 +11,17 @@ import {
   Inter_700Bold,
   Inter_900Black,
 } from '@expo-google-fonts/inter';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View } from 'react-native';
+import { useQueue } from '../src/hooks/useQueue';
 
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
+  const initQueue = useQueue((s) => s.init);
+
+  useEffect(() => {
+    initQueue();
+  }, []);
+
   const [fontsLoaded] = useFonts({
     regular: Inter_400Regular,
     medium: Inter_500Medium,
