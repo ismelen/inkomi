@@ -80,6 +80,7 @@ func (t *TransactionStateManager) SetDone(id string) {
 		}
 
 		tran.Done = true
+		tran.Current = tran.Pages
 	})
 }
 
