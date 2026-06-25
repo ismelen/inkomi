@@ -31,7 +31,9 @@ func Wrap(f func(r *http.Request) (any, error)) http.HandlerFunc {
 
 		switch v := data.(type) {
 		case domain.FileResponse:
-			defer os.RemoveAll(v.Path)
+			if v.Remove {
+				defer os.RemoveAll(v.Path)
+			}
 
 			w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, v.Name))
 			w.Header().Set("Content-Type", "application/octet-stream")

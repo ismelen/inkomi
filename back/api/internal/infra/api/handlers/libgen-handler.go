@@ -70,7 +70,8 @@ func (l *LibgenHandler) HandleDownloadBook(r *http.Request) (any, error) {
 	}
 
 	return domain.FileResponse{
-		Path: path,
-		Name: filepath.Base(path),
+		Path:   path,
+		Name:   filepath.Base(path),
+		Remove: true,
 	}, nil
 }
