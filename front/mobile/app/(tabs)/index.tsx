@@ -10,8 +10,8 @@ import AppHeader from '../../src/components/app-header';
 export default function HomePage() {
   return (
     <>
-      <Tabs.Screen options={{headerShown: true, header: () => <AppHeader />}}/>
-      <View style={{ gap: 32 }}>
+      <Tabs.Screen options={{ headerShown: true, header: () => <AppHeader /> }} />
+      <View style={{ gap: 32, paddingHorizontal: 24 }}>
         <View style={{ gap: 16 }}>
           <ActionCard
             icon="menu_book"

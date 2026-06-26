@@ -14,7 +14,6 @@ export default function TabsLayout() {
         sceneStyle: {
           backgroundColor: colors.background,
           paddingTop: insets.top,
-          paddingHorizontal: 24,
         },
         headerShadowVisible: false,
         headerShown: false,

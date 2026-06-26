@@ -4,20 +4,25 @@ import { colors } from '../../theme/colors';
 import SButton from '../shared/SButton';
 import SIcon from '../icons/SIcon';
 import SText from '../shared/SText';
-import { useSource } from '../../hooks/useSource';
+import { SourceMode, useSource } from '../../hooks/useSource';
 import { Source } from '../../models/source';
 
 interface Props {
   initSources: Source[];
   onChange(sources: Source[]): void;
+  onModeChange(mode: SourceMode): void;
 }
 
-export default function SourceSelector({ initSources, onChange }: Props) {
-  const { addFiles, addFolder, mode, sources, deleteSource } = useSource();
+export default function SourceSelector({ initSources, onChange, onModeChange }: Props) {
+  const { addFiles, addFolder, mode, sources, deleteSource } = useSource(initSources);
 
   useEffect(() => {
     onChange(sources);
   }, [sources]);
+
+  useEffect(() => {
+    onModeChange(mode);
+  }, [mode]);
 
   switch (mode) {
     case 'files':

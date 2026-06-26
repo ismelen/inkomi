@@ -4,13 +4,14 @@ import { useQueue } from '../../src/hooks/useQueue';
 import SIcon from '../../src/components/icons/SIcon';
 import { colors } from '../../src/theme/colors';
 import QueueItemCard from '../../src/components/queue/queue-item-card';
+import { ScrollView } from 'react-native-gesture-handler';
 
 export default function QueuePage() {
   const transactions = useQueue((s) => s.transactions);
   const completedTransactions = useQueue((s) => s.completedTransactions);
 
   return (
-    <View style={{ flex: 1 }}>
+    <ScrollView style={{ flex: 1, paddingHorizontal: 24 }}>
       <Text style={{ fontFamily: 'bold', fontSize: 28 }}>Transaction queue</Text>
       <View style={styles.section}>
         <SIcon name="pending_actions" color={colors.primary} size={24} />
@@ -33,7 +34,7 @@ export default function QueuePage() {
           <QueueItemCard key={e.id} data={e} idx={i} />
         ))}
       </View>
-    </View>
+    </ScrollView>
   );
 }
 

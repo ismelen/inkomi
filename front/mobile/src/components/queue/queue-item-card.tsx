@@ -39,18 +39,20 @@ export default function QueueItemCard({ data, idx, autoCheck = false }: Props) {
         borderWidth: data.error ? 1 : 0,
       }}
     >
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <SText style={{ fontSize: 16 }}>{data.title}</SText>
+      <View
+        style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}
+      >
+        <SText style={{ fontSize: 16, flex: 1, flexShrink: 1 }}>{data.title}</SText>
         <DestinationIndicator dest={data.destination} />
       </View>
 
       {data.error && <ErrorMessage error={data.error} />}
-      {!data.error && <LoadingSection data={data} />}
+      {!data.error && <LoadingSection data={data} idx={idx} />}
     </View>
   );
 }
 
-function LoadingSection({ data }: { data: QueueElement }) {
+function LoadingSection({ data, idx }: { data: QueueElement; idx: number }) {
   const download = useQueue((s) => s.download);
 
   return (
@@ -74,7 +76,7 @@ function LoadingSection({ data }: { data: QueueElement }) {
 
       {data.progress === 100 && data.destination === 'local' && (
         <SButton
-          onPress={() => download(data.id)}
+          onPress={() => download(idx, data.id)}
           style={{
             marginTop: 8,
             backgroundColor: colors.primary_container,

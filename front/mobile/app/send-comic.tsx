@@ -19,6 +19,7 @@ export default function SendComicPage() {
     author: '',
     destination: 'local',
     sources: [],
+    mode: 'no-select',
   });
   const send = useQueue((s) => s.send);
 
@@ -47,6 +48,7 @@ export default function SendComicPage() {
             <SourceSelector
               initSources={req.sources ?? []}
               onChange={(srcs) => setReq((s) => ({ ...s, sources: srcs }))}
+              onModeChange={(mode) => setReq((s) => ({ ...s, mode: mode }))}
             />
           </View>
 

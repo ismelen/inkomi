@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View } from 'react-native';
 import SText from '../src/components/shared/SText';
 import { router, Stack } from 'expo-router';
@@ -11,9 +11,17 @@ import { useQueue } from '../src/hooks/useQueue';
 import { TransactionRequest } from '../src/models/transaction-request';
 
 export default function SendBookPage() {
-  const send = useQueue(s => s.send)
-  const req: Partial<TransactionRequest> = {}
-  
+  const send = useQueue((s) => s.send);
+  const [req, setReq] = useState<TransactionRequest>({
+    deleteOrigin: false,
+    merge: false,
+    destination: 'local',
+    mode: 'no-select',
+    sources: [],
+    author: '',
+    title: '',
+  });
+
   return (
     <>
       <Stack.Screen
@@ -41,7 +49,11 @@ export default function SendBookPage() {
             >
               SOURCE
             </SText>
-            <SourceSelector initSources={req.sources ?? []} onChange={(srcs) => {req.sources = srcs}} />
+            <SourceSelector
+              initSources={req.sources}
+              onChange={(srcs) => setReq((s) => ({ ...s, sources: srcs }))}
+              onModeChange={(mode) => setReq((s) => ({ ...s, mode: mode }))}
+            />
           </View>
 
           <View>
@@ -55,7 +67,10 @@ export default function SendBookPage() {
             >
               DESTINATION
             </SText>
-            <DestinationSelector initDestination={req.destination ?? 'local'} onChange={(dest) => {req.destination = dest}} />
+            <DestinationSelector
+              initDestination={req.destination}
+              onChange={(dest) => setReq((s) => ({ ...s, destination: dest }))}
+            />
           </View>
 
           <View>
@@ -70,18 +85,18 @@ export default function SendBookPage() {
               OPTIONS
             </SText>
             <OptionCardChecker
-              initialChecked={req.deleteOrigin ?? false}
+              initialChecked={req.deleteOrigin}
               label="Delete source"
               text="Remove original after successful upload"
-              onChange={(checked) => {req.deleteOrigin = checked}}
+              onChange={(checked) => setReq((s) => ({ ...s, deleteOrigin: checked }))}
             />
           </View>
         </View>
 
         <SButton
           onPress={async () => {
-            const done = await send(req)
-            if(done) router.navigate("/(tabs)/queue")
+            const done = await send(req);
+            if (done) router.navigate('/(tabs)/queue');
           }}
           style={{
             backgroundColor: colors.primary_container,
