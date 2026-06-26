@@ -1,35 +1,36 @@
-import { pickDirectory } from '@react-native-documents/picker';
+import { pick, pickDirectory, types } from '@react-native-documents/picker';
 import { Source } from '../models/source';
-import * as FS from 'expo-file-system/legacy';
-import { getDocumentAsync } from 'expo-document-picker';
+import { Directory, File } from 'expo-file-system';
 
 export class FilesystemService {
   static async pickFolder(): Promise<Source | undefined> {
-    const dir = await pickDirectory({
-      requestLongTermAccess: true,
-    });
-    if (dir.bookmarkStatus !== 'success') return;
+    const dir = await pickDirectory();
+    if (!dir || !dir.uri) return;
 
-    const name = decodeURIComponent(dir.uri).split('/').pop();
-    if (!name) return;
-
-    const files = await FS.StorageAccessFramework.readDirectoryAsync(dir.uri);
-
-    return {
-      name,
+    const files = new Directory(dir.uri).list();
+    const source: Source = {
+      name: decodeURIComponent(dir.uri).split('/').pop() ?? '',
       path: dir.uri,
-      children: files,
+      children: [],
     };
+
+    files.forEach((file) => {
+      if (file instanceof Directory) return;
+      source.children!.push({ name: file.name, path: file.uri, size: file.size });
+    });
+
+    return source;
   }
 
   static async pickFiles(): Promise<Source[] | undefined> {
-    const result = await getDocumentAsync({
-      copyToCacheDirectory: false,
-      multiple: true,
+    const files = await pick({
+      allowMultiSelection: true,
+      type: [types.allFiles],
     });
-    if (result.canceled) return;
 
-    return result.assets.map(
+    if (!files || files.length === 0) return;
+
+    return files.map(
       (file) =>
         ({
           name: file.name,
@@ -40,6 +41,6 @@ export class FilesystemService {
   }
 
   static async deleteFile(path: string) {
-    await FS.deleteAsync(path, { idempotent: true });
+    new File(path).delete();
   }
 }
