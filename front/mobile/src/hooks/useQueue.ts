@@ -1,4 +1,4 @@
-import { documentDirectory, downloadAsync } from 'expo-file-system/legacy';
+import { cacheDirectory, documentDirectory, downloadAsync } from 'expo-file-system/legacy';
 import { create } from 'zustand';
 import { BACKENDD_URL } from '../constants';
 import { QueueElement } from '../models/queue-element';
@@ -10,6 +10,7 @@ import { FilesystemService } from '../services/filesystem-service';
 import { NotificationService } from '../services/notification-service';
 import { Upload } from '../models/upload';
 import { randomUUID } from 'expo-crypto';
+import RNBlobUtil from 'react-native-blob-util';
 
 interface State {
   uploads: Upload[];
@@ -49,27 +50,52 @@ export const useQueue = create<State>((set, get) => ({
     const elem = get().completedTransactions[idx];
 
     try {
-      const rutaLocal = `${documentDirectory}${elem.filename}`;
-
-      const downloadResult = await downloadAsync(
-        `${BACKENDD_URL}/transaction/download/${id}`,
-        rutaLocal
-      );
-
-      if (downloadResult.status === 404) {
-        alert('File not available');
-        return false;
-      }
-
-      if (downloadResult.status !== 200) {
-        throw Error(`Error al descargar: ${downloadResult.status}`);
-      }
+      await RNBlobUtil.config({
+        addAndroidDownloads: {
+          useDownloadManager: true,
+          notification: true,
+          title: elem.filename,
+          description: 'Descargando archivo...',
+          mime: 'application/epub+zip',
+          mediaScannable: true,
+          path: `${RNBlobUtil.fs.dirs.DownloadDir}/${elem.filename}`,
+        },
+      }).fetch('GET', `${BACKENDD_URL}/transaction/download/${id}`);
     } catch (e: any) {
       alert(e.message);
       return false;
     }
 
     return true;
+    // const elem = get().completedTransactions[idx];
+
+    // try {
+    //   const dstPath = `${cacheDirectory}${elem.filename}`;
+
+    //   const downloadResult = await downloadAsync(
+    //     `${BACKENDD_URL}/transaction/download/${id}`,
+    //     dstPath
+    //   );
+
+    //   if (downloadResult.status === 404) {
+    //     alert('File not available');
+    //     return false;
+    //   }
+
+    //   if (downloadResult.status !== 200) {
+    //     throw Error(`Error al descargar: ${downloadResult.status}`);
+    //   }
+
+    //   await shareAsync(dstPath, {
+    //     mimeType: 'application/epub+zip',
+    //     dialogTitle: 'Guardar archivo',
+    //   });
+    // } catch (e: any) {
+    //   alert(e.message);
+    //   return false;
+    // }
+
+    // return true;
   },
 
   async checkProgress(idx: number, id: string) {
