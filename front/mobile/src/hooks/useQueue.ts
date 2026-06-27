@@ -1,15 +1,18 @@
 import { documentDirectory, downloadAsync } from 'expo-file-system/legacy';
-import mime from 'mime';
 import { create } from 'zustand';
-import { copyToCache } from '../../modules/file-handler';
 import { BACKENDD_URL } from '../constants';
 import { QueueElement } from '../models/queue-element';
 import { TransactionRequest } from '../models/transaction-request';
-import { FilesystemService } from '../services/filesystem-service';
 import { StorageService } from '../services/storage-service';
-import { cache } from 'react';
+import { Source } from '../models/source';
+import BackgroundService from 'react-native-background-actions';
+import { FilesystemService } from '../services/filesystem-service';
+import { NotificationService } from '../services/notification-service';
+import { Upload } from '../models/upload';
+import { randomUUID } from 'expo-crypto';
 
 interface State {
+  uploads: Upload[];
   transactions: QueueElement[];
   completedTransactions: QueueElement[];
   send(req: Partial<TransactionRequest>): Promise<boolean>;
@@ -22,17 +25,23 @@ const TRANSACTIONS_KEY = 'transactions';
 const COMPLETE_TRANSACTIONS_KEY = 'complete_transactions';
 
 export const useQueue = create<State>((set, get) => ({
+  uploads: [],
   transactions: [],
   completedTransactions: [],
 
   async init() {
-    const trans = await StorageService.GetAsync<QueueElement[]>(TRANSACTIONS_KEY);
-    const completedTransactions =
-      await StorageService.GetAsync<QueueElement[]>(COMPLETE_TRANSACTIONS_KEY);
+    const trans = (await StorageService.GetAsync<QueueElement[]>(TRANSACTIONS_KEY)) ?? [];
+    let completedTransactions =
+      (await StorageService.GetAsync<QueueElement[]>(COMPLETE_TRANSACTIONS_KEY)) ?? [];
+
+    if (completedTransactions?.length > 10) {
+      completedTransactions = completedTransactions.slice(0, 10);
+      StorageService.SetAsync(COMPLETE_TRANSACTIONS_KEY, completedTransactions);
+    }
 
     set({
-      transactions: trans ?? [],
-      completedTransactions: completedTransactions ?? [],
+      transactions: trans,
+      completedTransactions: completedTransactions,
     });
   },
 
@@ -68,19 +77,16 @@ export const useQueue = create<State>((set, get) => ({
     const elements = get().transactions;
     const elem = elements[idx];
 
-    if (elem.error) return;
-    if (elem.progress === 100) return;
+    if (!elem) return;
 
     try {
       progress = await fetchStatus(id);
+      elem.progress = progress;
     } catch (e: any) {
       elem.error = e.message;
-      return;
     }
 
-    elem.progress = progress;
-
-    if (progress === 100) {
+    if (elem.progress === 100 || elem.error) {
       set({ transactions: [...elements.filter((_, i) => i !== idx)] });
       set((s) => ({ completedTransactions: [elem, ...s.completedTransactions] }));
       StorageService.SetAsync(TRANSACTIONS_KEY, get().transactions);
@@ -92,55 +98,27 @@ export const useQueue = create<State>((set, get) => ({
   },
 
   async send(req: TransactionRequest): Promise<boolean> {
-    const isEmptySource = !req.sources || req.sources.length === 0;
-    if (isEmptySource) {
-      alert('No sources');
-      return false;
+    if (req.mode === 'no-select') return false;
+    if (req.sources.length === 0) return false;
+    if (req.mode === 'folder' && (req.sources[0].children?.length ?? 0) === 0) return false;
+
+    let files: Source[] = [];
+    if (req.mode === 'files') {
+      //TODO: Divide by size
+      files = req.sources;
     }
+    if (req.mode === 'folder') {
+      files = req.sources[0].children ?? [];
+    }
+    if (files.length === 0) return false;
 
     const form = new FormData();
-
-    if (req.mode === 'folder') {
-      if ((req.sources[0].children?.length ?? 0) === 0) {
-        alert('Empty folder');
-        return false;
-      }
-      const formFiles = await Promise.all(
-        req.sources[0].children!.map(async (path) => {
-          const name = decodeURIComponent(path).split('/').pop();
-          if (!name) {
-            alert('No file name');
-            return false;
-          }
-          const cachePath = await copyToCache(path, name);
-          return {
-            name: name,
-            type: mime.getType(cachePath),
-            uri: cachePath,
-          };
-        })
-      );
-
-      for (const file of formFiles) {
-        form.append('files', file as unknown as Blob);
-      }
-    } else {
-      for (let src of req.sources!) {
-        form.append(`files`, {
-          name: src.name,
-          type: mime.getType(src.path),
-          uri: src.path,
-        } as unknown as Blob);
-      }
-    }
-
-    const toCloud = (req.destination ?? 'local') === 'cloud';
-
+    const toCloud = req.destination === 'cloud';
     form.append('profile', 'KoCC'); //TODO: settings
-    form.append('title', req.title ?? '');
-    form.append('author', req.author ?? '');
-    form.append('cloud', `${toCloud}`);
-    form.append('merge', `${req.merge ?? false}`);
+    form.append('title', req.title!);
+    form.append('author', req.author!);
+    form.append('cloud', String(toCloud));
+    form.append('merge', String(req.merge));
     // form.append('notify_token', ''); //TODO: settings
 
     if (toCloud) {
@@ -148,37 +126,75 @@ export const useQueue = create<State>((set, get) => ({
       form.append('cloud_folder', ''); //TODO: cloud service
     }
 
-    //TODO: a partir de aqui ya es asíncrono, retornar true de momento, guardar en el queue el request para poder lanzarlo de nuevo si falla
-    const resp = await fetch(`${BACKENDD_URL}/transaction/convert`, {
-      method: 'POST',
-      body: form,
-    });
-
-    if (resp.status !== 200) {
-      const json = await resp.json();
-      console.log(json);
-      alert(json.error);
-      return false;
+    for (const file of files) {
+      form.append('files', {
+        uri: file.path,
+        name: file.name,
+        type: file.mime ?? 'application/zip',
+      } as any);
     }
 
-    const data: QueueElement[] = await resp.json();
-    data.forEach((e) => {
-      e.destination = req.destination;
-      e.timestamp = Date.now();
-    });
+    const upload: Upload = {
+      request: req,
+      timestamp: Date.now(),
+      id: randomUUID(),
+    };
+    set((s) => ({ uploads: [...s.uploads, upload] }));
 
-    set((s) => ({ transactions: [...s.transactions, ...data] }));
-    StorageService.SetAsync(TRANSACTIONS_KEY, get().transactions);
+    await NotificationService.requestNotificationPermission();
+    await BackgroundService.start(
+      async () => {
+        try {
+          const resp = await fetch(`${BACKENDD_URL}/transaction/convert`, {
+            method: 'POST',
+            body: form,
+          });
 
-    if (req.deleteOrigin ?? false) {
-      for (let src of req.sources!) {
-        const hasChildren = (src.children ?? []).length > 0;
-        for (let child of src.children ?? []) {
-          FilesystemService.deleteFile(child);
+          if (resp.status !== 200) {
+            const json = await resp.json();
+            console.log(json);
+            alert(json.error);
+          }
+
+          const data: QueueElement[] = await resp.json();
+          data.forEach((e) => {
+            e.destination = req.destination;
+            e.timestamp = Date.now();
+          });
+
+          set((s) => ({ transactions: [...s.transactions, ...data] }));
+          StorageService.SetAsync(TRANSACTIONS_KEY, get().transactions);
+
+          if (req.deleteOrigin ?? false) {
+            for (let src of req.sources!) {
+              const hasChildren = (src.children ?? []).length > 0;
+              for (let child of src.children ?? []) {
+                FilesystemService.deleteFile(child.path);
+              }
+              if (!hasChildren) FilesystemService.deleteFile(src.path);
+            }
+          }
+
+          set((s) => ({ uploads: s.uploads.filter((e) => e.id !== upload.id) }));
+        } catch (e) {
+          set((s) => ({
+            uploads: s.uploads.map((u) => (u.id === upload.id ? { ...u, error: e as Error } : u)),
+          }));
+        } finally {
+          await BackgroundService.stop();
         }
-        if (!hasChildren) FilesystemService.deleteFile(src.path);
+      },
+      {
+        taskName: 'inkomi-upload',
+        taskTitle: 'Inkomi',
+        taskDesc: 'Uploading files...',
+        taskIcon: {
+          name: 'ic_launcher',
+          type: 'mipmap',
+        },
+        foregroundServiceType: ['dataSync'],
       }
-    }
+    );
 
     return true;
   },

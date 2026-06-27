@@ -33,7 +33,7 @@ export default function QueueItemCard({ data, idx, autoCheck = false }: Props) {
         backgroundColor: colors.surface_container_lowest,
         borderRadius: 12,
         boxShadow: colors.boxShadow,
-        padding: 16,
+        padding: 10,
         gap: 4,
         borderColor: colors.error,
         borderWidth: data.error ? 1 : 0,
@@ -83,7 +83,7 @@ function LoadingSection({ data, idx }: { data: QueueElement; idx: number }) {
             padding: 10,
             alignItems: 'center',
             justifyContent: 'center',
-            borderRadius: 12,
+            borderRadius: 6,
             flexDirection: 'row',
             gap: 8,
           }}

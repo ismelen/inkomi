@@ -5,35 +5,66 @@ import SIcon from '../../src/components/icons/SIcon';
 import { colors } from '../../src/theme/colors';
 import QueueItemCard from '../../src/components/queue/queue-item-card';
 import { ScrollView } from 'react-native-gesture-handler';
+import UploadCard from '../../src/components/queue/upload-card';
 
 export default function QueuePage() {
   const transactions = useQueue((s) => s.transactions);
   const completedTransactions = useQueue((s) => s.completedTransactions);
+  const uploads = useQueue((s) => s.uploads);
 
   return (
     <ScrollView style={{ flex: 1, paddingHorizontal: 24 }}>
       <Text style={{ fontFamily: 'bold', fontSize: 28 }}>Transaction queue</Text>
-      <View style={styles.section}>
-        <SIcon name="pending_actions" color={colors.primary} size={24} />
-        <Text style={styles.label}>ACTIVE</Text>
-      </View>
 
-      <View style={{ marginTop: 16, gap: 10 }}>
-        {transactions.map((e, i) => (
-          <QueueItemCard key={e.id} data={e} idx={i} autoCheck />
-        ))}
-      </View>
+      {uploads.length !== 0 && (
+        <>
+          <View style={styles.section}>
+            <SIcon
+              name="cloud_upload"
+              color={colors.secondary_container}
+              size={24}
+              type="outlined"
+            />
+            <Text style={styles.label}>UPLOADS</Text>
+          </View>
 
-      <View style={[styles.section, { marginTop: 20 }]}>
-        <SIcon name="check_circle" color={colors.ok} size={24} type="outlined" />
-        <Text style={styles.label}>COMPLETED</Text>
-      </View>
+          <View style={{ marginTop: 16, gap: 10 }}>
+            {uploads.map((e, i) => (
+              <UploadCard key={e.id} data={e} onRetry={() => {}} /> //TODO: Navigate to send book or comic page
+            ))}
+          </View>
+        </>
+      )}
 
-      <View style={{ marginTop: 16, gap: 10 }}>
-        {completedTransactions.map((e, i) => (
-          <QueueItemCard key={e.id} data={e} idx={i} />
-        ))}
-      </View>
+      {transactions.length !== 0 && (
+        <>
+          <View style={styles.section}>
+            <SIcon name="pending_actions" color={colors.primary} size={24} />
+            <Text style={styles.label}>ACTIVE</Text>
+          </View>
+
+          <View style={{ marginTop: 16, gap: 10 }}>
+            {transactions.map((e, i) => (
+              <QueueItemCard key={e.id} data={e} idx={i} autoCheck />
+            ))}
+          </View>
+        </>
+      )}
+
+      {completedTransactions.length !== 0 && (
+        <>
+          <View style={[styles.section, { marginTop: 20 }]}>
+            <SIcon name="check_circle" color={colors.ok} size={24} type="outlined" />
+            <Text style={styles.label}>COMPLETED</Text>
+          </View>
+
+          <View style={{ marginTop: 16, gap: 10 }}>
+            {completedTransactions.map((e, i) => (
+              <QueueItemCard key={i + e.id} data={e} idx={i} />
+            ))}
+          </View>
+        </>
+      )}
     </ScrollView>
   );
 }

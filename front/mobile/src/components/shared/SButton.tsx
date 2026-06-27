@@ -2,14 +2,16 @@ import React from 'react';
 import { ButtonProps, Pressable, PressableProps, StyleProp, View, ViewStyle } from 'react-native';
 import { colors, hexToRgba } from '../../theme/colors';
 
-export default function SButton({ children, style, ...props }: PressableProps) {
+export default function SButton({ children, style, onPress, ...props }: PressableProps) {
+  const disabled = props.disabled === true;
+
   return (
     <Pressable
       {...props}
       android_ripple={{
         color: hexToRgba('#e1e0ff', 0.25),
-        borderless: true,
-        foreground: true,
+        borderless: !disabled,
+        foreground: !disabled,
       }}
       style={[
         {
@@ -17,6 +19,10 @@ export default function SButton({ children, style, ...props }: PressableProps) {
         },
         style as StyleProp<ViewStyle>,
       ]}
+      onPress={(event) => {
+        if (disabled) return;
+        onPress?.(event);
+      }}
     >
       {children}
     </Pressable>

@@ -16,7 +16,7 @@ export class FilesystemService {
 
     files.forEach((file) => {
       if (file instanceof Directory) return;
-      source.children!.push({ name: file.name, path: file.uri, size: file.size });
+      source.children!.push({ name: file.name, path: file.uri, size: file.size, mime: file.type });
     });
 
     return source;
@@ -36,6 +36,7 @@ export class FilesystemService {
           name: file.name,
           path: file.uri,
           size: file.size,
+          mime: file.type,
         }) as Source
     );
   }
