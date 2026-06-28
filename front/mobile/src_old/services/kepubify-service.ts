@@ -46,7 +46,6 @@ export class KepubifyService {
       });
 
       const json = await response.json();
-      console.log(json);
       if (!response.ok) {
         alert(json.error);
         return;
@@ -78,7 +77,6 @@ export class KepubifyService {
     } catch (e) {
       const msg = (e as Error).message;
       alert(msg);
-      console.log(msg);
     }
   }
 }

@@ -11,13 +11,14 @@ import { NotificationService } from '../services/notification-service';
 import { Upload } from '../models/upload';
 import { randomUUID } from 'expo-crypto';
 import RNBlobUtil from 'react-native-blob-util';
+import { useCloud } from './useCloud';
 
 interface State {
   uploads: Upload[];
   transactions: QueueElement[];
   completedTransactions: QueueElement[];
   send(req: Partial<TransactionRequest>): Promise<boolean>;
-  checkProgress(idx: number, id: string): Promise<void>;
+  checkProgress(idx: number, id: string): Promise<boolean>;
   download(idx: number, id: string): Promise<boolean>;
   init(): Promise<void>;
 }
@@ -67,43 +68,13 @@ export const useQueue = create<State>((set, get) => ({
     }
 
     return true;
-    // const elem = get().completedTransactions[idx];
-
-    // try {
-    //   const dstPath = `${cacheDirectory}${elem.filename}`;
-
-    //   const downloadResult = await downloadAsync(
-    //     `${BACKENDD_URL}/transaction/download/${id}`,
-    //     dstPath
-    //   );
-
-    //   if (downloadResult.status === 404) {
-    //     alert('File not available');
-    //     return false;
-    //   }
-
-    //   if (downloadResult.status !== 200) {
-    //     throw Error(`Error al descargar: ${downloadResult.status}`);
-    //   }
-
-    //   await shareAsync(dstPath, {
-    //     mimeType: 'application/epub+zip',
-    //     dialogTitle: 'Guardar archivo',
-    //   });
-    // } catch (e: any) {
-    //   alert(e.message);
-    //   return false;
-    // }
-
-    // return true;
   },
 
-  async checkProgress(idx: number, id: string) {
+  async checkProgress(idx: number, id: string): Promise<boolean> {
     let progress = 0;
-    const elements = get().transactions;
-    const elem = elements[idx];
+    const elem = get().transactions.find((e) => e.id === id);
 
-    if (!elem) return;
+    if (!elem) return true; // ya fue procesado, detener el intervalo
 
     try {
       progress = await fetchStatus(id);
@@ -113,14 +84,17 @@ export const useQueue = create<State>((set, get) => ({
     }
 
     if (elem.progress === 100 || elem.error) {
-      set({ transactions: [...elements.filter((_, i) => i !== idx)] });
-      set((s) => ({ completedTransactions: [elem, ...s.completedTransactions] }));
+      set((s) => ({
+        transactions: s.transactions.filter((e) => e.id !== id),
+        completedTransactions: [elem, ...s.completedTransactions],
+      }));
       StorageService.SetAsync(TRANSACTIONS_KEY, get().transactions);
       StorageService.SetAsync(COMPLETE_TRANSACTIONS_KEY, get().completedTransactions);
-      return;
+      return true; // completado, detener el intervalo
     }
 
-    set({ transactions: [...elements] });
+    set((s) => ({ transactions: [...s.transactions] }));
+    return false;
   },
 
   async send(req: TransactionRequest): Promise<boolean> {
@@ -140,16 +114,19 @@ export const useQueue = create<State>((set, get) => ({
 
     const form = new FormData();
     const toCloud = req.destination === 'cloud';
+
     form.append('profile', 'KoCC'); //TODO: settings
-    form.append('title', req.title!);
-    form.append('author', req.author!);
+    form.append('title', req.title ?? '');
+    form.append('author', req.author ?? '');
     form.append('cloud', String(toCloud));
     form.append('merge', String(req.merge));
     // form.append('notify_token', ''); //TODO: settings
 
     if (toCloud) {
-      form.append('cloud_token', ''); // TODO: cloud service
-      form.append('cloud_folder', ''); //TODO: cloud service
+      const token = (await useCloud.getState().getToken()) ?? '';
+      const folder = (await useCloud.getState().getFolder()) ?? '';
+      form.append('cloud_token', token);
+      form.append('cloud_folder', folder);
     }
 
     for (const file of files) {
@@ -178,7 +155,6 @@ export const useQueue = create<State>((set, get) => ({
 
           if (resp.status !== 200) {
             const json = await resp.json();
-            console.log(json);
             alert(json.error);
           }
 

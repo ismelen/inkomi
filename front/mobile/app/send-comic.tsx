@@ -66,7 +66,7 @@ export default function SendComicPage() {
           <View style={styles.section}>
             <SText style={styles.title}>DESTINATION</SText>
             <DestinationSelector
-              initDestination={req.destination ?? 'local'}
+              initDestination={req.destination}
               onChange={(dest) => setReq((s) => ({ ...s, destination: dest }))}
             />
           </View>

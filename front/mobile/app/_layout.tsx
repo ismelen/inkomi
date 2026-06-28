@@ -12,14 +12,18 @@ import {
   Inter_900Black,
 } from '@expo-google-fonts/inter';
 import { useQueue } from '../src/hooks/useQueue';
+import { useCloud } from '../src/hooks/useCloud';
+import { DropboxFolderPickerModal } from '../src/components/modals/dropbox-folder-picker-modal';
 
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const initQueue = useQueue((s) => s.init);
+  const initCloud = useCloud((s) => s.init);
 
   useEffect(() => {
     initQueue();
+    initCloud();
   }, []);
 
   const [fontsLoaded] = useFonts({
@@ -51,6 +55,7 @@ export default function RootLayout() {
           },
         }}
       />
+      <DropboxFolderPickerModal />
     </GestureHandlerRootView>
   );
 }

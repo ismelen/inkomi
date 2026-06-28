@@ -1,13 +1,13 @@
+import { useEffect, useRef } from 'react';
 import { View } from 'react-native';
-import { colors } from '../../theme/colors';
-import { QueueElement } from '../../models/queue-element';
-import SText from '../shared/SText';
-import { Destination } from '../../models/transaction-request';
-import SIcon from '../icons/SIcon';
-import PulseProgressBar from './pulse-progress-bar';
-import SButton from '../shared/SButton';
 import { useQueue } from '../../hooks/useQueue';
-import { useEffect } from 'react';
+import { QueueElement } from '../../models/queue-element';
+import { Destination } from '../../models/transaction-request';
+import { colors } from '../../theme/colors';
+import SIcon from '../icons/SIcon';
+import SButton from '../shared/SButton';
+import SText from '../shared/SText';
+import PulseProgressBar from './pulse-progress-bar';
 
 interface Props {
   data: QueueElement;
@@ -17,15 +17,21 @@ interface Props {
 
 export default function QueueItemCard({ data, idx, autoCheck = false }: Props) {
   const checkProgress = useQueue((s) => s.checkProgress);
+  const intervalRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     if (!autoCheck) return;
 
-    checkProgress(idx, data.id);
-    const interval = setInterval(() => checkProgress(idx, data.id), 2000);
+    const run = async () => {
+      const done = await checkProgress(idx, data.id);
+      if (done) clearInterval(intervalRef.current);
+    };
 
-    return () => clearInterval(interval);
-  }, [autoCheck]);
+    run();
+    intervalRef.current = setInterval(run, 2000);
+
+    return () => clearInterval(intervalRef.current);
+  }, [autoCheck, data.id]);
 
   return (
     <View

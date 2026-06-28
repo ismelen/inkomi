@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { colors } from '../../theme/colors';
 import SButton from '../shared/SButton';
@@ -14,6 +14,10 @@ interface Props {
 
 export default function DestinationSelector({ initDestination, onChange }: Props) {
   const [destination, setDestination] = useState(initDestination);
+
+  useEffect(() => {
+    onChange(destination);
+  }, [destination]);
 
   return (
     <View

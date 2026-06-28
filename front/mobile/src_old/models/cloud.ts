@@ -52,7 +52,6 @@ export class Cloud {
 
   public async setFolder() {
     const json = JSON.stringify(this);
-    console.log(json);
     if (!this.token?.token) {
       alert('No account specified');
       return;
@@ -137,7 +136,6 @@ export class Cloud {
     });
 
     const tokens = await response.json();
-    console.log(tokens);
     if (tokens.error) return;
 
     const expiration = new Date();

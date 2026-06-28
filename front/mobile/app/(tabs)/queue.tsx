@@ -1,4 +1,4 @@
-import React from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { StyleSheet, Text, View } from 'react-native';
 import { useQueue } from '../../src/hooks/useQueue';
 import SIcon from '../../src/components/icons/SIcon';
@@ -8,9 +8,13 @@ import { ScrollView } from 'react-native-gesture-handler';
 import UploadCard from '../../src/components/queue/upload-card';
 
 export default function QueuePage() {
-  const transactions = useQueue((s) => s.transactions);
-  const completedTransactions = useQueue((s) => s.completedTransactions);
-  const uploads = useQueue((s) => s.uploads);
+  const { transactions, completedTransactions, uploads } = useQueue(
+    useShallow((s) => ({
+      transactions: s.transactions,
+      completedTransactions: s.completedTransactions,
+      uploads: s.uploads,
+    }))
+  );
 
   return (
     <ScrollView style={{ flex: 1, paddingHorizontal: 24 }}>

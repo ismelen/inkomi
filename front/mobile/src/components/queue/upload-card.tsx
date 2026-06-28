@@ -35,7 +35,7 @@ export default function UploadCard({ data, onRetry }: Props) {
           .map((e) => e.name)
           .join(', ')}
       </SText>
-      <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginTop: 7 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginTop: 3, gap: 10 }}>
         <View style={{ flex: 1 }}>
           <SText style={styles.timestamp}>{new Date(data.timestamp).toLocaleString()}</SText>
           {data.error && <SText style={styles.error}>{data.error?.message}</SText>}

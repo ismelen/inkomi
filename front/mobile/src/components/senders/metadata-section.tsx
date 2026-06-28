@@ -14,8 +14,8 @@ export default function MetadataSection({ initialMetadata, onChange }: Props) {
   const [metadata, setMetadata] = useState(initialMetadata ?? {});
 
   useEffect(() => {
-    onChange(metadata)
-  }, [metadata])
+    onChange(metadata);
+  }, [metadata]);
 
   return (
     <View style={{ boxShadow: colors.boxShadow, borderRadius: 12, padding: 15, gap: 8 }}>
@@ -31,7 +31,7 @@ export default function MetadataSection({ initialMetadata, onChange }: Props) {
         <SText style={styles.label}>Author</SText>
         <TextInput
           style={styles.textInput}
-          onChangeText={(e) => setMetadata((s) => ({ ...s, title: e }))}
+          onChangeText={(e) => setMetadata((s) => ({ ...s, author: e }))}
         />
       </View>
     </View>
@@ -40,10 +40,10 @@ export default function MetadataSection({ initialMetadata, onChange }: Props) {
 
 const styles = StyleSheet.create({
   section: {
-    gap: 5
+    gap: 5,
   },
   label: {
-    fontFamily: 'semibold'
+    fontFamily: 'semibold',
   },
   textInput: {
     borderColor: hexToRgba(colors.outline_variant, 0.2),

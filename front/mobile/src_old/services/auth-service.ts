@@ -5,7 +5,6 @@ import { WEB_CLIENT_ID, WEB_CLIENT_SECRET } from '../constants';
 
 const TOKEN_KEY = 'token';
 
-
 interface TokenData {
   token?: string;
   refresh?: string;

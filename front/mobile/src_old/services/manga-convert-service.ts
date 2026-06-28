@@ -79,7 +79,6 @@ export class MangaConvertService {
     } catch (e) {
       const msg = (e as Error).message;
       alert(msg);
-      console.log(msg);
     }
   }
 }
