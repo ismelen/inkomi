@@ -27,6 +27,7 @@ import (
 type TransactionHandler struct {
 	basePath     string
 	pushNotifier ports.PushNotifier
+	decoder      *schema.Decoder
 }
 
 func NewConvertHandler(pushNotifier ports.PushNotifier) *TransactionHandler {
@@ -39,13 +40,17 @@ func NewConvertHandler(pushNotifier ports.PushNotifier) *TransactionHandler {
 		log.Fatal(err)
 	}
 
+	decoder := schema.NewDecoder()
+	decoder.IgnoreUnknownKeys(true)
+	decoder.SetAliasTag("form")
+
 	return &TransactionHandler{
 		basePath:     path,
 		pushNotifier: pushNotifier,
+		decoder:      decoder,
 	}
 }
 
-var formDecoder = schema.NewDecoder()
 var filenamesFilter = filesFilter.Use(
 	&filesFilter.OnlyOneZipFilter{},
 	&filesFilter.SameFormatFilter{},
@@ -93,7 +98,7 @@ func (ch *TransactionHandler) HandleConvert(r *http.Request) (any, error) {
 	}
 
 	config := new(domain.TransactionConfig)
-	if err := formDecoder.Decode(config, r.MultipartForm.Value); err != nil {
+	if err := ch.decoder.Decode(config, r.MultipartForm.Value); err != nil {
 		return nil, err
 	}
 
@@ -202,7 +207,6 @@ func (ch *TransactionHandler) handleMangaTransaction(files []string, config *dom
 
 		tran, ok := transactions[id]
 		if !ok {
-			log.Println("new transaction")
 			tran = &TransactinoInfo{
 				config:   config.WithId(id),
 				dstPath:  dstPath,
@@ -248,7 +252,6 @@ func saveConvertFiles(ext string, files []*multipart.FileHeader, tempSavePath st
 }
 
 func handleKepubify(files []*multipart.FileHeader) (any, error) {
-	log.Println(files)
 	return map[string]any{}, nil
 }
 

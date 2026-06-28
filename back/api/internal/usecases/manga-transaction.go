@@ -54,13 +54,16 @@ func (m *MangaTransactionUC) Execute(chapters []*domain.Chapter, config *domain.
 
 		if config.Cloud {
 			m.pushNotifier.Send(config.NotifyToken, "Success", fmt.Sprintf("Sending %s to cloud", filepath.Base(resultPath)))
-			gCloud, err := cloud.New(config.CloudToken, config.CloudFolder)
+			cloud, err := cloud.NewDropboxCloud(config.CloudToken, config.CloudFolder)
 
 			if err != nil {
 				m.pushNotifier.Send(config.NotifyToken, "Error", fmt.Sprintf("Cannot send %s to cloud", filepath.Base(resultPath)))
+				stateManager.SetError(config.Id, err)
 				return
 			}
-			gCloud.Upload(resultPath)
+			if err := cloud.Upload(resultPath); err != nil {
+				stateManager.SetError(config.Id, err)
+			}
 		} else {
 			m.pushNotifier.Send(config.NotifyToken, "Success", fmt.Sprintf("%s transaction ready", filepath.Base(resultPath)))
 		}

@@ -6,15 +6,15 @@ import (
 )
 
 type TransactionConfig struct {
-	Author      string `form:"author,omitempty"`
-	Title       string `form:"title,omitempty"`
+	Author      string `form:"author"`
+	Title       string `form:"title"`
 	Profile     string `form:"profile"`
-	Merge       bool   `form:"merge,omitempty"`
+	Merge       bool   `form:"merge"`
 	Id          string
 	Cloud       bool   `form:"cloud"`
-	CloudToken  string `form:"cloud_token,omitempty"`
-	CloudFolder string `form:"cloud_folder,omitempty"`
-	NotifyToken string `form:"notify_token,omitempty"`
+	CloudToken  string `form:"cloud_token"`
+	CloudFolder string `form:"cloud_folder"`
+	NotifyToken string `form:"notify_token"`
 	ProfileData *Profile
 }
 

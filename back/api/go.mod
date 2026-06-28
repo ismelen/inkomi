@@ -11,6 +11,7 @@ require (
 	github.com/go-chi/render v1.0.3
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/schema v1.4.1
+	github.com/joho/godotenv v1.5.1
 	github.com/pgaskin/kepubify/v4 v4.0.4
 	golang.org/x/image v0.34.0
 	golang.org/x/oauth2 v0.36.0

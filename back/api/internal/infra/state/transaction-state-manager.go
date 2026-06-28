@@ -65,7 +65,6 @@ func (t *TransactionStateManager) CheckProgress(id string) (int, error) {
 	}
 
 	if tran.Error != nil {
-		defer t.DeleteTransaction(id)
 		return 0, tran.Error
 	}
 
