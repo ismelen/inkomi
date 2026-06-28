@@ -32,8 +32,8 @@ func NewMangaTransactionUC(pushNotifier ports.PushNotifier) *MangaTransactionUC 
 
 func (m *MangaTransactionUC) Execute(chapters []*domain.Chapter, config *domain.TransactionConfig, dstPath string) {
 	m.profile = config.ProfileData
-	stateManager := state.GetManager()
-	stateManager.StartTransaction(config.Id, dstPath, m.getTransactionPages(chapters))
+	transactionManager := state.GetManager()
+	tran := transactionManager.StartTransaction(config.Id, dstPath, m.getTransactionPages(chapters))
 
 	progressChan := make(chan int)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -43,14 +43,14 @@ func (m *MangaTransactionUC) Execute(chapters []*domain.Chapter, config *domain.
 		if err != nil {
 			if canceled := ctx.Err(); canceled != nil {
 				m.pushNotifier.Send(config.NotifyToken, "Canceled", fmt.Sprintf("%s conversion canceled", config.Title))
-				stateManager.DeleteTransaction(config.Id)
+				transactionManager.DeleteTransaction(config.Id)
 			} else {
 				m.pushNotifier.Send(config.NotifyToken, "Error", fmt.Sprintf("Error: %s", err.Error()))
-				stateManager.SetError(config.Id, err)
+				tran.SetError(err)
 			}
 			return
 		}
-		stateManager.SetResultPath(config.Id, resultPath)
+		tran.SetResultPath(resultPath)
 
 		if config.Cloud {
 			m.pushNotifier.Send(config.NotifyToken, "Success", fmt.Sprintf("Sending %s to cloud", filepath.Base(resultPath)))
@@ -58,11 +58,11 @@ func (m *MangaTransactionUC) Execute(chapters []*domain.Chapter, config *domain.
 
 			if err != nil {
 				m.pushNotifier.Send(config.NotifyToken, "Error", fmt.Sprintf("Cannot send %s to cloud", filepath.Base(resultPath)))
-				stateManager.SetError(config.Id, err)
+				tran.SetError(err)
 				return
 			}
 			if err := cloud.Upload(resultPath); err != nil {
-				stateManager.SetError(config.Id, err)
+				tran.SetError(err)
 			}
 		} else {
 			m.pushNotifier.Send(config.NotifyToken, "Success", fmt.Sprintf("%s transaction ready", filepath.Base(resultPath)))
@@ -70,14 +70,14 @@ func (m *MangaTransactionUC) Execute(chapters []*domain.Chapter, config *domain.
 	}()
 
 	for range progressChan {
-		if updated := stateManager.UpdateProgress(config.Id, 1); !updated {
+		if updated := tran.AddProcessedPages(1); !updated {
 			cancel()
 			return
 		}
 	}
 
 	cancel()
-	stateManager.SetDone(config.Id)
+	tran.SetDone()
 }
 
 func (m *MangaTransactionUC) runConversion(

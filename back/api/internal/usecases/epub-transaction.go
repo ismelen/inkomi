@@ -25,26 +25,26 @@ func NewEpubTransactionUC(pushNotifier ports.PushNotifier) *EpubTransactionUC {
 }
 
 func (e *EpubTransactionUC) Execute(src string, config *domain.TransactionConfig, dstPath string) {
-	stateManager := state.GetManager()
-	stateManager.StartTransaction(config.Id, dstPath, 1)
+	transactionManager := state.GetManager()
+	tran := transactionManager.StartTransaction(config.Id, dstPath, 1)
 
 	profile, err := domain.NewProfile(config.Profile)
 	if err != nil {
-		e.handleError(stateManager, config, err)
+		e.handleError(tran, config, err)
 		return
 	}
 
 	if profile.IsKepub {
 		kSrc, err := ConvertToKepub(src, dstPath, config.Title)
 		if err != nil {
-			e.handleError(stateManager, config, err)
+			e.handleError(tran, config, err)
 			return
 		}
 		os.RemoveAll(src)
 		src = kSrc
 	}
 
-	stateManager.SetResultPath(config.Id, src)
+	tran.SetResultPath(src)
 
 	if config.Cloud {
 		e.pushNotifier.Send(config.NotifyToken, "Success", fmt.Sprintf("Sending %s to cloud", filepath.Base(src)))
@@ -52,28 +52,28 @@ func (e *EpubTransactionUC) Execute(src string, config *domain.TransactionConfig
 
 		if err != nil {
 			e.pushNotifier.Send(config.NotifyToken, "Error", fmt.Sprintf("Cannot send %s to cloud", filepath.Base(src)))
-			stateManager.SetError(config.Id, err)
+			tran.SetError(err)
 			return
 		}
 		if err := cloud.Upload(src); err != nil {
 			e.pushNotifier.Send(config.NotifyToken, "Error", fmt.Sprintf("Cannot send %s to cloud", filepath.Base(src)))
-			stateManager.SetError(config.Id, err)
+			tran.SetError(err)
 			return
 		}
 	} else {
 		e.pushNotifier.Send(config.NotifyToken, "Success", fmt.Sprintf("%s transaction ready", filepath.Base(src)))
 	}
 
-	stateManager.SetDone(config.Id)
+	tran.SetDone()
 }
 
 func (e *EpubTransactionUC) handleError(
-	stateManager *state.TransactionStateManager,
+	transaction *domain.Transaction,
 	config *domain.TransactionConfig,
 	err error,
 ) {
 	e.pushNotifier.Send(config.NotifyToken, "Error", err.Error())
-	stateManager.SetError(config.Id, err)
+	transaction.SetError(err)
 }
 
 func ConvertToKepub(src, outBase, filename string) (string, error) {
