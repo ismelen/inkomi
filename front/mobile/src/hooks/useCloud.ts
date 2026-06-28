@@ -10,18 +10,18 @@ import {
   getRandomBytes,
 } from 'expo-crypto';
 
-const REFRESH_KEY = 'oauth_refresh_token';
-const TOKEN_KEY = 'oauth_token';
-const EXPIRES_AT_KEY = 'oauth_expires_at_token';
 const FOLDER_PATH_KEY = 'folder_path_key';
+const OAUTH_KEY = 'oauth_tokens';
 
 interface State {
+  email?: string;
   refresh?: string;
   token?: string;
   expiresAt: number;
-  folderId?: string;
-  getToken(): Promise<string | undefined>;
-  getFolder(): Promise<string | undefined>;
+  folderPath?: string;
+  getToken(forced?: boolean): Promise<string | undefined>;
+  logout(): void;
+  getFolder(forced?: boolean): Promise<string | undefined>;
   init(): Promise<void>;
   showDialog: boolean;
   onFolderSelect?(data?: string): void;
@@ -32,17 +32,28 @@ export const useCloud = create<State>((set, get) => ({
   showDialog: false,
 
   async init() {
-    const refresh = await StorageService.GetSecureAsync(REFRESH_KEY);
-    const token = await StorageService.GetSecureAsync(TOKEN_KEY);
-    const expiresAt = await StorageService.GetSecureAsync(EXPIRES_AT_KEY);
+    const json = await StorageService.GetSecureAsync(OAUTH_KEY);
+    const { refresh, token, expiresAt, email }: OAuthData = JSON.parse(json ?? '');
     const folderPath = await StorageService.GetSecureAsync(FOLDER_PATH_KEY);
 
-    set({ refresh, token, expiresAt: Number(expiresAt ?? '0'), folderId: folderPath });
+    set({ refresh, token, expiresAt, email, folderPath });
   },
 
-  async getFolder(): Promise<string | undefined> {
-    const { folderId, token } = get();
-    if (folderId) return folderId;
+  logout() {
+    StorageService.SetSecureAsync(OAUTH_KEY, JSON.stringify({}));
+    StorageService.SetSecureAsync(FOLDER_PATH_KEY, '');
+    set({
+      refresh: undefined,
+      token: undefined,
+      email: undefined,
+      expiresAt: undefined,
+      folderPath: undefined,
+    });
+  },
+
+  async getFolder(forced?: boolean): Promise<string | undefined> {
+    const { folderPath, token } = get();
+    if (folderPath && !(forced ?? false)) return folderPath;
     if (!token) await get().getToken();
 
     const path = await new Promise<string | undefined>((resolve) => {
@@ -52,28 +63,31 @@ export const useCloud = create<State>((set, get) => ({
 
     if (!path) return;
 
-    set({ folderId: path });
+    set({ folderPath: path });
     StorageService.SetSecureAsync(FOLDER_PATH_KEY, path ?? '');
 
     return path;
   },
 
-  async getToken(): Promise<string | undefined> {
+  async getToken(forced?: boolean): Promise<string | undefined> {
     const { refresh, token, expiresAt } = get();
 
-    if (expiresAt <= Date.now() || !token) {
-      const tokens = await (!refresh ? login() : refreshToken(refresh));
+    if ((forced ?? false) || expiresAt <= Date.now() || !token) {
+      const tokens = await (!refresh || (forced ?? false) ? login() : refreshToken(refresh));
       if (!tokens) return;
+
+      if (!tokens.email) {
+        tokens.email = get().email;
+      }
 
       set({
         token: tokens.token,
         refresh: tokens.refresh,
         expiresAt: tokens.expiresAt,
+        email: tokens.email,
       });
 
-      StorageService.SetSecureAsync(TOKEN_KEY, tokens.token || '');
-      StorageService.SetSecureAsync(REFRESH_KEY, tokens.refresh || '');
-      StorageService.SetSecureAsync(EXPIRES_AT_KEY, String(tokens.expiresAt ?? 0));
+      StorageService.SetSecureAsync(OAUTH_KEY, JSON.stringify(tokens));
 
       return tokens.token;
     }
@@ -86,6 +100,7 @@ interface OAuthData {
   token?: string;
   refresh?: string;
   expiresAt?: number;
+  email?: string;
 }
 
 WebBrowser.maybeCompleteAuthSession();
@@ -103,7 +118,7 @@ async function login(): Promise<OAuthData | undefined> {
     `&code_challenge=${codeChallenge}` +
     `&code_challenge_method=S256` +
     `&token_access_type=offline` +
-    `&scope=files.content.write%20files.metadata.read`;
+    `&scope=files.content.write%20files.metadata.read%20account_info.read`;
 
   const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
 
@@ -129,10 +144,13 @@ async function login(): Promise<OAuthData | undefined> {
 
   const { access_token, refresh_token, expires_in } = await res.json();
 
+  const email = await getUserEmail(access_token);
+
   return {
     token: access_token,
     refresh: refresh_token,
     expiresAt: Date.now() + expires_in * 1000,
+    email: email,
   };
 }
 
@@ -175,4 +193,28 @@ async function refreshToken(refresh: string): Promise<OAuthData | undefined> {
     token: access_token,
     refresh: refresh_token,
   };
+}
+
+async function getUserEmail(accessToken: string): Promise<string | undefined> {
+  try {
+    const res = await fetch('https://api.dropboxapi.com/2/users/get_current_account', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      console.error('Error al obtener la cuenta:', err);
+      return undefined;
+    }
+
+    const data = await res.json();
+
+    return data.email;
+  } catch (error) {
+    console.error('Error de red al intentar obtener el email:', error);
+    return undefined;
+  }
 }

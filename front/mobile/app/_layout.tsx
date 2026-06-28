@@ -14,16 +14,19 @@ import {
 import { useQueue } from '../src/hooks/useQueue';
 import { useCloud } from '../src/hooks/useCloud';
 import { DropboxFolderPickerModal } from '../src/components/modals/dropbox-folder-picker-modal';
+import { useSettings } from '../src/hooks/useSettings';
 
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const initQueue = useQueue((s) => s.init);
   const initCloud = useCloud((s) => s.init);
+  const initSettings = useSettings((s) => s.init);
 
   useEffect(() => {
     initQueue();
     initCloud();
+    initSettings();
   }, []);
 
   const [fontsLoaded] = useFonts({

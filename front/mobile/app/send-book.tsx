@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import SText from '../src/components/shared/SText';
 import { router, Stack } from 'expo-router';
 import { colors } from '../src/theme/colors';
@@ -9,9 +9,16 @@ import OptionCardChecker from '../src/components/senders/option-card-checker';
 import SButton from '../src/components/shared/SButton';
 import { useQueue } from '../src/hooks/useQueue';
 import { TransactionRequest } from '../src/models/transaction-request';
+import SSelect from '../src/components/shared/SSelect';
+import { useSettings } from '../src/hooks/useSettings';
+import { useShallow } from 'zustand/react/shallow';
+import { eReaderProfiles } from '../src/constants';
 
 export default function SendBookPage() {
   const send = useQueue((s) => s.send);
+  const { model, setModel } = useSettings(
+    useShallow((s) => ({ model: s.model, setModel: s.setModel }))
+  );
   const [req, setReq] = useState<TransactionRequest>({
     deleteOrigin: false,
     merge: false,
@@ -39,16 +46,7 @@ export default function SendBookPage() {
       <View style={{ flex: 1, paddingBottom: 24, paddingHorizontal: 24 }}>
         <View style={{ flex: 1, gap: 32 }}>
           <View>
-            <SText
-              style={{
-                fontFamily: 'semibold',
-                fontSize: 14,
-                color: colors.on_surface_variant,
-                marginBottom: 5,
-              }}
-            >
-              SOURCE
-            </SText>
+            <SText style={styles.title}>SOURCE</SText>
             <SourceSelector
               initSources={req.sources}
               onChange={(srcs) => setReq((s) => ({ ...s, sources: srcs }))}
@@ -57,16 +55,16 @@ export default function SendBookPage() {
           </View>
 
           <View>
-            <SText
-              style={{
-                fontFamily: 'semibold',
-                fontSize: 14,
-                color: colors.on_surface_variant,
-                marginBottom: 5,
-              }}
-            >
-              DESTINATION
-            </SText>
+            <SText style={styles.title}>READER MODEL</SText>
+            <SSelect
+              value={model}
+              options={eReaderProfiles}
+              onOptionChange={(opt) => setModel(opt.value)}
+            />
+          </View>
+
+          <View>
+            <SText style={styles.title}>DESTINATION</SText>
             <DestinationSelector
               initDestination={req.destination}
               onChange={(dest) => setReq((s) => ({ ...s, destination: dest }))}
@@ -74,16 +72,7 @@ export default function SendBookPage() {
           </View>
 
           <View>
-            <SText
-              style={{
-                fontFamily: 'semibold',
-                fontSize: 14,
-                color: colors.on_surface_variant,
-                marginBottom: 5,
-              }}
-            >
-              OPTIONS
-            </SText>
+            <SText style={styles.title}>OPTIONS</SText>
             <OptionCardChecker
               initialChecked={req.deleteOrigin}
               label="Delete source"
@@ -113,3 +102,12 @@ export default function SendBookPage() {
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  title: {
+    fontFamily: 'semibold',
+    fontSize: 14,
+    color: colors.on_surface_variant,
+    marginBottom: 5,
+  },
+});

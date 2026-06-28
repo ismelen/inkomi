@@ -10,6 +10,10 @@ import SButton from '../src/components/shared/SButton';
 import MetadataSection from '../src/components/senders/metadata-section';
 import { TransactionRequest } from '../src/models/transaction-request';
 import { useQueue } from '../src/hooks/useQueue';
+import SSelect from '../src/components/shared/SSelect';
+import { useSettings } from '../src/hooks/useSettings';
+import { useShallow } from 'zustand/react/shallow';
+import { eReaderProfiles } from '../src/constants';
 
 export default function SendComicPage() {
   const [req, setReq] = useState<TransactionRequest>({
@@ -22,6 +26,9 @@ export default function SendComicPage() {
     mode: 'no-select',
   });
   const send = useQueue((s) => s.send);
+  const { model, setModel } = useSettings(
+    useShallow((s) => ({ model: s.model, setModel: s.setModel }))
+  );
 
   const [sending, setSending] = useState(false);
 
@@ -49,6 +56,15 @@ export default function SendComicPage() {
               initSources={req.sources ?? []}
               onChange={(srcs) => setReq((s) => ({ ...s, sources: srcs }))}
               onModeChange={(mode) => setReq((s) => ({ ...s, mode: mode }))}
+            />
+          </View>
+
+          <View>
+            <SText style={styles.title}>READER MODEL</SText>
+            <SSelect
+              value={model}
+              options={eReaderProfiles}
+              onOptionChange={(opt) => setModel(opt.value)}
             />
           </View>
 
