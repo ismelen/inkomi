@@ -48,13 +48,18 @@ func (e *EpubTransactionUC) Execute(src string, config *domain.TransactionConfig
 
 	if config.Cloud {
 		e.pushNotifier.Send(config.NotifyToken, "Success", fmt.Sprintf("Sending %s to cloud", filepath.Base(src)))
-		gCloud, err := cloud.New(config.CloudToken, config.CloudFolder)
+		cloud, err := cloud.NewDropboxCloud(config.CloudToken, config.CloudFolder)
 
 		if err != nil {
 			e.pushNotifier.Send(config.NotifyToken, "Error", fmt.Sprintf("Cannot send %s to cloud", filepath.Base(src)))
+			stateManager.SetError(config.Id, err)
 			return
 		}
-		gCloud.Upload(src)
+		if err := cloud.Upload(src); err != nil {
+			e.pushNotifier.Send(config.NotifyToken, "Error", fmt.Sprintf("Cannot send %s to cloud", filepath.Base(src)))
+			stateManager.SetError(config.Id, err)
+			return
+		}
 	} else {
 		e.pushNotifier.Send(config.NotifyToken, "Success", fmt.Sprintf("%s transaction ready", filepath.Base(src)))
 	}
