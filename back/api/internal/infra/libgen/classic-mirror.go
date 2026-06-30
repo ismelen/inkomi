@@ -15,7 +15,7 @@ import (
 )
 
 type ClassicMirror struct {
-	LibgenMirrorBase
+	MirrorBase
 	url string
 }
 
@@ -25,10 +25,6 @@ func NewClassicMirror(url string) ClassicMirror {
 
 func (c ClassicMirror) GetURL() string {
 	return c.url
-}
-
-func (c ClassicMirror) Download(req book.LibgenDownloadRequest) (*book.LibgenDownloadResult, error) {
-	return c.LibgenMirrorBase.Download(req)
 }
 
 func (c ClassicMirror) Search(query string) ([]book.Book, error) {
@@ -46,7 +42,7 @@ func (c ClassicMirror) Search(query string) ([]book.Book, error) {
 
 	params := url.Values{}
 	params.Set("ids", strings.Join(ids, ","))
-	params.Set("fields", "title,author,pages,language,extension,md5")
+	params.Set("fields", "id,title,author,pages,language,extension,md5")
 	jsonURL := c.url + "/json.php?" + params.Encode()
 
 	resp, err := c.FetchURL(jsonURL, false)

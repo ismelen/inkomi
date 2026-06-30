@@ -13,7 +13,7 @@ import (
 )
 
 type PlusMirror struct {
-	LibgenMirrorBase
+	MirrorBase
 	url string
 }
 
@@ -23,10 +23,6 @@ func NewPlusMirror(url string) PlusMirror {
 
 func (p PlusMirror) GetURL() string {
 	return p.url
-}
-
-func (p PlusMirror) Download(req book.LibgenDownloadRequest) (*book.LibgenDownloadResult, error) {
-	return p.LibgenMirrorBase.Download(req)
 }
 
 func (p PlusMirror) Search(query string) ([]book.Book, error) {

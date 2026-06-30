@@ -3,9 +3,7 @@ package filters
 import (
 	"ismelen/inkomi/internal/domain/book"
 	"ismelen/inkomi/internal/shared/filter"
-	"ismelen/inkomi/internal/shared/strutil"
 	"regexp"
-	"strconv"
 	"strings"
 )
 
@@ -15,11 +13,10 @@ type DeduplicateFilter struct {
 
 func (f *DeduplicateFilter) Filter(books []book.Book) (bool, []book.Book) {
 	type group struct {
-		best      book.Book
-		bestPages int
-		count     int
+		best  book.Book
+		count int
 	}
-	var order []string
+	order := []string{}
 	groups := map[string]*group{}
 
 	for _, b := range books {
@@ -29,33 +26,26 @@ func (f *DeduplicateFilter) Filter(books []book.Book) (bool, []book.Book) {
 		if len([]rune(b.Title)) < 3 {
 			continue
 		}
-		key := strutil.NormalizeString(b.Title)
+		key := b.Title
 		if key == "" {
 			key = "__" + b.ID
 		}
-		pages := pageCount(b)
 		if g, exists := groups[key]; exists {
 			g.count++
-			if pages > g.bestPages || (g.best.MD5 == "" && b.MD5 != "") {
+			if g.best.MD5 == "" && b.MD5 != "" {
 				g.best = b
-				g.bestPages = pages
 			}
 		} else {
-			groups[key] = &group{best: b, bestPages: pages, count: 1}
+			groups[key] = &group{best: b, count: 1}
 			order = append(order, key)
 		}
 	}
 
-	var out []book.Book
+	out := make([]book.Book, 0, len(order))
 	for _, key := range order {
 		out = append(out, groups[key].best)
 	}
 	return true, out
-}
-
-func pageCount(b book.Book) int {
-	n, _ := strconv.Atoi(strings.TrimSpace(b.Pages))
-	return n
 }
 
 var isbnSpamRe = regexp.MustCompile(`^[\d\s;\-\.,xX]+$`)

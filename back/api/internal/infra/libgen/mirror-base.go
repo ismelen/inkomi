@@ -12,9 +12,9 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-type LibgenMirrorBase struct{}
+type MirrorBase struct{}
 
-func (l LibgenMirrorBase) Fetch(url string) (*goquery.Document, error) {
+func (l MirrorBase) Fetch(url string) (*goquery.Document, error) {
 	resp, err := l.FetchURL(url, false)
 	if err != nil {
 		return nil, err
@@ -38,7 +38,7 @@ var (
 	downloadClient = &http.Client{Timeout: 10 * time.Minute}
 )
 
-func (l LibgenMirrorBase) FetchURL(rawURL string, isDownload bool) (*http.Response, error) {
+func (l MirrorBase) FetchURL(rawURL string, isDownload bool) (*http.Response, error) {
 	req, err := http.NewRequest(http.MethodGet, rawURL, nil)
 	if err != nil {
 		return nil, err
@@ -54,7 +54,7 @@ func (l LibgenMirrorBase) FetchURL(rawURL string, isDownload bool) (*http.Respon
 	return httpClient.Do(req)
 }
 
-func (l LibgenMirrorBase) Download(req book.LibgenDownloadRequest) (*book.LibgenDownloadResult, error) {
+func (l MirrorBase) Download(req book.LibgenDownloadRequest) (*book.LibgenDownloadResult, error) {
 	dlURL, err := l.resolveDownloadLink(req.DownloadURL)
 	if err != nil || dlURL == "" {
 		dlURL = req.DownloadURL
@@ -85,7 +85,7 @@ func (l LibgenMirrorBase) Download(req book.LibgenDownloadRequest) (*book.Libgen
 	}, nil
 }
 
-func (l LibgenMirrorBase) resolveDownloadLink(pageURL string) (string, error) {
+func (l MirrorBase) resolveDownloadLink(pageURL string) (string, error) {
 	resp, err := l.FetchURL(pageURL, false)
 	if err != nil {
 		return "", err
