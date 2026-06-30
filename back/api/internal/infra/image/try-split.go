@@ -2,6 +2,7 @@ package image
 
 import (
 	"image"
+	"ismelen/inkomi/internal/domain/manga"
 
 	"github.com/disintegration/imaging"
 )
@@ -19,7 +20,7 @@ func (ip *ImageEditor) TrySplit(rotated bool) []*ImageEditor {
 		rotated {
 		spread := image.Image(imaging.Rotate270(*ip.Img))
 		ip.Img = nil
-		return []*ImageEditor{ip.Copy(&spread, Rotated)}
+		return []*ImageEditor{ip.Copy(&spread, manga.SplitRotated)}
 	}
 
 	var processors []*ImageEditor
@@ -37,13 +38,13 @@ func (ip *ImageEditor) TrySplit(rotated bool) []*ImageEditor {
 		var pageOne image.Image = imaging.Crop(*ip.Img, leftBox)
 		var pageTwo image.Image = imaging.Crop(*ip.Img, rightBox)
 		processors = append(processors,
-			ip.Copy(&pageOne, ToLeft),
-			ip.Copy(&pageTwo, ToRight),
+			ip.Copy(&pageOne, manga.SplitToLeft),
+			ip.Copy(&pageTwo, manga.SplitToRight),
 		)
 	}
 
 	spread := image.Image(imaging.Rotate270(*ip.Img))
-	processors = append(processors, ip.Copy(&spread, Rotated))
+	processors = append(processors, ip.Copy(&spread, manga.SplitRotated))
 
 	ip.Img = nil
 	return processors

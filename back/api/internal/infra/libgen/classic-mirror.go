@@ -4,12 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"ismelen/inkomi/internal/domain"
-	"ismelen/inkomi/internal/infra/helpers"
+	"ismelen/inkomi/internal/domain/book"
+	"ismelen/inkomi/internal/shared/strutil"
 	"net/http"
 	"net/url"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -28,7 +27,11 @@ func (c ClassicMirror) GetURL() string {
 	return c.url
 }
 
-func (c ClassicMirror) Search(query string) ([]domain.Book, error) {
+func (c ClassicMirror) Download(req book.LibgenDownloadRequest) (*book.LibgenDownloadResult, error) {
+	return c.LibgenMirrorBase.Download(req)
+}
+
+func (c ClassicMirror) Search(query string) ([]book.Book, error) {
 	ids, err := c.getIds(query)
 	if err != nil {
 		return nil, err
@@ -43,7 +46,7 @@ func (c ClassicMirror) Search(query string) ([]domain.Book, error) {
 
 	params := url.Values{}
 	params.Set("ids", strings.Join(ids, ","))
-	params.Set("fields", "id,title,author,year,publisher,pages,language,filesize,extension,md5")
+	params.Set("fields", "title,author,pages,language,extension,md5")
 	jsonURL := c.url + "/json.php?" + params.Encode()
 
 	resp, err := c.FetchURL(jsonURL, false)
@@ -61,18 +64,9 @@ func (c ClassicMirror) Search(query string) ([]domain.Book, error) {
 		return nil, err
 	}
 
-	var books []domain.Book
+	var books []book.Book
 	if err := json.Unmarshal(body, &books); err != nil {
-		preview := string(body)
-		if len(preview) > 300 {
-			preview = preview[:300]
-		}
-		return nil, fmt.Errorf("JSON inválido: %w\n— %s", err, preview)
-	}
-
-	for i := range books {
-		books[i].CoverURL = c.buildCoverURL(books[i])
-		books[i].DownloadURL = "https://library.lol/main/" + strings.ToLower(books[i].MD5)
+		return nil, fmt.Errorf("JSON inválido")
 	}
 
 	if len(books) == 0 {
@@ -80,18 +74,6 @@ func (c ClassicMirror) Search(query string) ([]domain.Book, error) {
 	}
 
 	return books, nil
-}
-
-func (c ClassicMirror) buildCoverURL(b domain.Book) string {
-	if b.MD5 == "" {
-		return ""
-	}
-	idNum, err := strconv.Atoi(b.ID)
-	if err != nil {
-		return fmt.Sprintf("%s/covers/%s.jpg", c.url, strings.ToLower(b.MD5))
-	}
-	folder := (idNum / 1000) * 1000
-	return fmt.Sprintf("%s/covers/%d/%s.jpg", c.url, folder, strings.ToLower(b.MD5))
 }
 
 func (c ClassicMirror) getIds(query string) ([]string, error) {
@@ -114,7 +96,7 @@ func (c ClassicMirror) getIds(query string) ([]string, error) {
 			return
 		}
 		idText := strings.TrimSpace(s.Find("td:nth-child(1)").Text())
-		if idText != "" && helpers.IsNumeric(idText) {
+		if idText != "" && strutil.IsNumeric(idText) {
 			if !slices.Contains(ids, idText) {
 				ids = append(ids, idText)
 			}

@@ -2,12 +2,19 @@ package main
 
 import (
 	"context"
+	"ismelen/inkomi/internal/domain/convert"
 	"ismelen/inkomi/internal/infra/api/handlers"
 	"ismelen/inkomi/internal/infra/api/routes"
+	"ismelen/inkomi/internal/infra/cloud"
+	"ismelen/inkomi/internal/infra/epub"
+	infraImage "ismelen/inkomi/internal/infra/image"
 	"ismelen/inkomi/internal/infra/libgen"
-	"ismelen/inkomi/internal/infra/notifications"
+	"ismelen/inkomi/internal/infra/push"
+	"ismelen/inkomi/internal/infra/store"
+	"ismelen/inkomi/internal/usecases"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -32,17 +39,38 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	// — Libgen —
 	libgenServ := libgen.New()
 	libgenServ.StartDiscovery(ctx, 12*time.Hour)
 
-	pushNotifier := notifications.FirebasePushNotifier{}
+	// — Infrastructure —
+	pushNotifier := &push.FirebasePushNotifier{}
 	pushNotifier.Init()
 
-	convertHandler := handlers.NewConvertHandler(&pushNotifier)
+	tranStore := store.GetManager()
+
+	var cloudStorage convert.CloudStorage
+	if token := os.Getenv("DROPBOX_TOKEN"); token != "" {
+		if folder := os.Getenv("DROPBOX_FOLDER"); folder != "" {
+			if c, err := cloud.NewDropboxCloud(token, folder); err == nil {
+				cloudStorage = c
+			}
+		}
+	}
+
+	imgProcessor := infraImage.NewPageProcessor()
+	bookBuilder := epub.New()
+
+	// — Usecases —
+	epubUC := usecases.NewEpubTransactionUC(pushNotifier, tranStore, cloudStorage)
+	mangaUC := usecases.NewMangaTransactionUC(pushNotifier, tranStore, cloudStorage, bookBuilder, imgProcessor)
+
+	// — Handlers & Routes —
+	convertHandler := handlers.NewConvertHandler(mangaUC, epubUC)
 	routes.SetupConvertRoutes(api, convertHandler)
 
-	libgenhandler := handlers.NewLibgenHandler(libgenServ)
-	routes.SetupLibgenRoutes(api, libgenhandler)
+	libgenHandler := handlers.NewLibgenHandler(libgenServ)
+	routes.SetupLibgenRoutes(api, libgenHandler)
 
 	log.Println("Starting at port 3000")
 	if err := http.ListenAndServe(":3000", api); err != nil {

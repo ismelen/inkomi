@@ -3,12 +3,8 @@ package usecases
 import (
 	"context"
 	"fmt"
-	"ismelen/inkomi/internal/domain"
-	epubBuilder "ismelen/inkomi/internal/infra/builders/epub-builder"
-	"ismelen/inkomi/internal/infra/cloud"
-	"ismelen/inkomi/internal/infra/image"
-	"ismelen/inkomi/internal/infra/state"
-	"ismelen/inkomi/internal/ports"
+	"ismelen/inkomi/internal/domain/convert"
+	"ismelen/inkomi/internal/domain/manga"
 	"log"
 	"os"
 	"path/filepath"
@@ -18,32 +14,57 @@ import (
 )
 
 type MangaTransactionUC struct {
-	profile       *domain.Profile
-	imageSettings *domain.ImageSettings
-	pushNotifier  ports.PushNotifier
+	imageSettings *manga.ImageSettings
+	pushNotifier  convert.PushNotifier
+	tranStore     convert.TransactionStore
+	cloudStorage  convert.CloudStorage
+	bookBuilder   manga.BookBuilder
+	imgProcessor  manga.ImageProcessor
 }
 
-func NewMangaTransactionUC(pushNotifier ports.PushNotifier) *MangaTransactionUC {
+func NewMangaTransactionUC(
+	pushNotifier convert.PushNotifier,
+	tranStore convert.TransactionStore,
+	cloudStorage convert.CloudStorage,
+	bookBuilder manga.BookBuilder,
+	imgProcessor manga.ImageProcessor,
+) *MangaTransactionUC {
 	return &MangaTransactionUC{
-		imageSettings: domain.NewDefaultImageSettings(),
+		imageSettings: manga.NewDefaultImageSettings(),
 		pushNotifier:  pushNotifier,
+		tranStore:     tranStore,
+		cloudStorage:  cloudStorage,
+		bookBuilder:   bookBuilder,
+		imgProcessor:  imgProcessor,
 	}
 }
 
-func (m *MangaTransactionUC) Execute(chapters []*domain.Chapter, config *domain.TransactionConfig, dstPath string) {
-	m.profile = config.ProfileData
-	transactionManager := state.GetManager()
-	tran := transactionManager.StartTransaction(config.Id, dstPath, m.getTransactionPages(chapters))
+func (m *MangaTransactionUC) CheckProgress(id string) (int, error) {
+	return m.tranStore.CheckProgress(id)
+}
+
+func (m *MangaTransactionUC) GetResultPath(id string) (string, error) {
+	return m.tranStore.GetResultPath(id)
+}
+
+func (m *MangaTransactionUC) CancelTransaction(id string) {
+	m.tranStore.Cancel(id)
+}
+
+
+func (m *MangaTransactionUC) Execute(chapters []*manga.Chapter, config *convert.TransactionConfig, dstPath string) {
+	profile := config.ProfileData
+	tran := m.tranStore.StartTransaction(config.Id, dstPath, m.getTransactionPages(chapters))
 
 	progressChan := make(chan int)
 	ctx, cancel := context.WithCancel(context.Background())
 
 	go func() {
-		resultPath, err := m.runConversion(ctx, chapters, config, dstPath, progressChan)
+		resultPath, err := m.runConversion(ctx, chapters, config, profile, dstPath, progressChan)
 		if err != nil {
 			if canceled := ctx.Err(); canceled != nil {
 				m.pushNotifier.Send(config.NotifyToken, "Canceled", fmt.Sprintf("%s conversion canceled", config.Title))
-				transactionManager.DeleteTransaction(config.Id)
+				m.tranStore.DeleteTransaction(config.Id)
 			} else {
 				m.pushNotifier.Send(config.NotifyToken, "Error", fmt.Sprintf("Error: %s", err.Error()))
 				tran.SetError(err)
@@ -52,17 +73,12 @@ func (m *MangaTransactionUC) Execute(chapters []*domain.Chapter, config *domain.
 		}
 		tran.SetResultPath(resultPath)
 
-		if config.Cloud {
+		if config.Cloud && m.cloudStorage != nil {
 			m.pushNotifier.Send(config.NotifyToken, "Success", fmt.Sprintf("Sending %s to cloud", filepath.Base(resultPath)))
-			cloud, err := cloud.NewDropboxCloud(config.CloudToken, config.CloudFolder)
-
-			if err != nil {
+			if err := m.cloudStorage.Upload(resultPath); err != nil {
 				m.pushNotifier.Send(config.NotifyToken, "Error", fmt.Sprintf("Cannot send %s to cloud", filepath.Base(resultPath)))
 				tran.SetError(err)
 				return
-			}
-			if err := cloud.Upload(resultPath); err != nil {
-				tran.SetError(err)
 			}
 		} else {
 			m.pushNotifier.Send(config.NotifyToken, "Success", fmt.Sprintf("%s transaction ready", filepath.Base(resultPath)))
@@ -82,16 +98,17 @@ func (m *MangaTransactionUC) Execute(chapters []*domain.Chapter, config *domain.
 
 func (m *MangaTransactionUC) runConversion(
 	ctx context.Context,
-	chapters []*domain.Chapter,
-	config *domain.TransactionConfig,
+	chapters []*manga.Chapter,
+	config *convert.TransactionConfig,
+	profile *manga.Profile,
 	dstPath string,
 	progressChan chan int,
 ) (string, error) {
 	defer close(progressChan)
 
-	builder := epubBuilder.New()
-	builder.SetSettings(m.imageSettings, config.ProfileData)
-	builder.Start(config.Title, dstPath)
+	builder := m.bookBuilder.
+		SetSettings(m.imageSettings, profile).
+		Start(config.Title, dstPath)
 
 	workers := max(1, runtime.NumCPU()*3/4)
 
@@ -99,7 +116,7 @@ func (m *MangaTransactionUC) runConversion(
 		group, gctx := errgroup.WithContext(ctx)
 		group.SetLimit(workers)
 		pages := chapter.GetOrderedPagePaths()
-		processedPages := make([]*domain.Page, len(pages))
+		processedPages := make([]*manga.Page, len(pages))
 
 		for pIdx, pagePath := range pages {
 			idx, path := pIdx, pagePath
@@ -107,13 +124,12 @@ func (m *MangaTransactionUC) runConversion(
 				if err := gctx.Err(); err != nil {
 					return fmt.Errorf("Job canceled")
 				}
-				page, err := m.processPage(path, idx+1)
+				page, err := m.imgProcessor.ProcessPage(path, idx+1, profile, m.imageSettings)
 				if err != nil {
 					return err
 				}
 				processedPages[idx] = page
 				progressChan <- 1
-
 				return nil
 			})
 		}
@@ -134,7 +150,7 @@ func (m *MangaTransactionUC) runConversion(
 		return "", err
 	}
 
-	if m.profile.IsKepub {
+	if profile.IsKepub {
 		kPath, err := ConvertToKepub(path, dstPath, config.Title)
 		if err := os.RemoveAll(path); err != nil {
 			log.Println(err.Error())
@@ -144,62 +160,10 @@ func (m *MangaTransactionUC) runConversion(
 	return path, err
 }
 
-func (m *MangaTransactionUC) getTransactionPages(chapters []*domain.Chapter) int {
+func (m *MangaTransactionUC) getTransactionPages(chapters []*manga.Chapter) int {
 	var res int
 	for _, chapter := range chapters {
 		res += len(chapter.GetOrderedPagePaths())
 	}
 	return res
-}
-
-func (m *MangaTransactionUC) processPage(path string, idx int) (*domain.Page, error) {
-	page := domain.NewPage(path)
-	editor, err := image.NewEditor(
-		path,
-		m.profile.Width,
-		m.profile.Height,
-		m.imageSettings.ForceColor,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	page.HasWhiteBg = editor.HasWhiteBg()
-	editor.CropMargins()
-
-	isColor := m.imageSettings.ForceColor && editor.IsColored()
-	if !isColor {
-		editor.Grayscale()
-	}
-	if m.imageSettings.RemoveRainbowEffect && isColor {
-		editor.RemoveRainbowEffect()
-	}
-
-	partEditors := editor.TrySplit(m.imageSettings.SpreadSplitter == 2)
-	if m.imageSettings.SpreadSplitter != 1 && len(partEditors) > 2 {
-		partEditors = partEditors[:2]
-	}
-
-	for _, partEditor := range partEditors {
-		partEditor.Resize()
-		part := domain.NewPagePart(
-			partEditor.Img,
-			partEditor.SplitOperation,
-		)
-
-		partPath := filepath.Join(
-			filepath.Dir(path),
-			fmt.Sprintf("inkomi-%d%c", idx, part.PathOrder),
-		)
-		partPath, err = partEditor.SaveToDir(partPath)
-		if err != nil {
-			return nil, err
-		}
-
-		part.SetPath(partPath)
-		part.Clean()
-		page.Parts = append(page.Parts, part)
-	}
-
-	return page, nil
 }

@@ -2,19 +2,13 @@ package image
 
 import (
 	"image"
+	"ismelen/inkomi/internal/domain/manga"
 
 	"github.com/disintegration/imaging"
 	_ "golang.org/x/image/webp"
 )
 
-type SplitOperation = int
-
-const (
-	None SplitOperation = iota
-	Rotated
-	ToRight
-	ToLeft
-)
+type SplitOperation = manga.SplitOperation
 
 type ImageEditor struct {
 	Img              *image.Image
@@ -35,7 +29,7 @@ func NewEditor(path string, targetW, targetH int, forceColor bool) (*ImageEditor
 		targetW:        targetW,
 		targetH:        targetH,
 		forceColor:     forceColor,
-		SplitOperation: None,
+		SplitOperation: manga.SplitNone,
 	}, nil
 }
 

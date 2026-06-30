@@ -22,10 +22,12 @@ func New(accessToken, folder string) (*GoogleCloud, error) {
 	httpClient := oauth2.NewClient(ctx, oauth2.StaticTokenSource(token))
 
 	service, err := drive.NewService(ctx, option.WithHTTPClient(httpClient))
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 
 	return &GoogleCloud{
-		folder: folder,
+		folder:  folder,
 		service: service,
 	}, nil
 }

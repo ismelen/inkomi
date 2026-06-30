@@ -2,14 +2,15 @@ package handlers
 
 import (
 	"fmt"
-	"ismelen/inkomi/internal/domain"
-	"ismelen/inkomi/internal/infra/converters"
-	"ismelen/inkomi/internal/infra/crypto"
-	filesHelper "ismelen/inkomi/internal/infra/files-helper"
-	filesFilter "ismelen/inkomi/internal/infra/filters/files-filter"
-	"ismelen/inkomi/internal/infra/helpers"
-	"ismelen/inkomi/internal/infra/state"
-	"ismelen/inkomi/internal/ports"
+	"ismelen/inkomi/internal/domain/convert"
+	"ismelen/inkomi/internal/domain/manga"
+	"ismelen/inkomi/internal/infra/api/apierr"
+	"ismelen/inkomi/internal/infra/api/dto"
+	"ismelen/inkomi/internal/infra/api/validation"
+	"ismelen/inkomi/internal/infra/fs"
+	"ismelen/inkomi/internal/shared/filter"
+	"ismelen/inkomi/internal/shared/strutil"
+	"ismelen/inkomi/internal/shared/uid"
 	"ismelen/inkomi/internal/usecases"
 	"log"
 	"mime/multipart"
@@ -25,12 +26,13 @@ import (
 )
 
 type TransactionHandler struct {
-	basePath     string
-	pushNotifier ports.PushNotifier
-	decoder      *schema.Decoder
+	basePath string
+	mangaUC  *usecases.MangaTransactionUC
+	epubUC   *usecases.EpubTransactionUC
+	decoder  *schema.Decoder
 }
 
-func NewConvertHandler(pushNotifier ports.PushNotifier) *TransactionHandler {
+func NewConvertHandler(mangaUC *usecases.MangaTransactionUC, epubUC *usecases.EpubTransactionUC) *TransactionHandler {
 	wd, err := os.Getwd()
 	if err != nil {
 		log.Fatal(err)
@@ -45,15 +47,16 @@ func NewConvertHandler(pushNotifier ports.PushNotifier) *TransactionHandler {
 	decoder.SetAliasTag("form")
 
 	return &TransactionHandler{
-		basePath:     path,
-		pushNotifier: pushNotifier,
-		decoder:      decoder,
+		basePath: path,
+		mangaUC:  mangaUC,
+		epubUC:   epubUC,
+		decoder:  decoder,
 	}
 }
 
-var filenamesFilter = filesFilter.Use(
-	&filesFilter.OnlyOneZipFilter{},
-	&filesFilter.SameFormatFilter{},
+var filenamesFilter = filter.Use(
+	&validation.OnlyOneZipFilter{},
+	&validation.SameFormatFilter{},
 )
 
 func (ch *TransactionHandler) HandleConvert(r *http.Request) (any, error) {
@@ -76,10 +79,10 @@ func (ch *TransactionHandler) HandleConvert(r *http.Request) (any, error) {
 
 	pass, ext := filenamesFilter.Filter(filenames)
 	if !pass {
-		return nil, domain.NewApiError(400, "All files must have same format")
+		return nil, apierr.New(400, "All files must have same format")
 	}
 
-	ctxId := crypto.GetRandomID(6)
+	ctxId := uid.GetRandomID(6)
 	tempSavePath := filepath.Join(ch.basePath, "tmp", ctxId)
 	defer os.RemoveAll(tempSavePath)
 
@@ -89,55 +92,67 @@ func (ch *TransactionHandler) HandleConvert(r *http.Request) (any, error) {
 	}
 
 	if len(children) == 0 {
-		return nil, domain.NewApiError(400, "No files attached")
+		return nil, apierr.New(400, "No files attached")
 	}
 
 	pass, ext = filenamesFilter.Filter(children)
 	if !pass {
-		return nil, domain.NewApiError(400, "All files must have same format")
+		return nil, apierr.New(400, "All files must have same format")
 	}
 
-	config := new(domain.TransactionConfig)
-	if err := ch.decoder.Decode(config, r.MultipartForm.Value); err != nil {
+	var reqDTO dto.TransactionConfigRequest
+	if err := ch.decoder.Decode(&reqDTO, r.MultipartForm.Value); err != nil {
 		return nil, err
 	}
 
-	if config.Title != "" {
-		if decodedTitle, err := url.QueryUnescape(config.Title); err == nil {
-			config.Title = decodedTitle
+	if reqDTO.Title != "" {
+		if decodedTitle, err := url.QueryUnescape(reqDTO.Title); err == nil {
+			reqDTO.Title = decodedTitle
 		}
 	}
 
-	profile, err := domain.NewProfile(config.Profile)
+	profile, err := convert.NewProfile(reqDTO.Profile)
 	if err != nil {
-		return nil, err
+		return nil, apierr.New(400, err.Error())
 	}
-	config.ProfileData = profile
+
+	config := &convert.TransactionConfig{
+		Author:      reqDTO.Author,
+		Title:       reqDTO.Title,
+		Profile:     reqDTO.Profile,
+		Merge:       reqDTO.Merge,
+		Cloud:       reqDTO.Cloud,
+		CloudToken:  reqDTO.CloudToken,
+		CloudFolder: reqDTO.CloudFolder,
+		NotifyToken: reqDTO.NotifyToken,
+		ProfileData: profile,
+	}
 
 	switch ext {
 	case ".zip":
-		return nil, domain.NewApiError(400, "Do not send nested zip files")
+		return nil, apierr.New(400, "Do not send nested zip files")
 	case ".epub":
 		config.Merge = false
 		return ch.handleEpubTransaction(children, config)
 	case ".cbz":
 		return ch.handleMangaTransaction(children, config)
 	default:
-		return nil, domain.NewApiError(400, fmt.Sprintf("File format not suported %s", ext))
+		return nil, apierr.New(400, fmt.Sprintf("File format not suported %s", ext))
 	}
 }
 
-func (ch *TransactionHandler) handleEpubTransaction(files []string, config *domain.TransactionConfig) (any, error) {
-	type TransactinoInfo struct {
+func (ch *TransactionHandler) handleEpubTransaction(files []string, config *convert.TransactionConfig) (any, error) {
+	type TransactionInfo struct {
 		dstPath string
 		file    string
-		config  *domain.TransactionConfig
+		config  *convert.TransactionConfig
 	}
 
-	responses := make([]domain.TransactionResponseDTO, 0, len(files))
-	transactions := make([]TransactinoInfo, 0, len(files))
+	responses := make([]dto.TransactionResponse, 0, len(files))
+	transactions := make([]TransactionInfo, 0, len(files))
+
 	for _, file := range files {
-		id := crypto.GetRandomID(6)
+		id := uid.GetRandomID(6)
 		newConfig := config.WithId(id)
 
 		dstPath := filepath.Join(ch.basePath, id)
@@ -148,76 +163,74 @@ func (ch *TransactionHandler) handleEpubTransaction(files []string, config *doma
 		filenameWithExt := filepath.Base(file)
 		newConfig.Title = strings.TrimSuffix(filenameWithExt, filepath.Ext(filenameWithExt))
 
-		file, err := filesHelper.CopyFile(file, dstPath)
+		file, err := fs.CopyFile(file, dstPath)
 		if err != nil {
 			os.RemoveAll(dstPath)
 			return nil, err
 		}
 
-		transactions = append(transactions, TransactinoInfo{
+		transactions = append(transactions, TransactionInfo{
 			dstPath: dstPath,
 			config:  newConfig,
 			file:    file,
 		})
 
 		filename := filepath.Base(file)
-
 		if config.ProfileData.IsKepub {
 			ext := filepath.Ext(file)
 			name := strings.TrimSuffix(filename, ext)
 			filename = name + ".kepub" + ext
 		}
 
-		responses = append(responses, domain.NewTransactionResponseDTO(id, newConfig.Title, filename))
+		responses = append(responses, dto.TransactionResponse{Id: id, Title: newConfig.Title, Filename: filename})
 	}
 
-	transactionUC := usecases.NewEpubTransactionUC(ch.pushNotifier)
 	go func() {
 		for _, tran := range transactions {
-			transactionUC.Execute(tran.file, tran.config, tran.dstPath)
+			ch.epubUC.Execute(tran.file, tran.config, tran.dstPath)
 		}
 	}()
 
 	return responses, nil
 }
 
-func (ch *TransactionHandler) handleMangaTransaction(files []string, config *domain.TransactionConfig) (any, error) {
+func (ch *TransactionHandler) handleMangaTransaction(files []string, config *convert.TransactionConfig) (any, error) {
 	sort.Slice(files, func(i, j int) bool {
-		return helpers.AlphanumericCmp(files[i], files[j])
+		return strutil.AlphanumericCmp(files[i], files[j])
 	})
 
-	type TransactinoInfo struct {
-		config   *domain.TransactionConfig
+	type TransactionInfo struct {
+		config   *convert.TransactionConfig
 		dstPath  string
-		chapters []*domain.Chapter
+		chapters []*manga.Chapter
 	}
 
-	transactions := make(map[string]*TransactinoInfo)
-	id := crypto.GetRandomID(6)
+	transactions := make(map[string]*TransactionInfo)
+	id := uid.GetRandomID(6)
 
 	for _, file := range files {
 		if !config.Merge {
-			id = crypto.GetRandomID(6)
+			id = uid.GetRandomID(6)
 		}
 		dstPath := filepath.Join(ch.basePath, id)
-		chapter, err := converters.FileToChapter(file, filepath.Join(dstPath, "chapters"))
+		chapter, err := fs.FileToChapter(file, filepath.Join(dstPath, "chapters"))
 		if err != nil {
 			return nil, err
 		}
 
 		tran, ok := transactions[id]
 		if !ok {
-			tran = &TransactinoInfo{
+			tran = &TransactionInfo{
 				config:   config.WithId(id),
 				dstPath:  dstPath,
-				chapters: []*domain.Chapter{},
+				chapters: []*manga.Chapter{},
 			}
 		}
 		tran.chapters = append(tran.chapters, chapter)
 		transactions[id] = tran
 	}
 
-	responses := make([]domain.TransactionResponseDTO, 0, len(transactions))
+	responses := make([]dto.TransactionResponse, 0, len(transactions))
 	for id, tran := range transactions {
 		tran.config.UpdateTitle(tran.chapters)
 		filename := tran.config.Title
@@ -225,15 +238,13 @@ func (ch *TransactionHandler) handleMangaTransaction(files []string, config *dom
 			filename += ".kepub"
 		}
 		filename += ".epub"
-
-		responses = append(responses, domain.NewTransactionResponseDTO(id, tran.config.Title, filename))
+		responses = append(responses, dto.TransactionResponse{Id: id, Title: tran.config.Title, Filename: filename})
 	}
 
-	transactionUC := usecases.NewMangaTransactionUC(ch.pushNotifier)
 	go func() {
 		for _, tran := range transactions {
 			defer os.RemoveAll(filepath.Join(tran.dstPath, "chapters"))
-			transactionUC.Execute(tran.chapters, tran.config, tran.dstPath)
+			ch.mangaUC.Execute(tran.chapters, tran.config, tran.dstPath)
 		}
 	}()
 
@@ -243,23 +254,18 @@ func (ch *TransactionHandler) handleMangaTransaction(files []string, config *dom
 func saveConvertFiles(ext string, files []*multipart.FileHeader, tempSavePath string) (string, []string, error) {
 	switch ext {
 	case ".zip":
-		return filesHelper.UnzipFormZip(files[0], tempSavePath)
+		return fs.UnzipFormZip(files[0], tempSavePath)
 	case ".cbz", ".epub":
-		return filesHelper.CopyFormFiles(files, tempSavePath)
+		return fs.CopyFormFiles(files, tempSavePath)
 	default:
-		return "", nil, domain.NewApiError(400, fmt.Sprintf("File format not suported %s", ext))
+		return "", nil, apierr.New(400, fmt.Sprintf("File format not suported %s", ext))
 	}
-}
-
-func handleKepubify(files []*multipart.FileHeader) (any, error) {
-	return map[string]any{}, nil
 }
 
 func (ch *TransactionHandler) HandleCheckStatus(r *http.Request) (any, error) {
 	id := chi.URLParam(r, "id")
-	stateMng := state.GetManager()
 
-	processed, err := stateMng.CheckProgress(id)
+	processed, err := ch.mangaUC.CheckProgress(id)
 	if err != nil {
 		return nil, err
 	}
@@ -269,14 +275,13 @@ func (ch *TransactionHandler) HandleCheckStatus(r *http.Request) (any, error) {
 
 func (ch *TransactionHandler) HandleDownload(r *http.Request) (any, error) {
 	id := chi.URLParam(r, "id")
-	stateMng := state.GetManager()
 
-	path, err := stateMng.GetResultPath(id)
+	path, err := ch.mangaUC.GetResultPath(id)
 	if err != nil {
 		return nil, err
 	}
 
-	return domain.FileResponse{
+	return apierr.FileResponse{
 		Path: path,
 		Name: filepath.Base(path),
 	}, nil
@@ -284,9 +289,6 @@ func (ch *TransactionHandler) HandleDownload(r *http.Request) (any, error) {
 
 func (ch *TransactionHandler) HandleCancel(r *http.Request) (any, error) {
 	id := chi.URLParam(r, "id")
-
-	stateMng := state.GetManager()
-	stateMng.Cancel(id)
-
+	ch.mangaUC.CancelTransaction(id)
 	return map[string]any{}, nil
 }

@@ -2,8 +2,8 @@ package libgen
 
 import (
 	"fmt"
-	"ismelen/inkomi/internal/domain"
-	"ismelen/inkomi/internal/infra/helpers"
+	"ismelen/inkomi/internal/domain/book"
+	"ismelen/inkomi/internal/shared/strutil"
 	"net/url"
 	"regexp"
 	"strconv"
@@ -25,7 +25,11 @@ func (p PlusMirror) GetURL() string {
 	return p.url
 }
 
-func (p PlusMirror) Search(query string) ([]domain.Book, error) {
+func (p PlusMirror) Download(req book.LibgenDownloadRequest) (*book.LibgenDownloadResult, error) {
+	return p.LibgenMirrorBase.Download(req)
+}
+
+func (p PlusMirror) Search(query string) ([]book.Book, error) {
 	params := url.Values{}
 	params.Set("req", query)
 	params.Set("res", "25")
@@ -46,7 +50,7 @@ func (p PlusMirror) Search(query string) ([]domain.Book, error) {
 	idRe := regexp.MustCompile(`[?&]id=(\d+)`)
 	md5Re := regexp.MustCompile(`(?i)[0-9a-f]{32}`)
 
-	var books []domain.Book
+	var books []book.Book
 
 	doc.Find("#tablelibgen tr").Each(func(i int, row *goquery.Selection) {
 		if i == 0 {
@@ -78,7 +82,7 @@ func (p PlusMirror) Search(query string) ([]domain.Book, error) {
 		mainID := ""
 		if len(words) > 0 {
 			lastWord := words[len(words)-1]
-			if helpers.IsNumeric(lastWord) {
+			if strutil.IsNumeric(lastWord) {
 				mainID = lastWord
 			}
 			for j := len(words) - 1; j >= 0 && j >= len(words)-3; j-- {
@@ -103,7 +107,7 @@ func (p PlusMirror) Search(query string) ([]domain.Book, error) {
 			lines := strings.Split(td0Text, "\n")
 			for j := len(lines) - 1; j >= 0; j-- {
 				line := strings.TrimSpace(lines[j])
-				if line != "" && !helpers.IsNumeric(line) && line != "c" && line != "f" {
+				if line != "" && !strutil.IsNumeric(line) && line != "c" && line != "f" {
 					title = line
 					break
 				}
@@ -123,11 +127,8 @@ func (p PlusMirror) Search(query string) ([]domain.Book, error) {
 		})
 
 		author := strings.TrimSpace(tds.Eq(1).Text())
-		publisher := strings.TrimSpace(tds.Eq(2).Text())
-		year := strings.TrimSpace(tds.Eq(3).Text())
 		lang := strings.TrimSpace(tds.Eq(4).Text())
 		pages := strings.TrimSpace(tds.Eq(5).Text())
-		sizeText := strings.TrimSpace(tds.Eq(6).Text())
 		ext := strings.ToLower(strings.TrimSpace(tds.Eq(7).Text()))
 
 		downloadUrl := p.url + "/ads.php?md5=" + strings.ToLower(md5)
@@ -135,15 +136,11 @@ func (p PlusMirror) Search(query string) ([]domain.Book, error) {
 			downloadUrl = p.url + "/edition.php?id=" + mainID
 		}
 
-		book := domain.Book{
-			ID:          mainID,
+		book := book.Book{
 			Title:       title,
 			Author:      author,
-			Year:        year,
-			Publisher:   publisher,
 			Pages:       pages,
 			Language:    lang,
-			SizeStr:     sizeText,
 			Extension:   ext,
 			MD5:         md5,
 			CoverURL:    p.buildCoverURL(mainID, md5, isFiction),

@@ -2,36 +2,37 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
-	"ismelen/inkomi/internal/domain"
-	"ismelen/inkomi/internal/infra/crypto"
-	filesHelper "ismelen/inkomi/internal/infra/files-helper"
-	"ismelen/inkomi/internal/infra/libgen"
+	"ismelen/inkomi/internal/domain/book"
+	"ismelen/inkomi/internal/infra/api/apierr"
+	"ismelen/inkomi/internal/infra/api/dto"
+	"ismelen/inkomi/internal/infra/fs"
+	"ismelen/inkomi/internal/shared/uid"
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 type LibgenHandler struct {
-	libgenServ *libgen.LibgenService
+	libgenServ book.LibgenService
 }
 
-func NewLibgenHandler(libgenServ *libgen.LibgenService) *LibgenHandler {
+func NewLibgenHandler(libgenServ book.LibgenService) *LibgenHandler {
 	return &LibgenHandler{libgenServ}
 }
 
 func (l *LibgenHandler) HandleSearchBook(r *http.Request) (any, error) {
 	query := r.URL.Query().Get("q")
 	if query == "" {
-		return nil, fmt.Errorf("Empty query")
+		return nil, apierr.New(http.StatusBadRequest, "Empty query")
 	}
 
 	language := r.URL.Query().Get("lang")
 
-	formats := []string{}
+	var formats []string
 	if fmts := r.URL.Query().Get("fmt"); fmts != "" {
-		formats = append(formats, strings.Split(fmts, ",")...)
+		for _, f := range splitComma(fmts) {
+			formats = append(formats, f)
+		}
 	}
 
 	books, err := l.libgenServ.Search(query, language, formats)
@@ -43,13 +44,19 @@ func (l *LibgenHandler) HandleSearchBook(r *http.Request) (any, error) {
 }
 
 func (l *LibgenHandler) HandleDownloadBook(r *http.Request) (any, error) {
-	var req domain.LibgenDownloadRequestDTO
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return nil, domain.NewApiError(http.StatusBadRequest, err.Error())
+	var reqDTO dto.LibgenDownloadRequest
+	if err := json.NewDecoder(r.Body).Decode(&reqDTO); err != nil {
+		return nil, apierr.New(http.StatusBadRequest, err.Error())
 	}
 
-	if req.DownloadURL == "" || req.Title == "" {
-		return nil, domain.NewApiError(http.StatusBadRequest, "Download url and title are missing")
+	if reqDTO.DownloadURL == "" || reqDTO.Title == "" {
+		return nil, apierr.New(http.StatusBadRequest, "Download url and title are missing")
+	}
+
+	req := book.LibgenDownloadRequest{
+		DownloadURL: reqDTO.DownloadURL,
+		Title:       reqDTO.Title,
+		Extension:   reqDTO.Extension,
 	}
 
 	result, err := l.libgenServ.Download(req)
@@ -62,16 +69,29 @@ func (l *LibgenHandler) HandleDownloadBook(r *http.Request) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	id := crypto.GetRandomID(6)
+	id := uid.GetRandomID(6)
 
-	path, err := filesHelper.CopyFromStream(result.Stream, filepath.Join(wd, "books", id, result.Filename))
+	path, err := fs.CopyFromStream(result.Stream, filepath.Join(wd, "books", id, result.Filename))
 	if err != nil {
 		return nil, err
 	}
 
-	return domain.FileResponse{
+	return apierr.FileResponse{
 		Path:   path,
 		Name:   filepath.Base(path),
 		Remove: true,
 	}, nil
+}
+
+func splitComma(s string) []string {
+	var out []string
+	start := 0
+	for i, r := range s {
+		if r == ',' {
+			out = append(out, s[start:i])
+			start = i + 1
+		}
+	}
+	out = append(out, s[start:])
+	return out
 }

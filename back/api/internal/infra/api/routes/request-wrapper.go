@@ -2,7 +2,7 @@ package routes
 
 import (
 	"fmt"
-	"ismelen/inkomi/internal/domain"
+	"ismelen/inkomi/internal/infra/api/apierr"
 	"log"
 	"net/http"
 	"os"
@@ -17,7 +17,7 @@ func Wrap(f func(r *http.Request) (any, error)) http.HandlerFunc {
 		if err != nil {
 			log.Println(err.Error())
 			status := 500
-			if apiErr, ok := err.(*domain.ApiError); ok {
+			if apiErr, ok := err.(*apierr.ApiError); ok {
 				status = apiErr.Status
 			}
 			render.Status(r, status)
@@ -30,7 +30,7 @@ func Wrap(f func(r *http.Request) (any, error)) http.HandlerFunc {
 		}
 
 		switch v := data.(type) {
-		case domain.FileResponse:
+		case apierr.FileResponse:
 			if v.Remove {
 				defer os.RemoveAll(v.Path)
 			}

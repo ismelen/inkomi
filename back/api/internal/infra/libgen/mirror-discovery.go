@@ -2,7 +2,7 @@ package libgen
 
 import (
 	"context"
-	"ismelen/inkomi/internal/ports"
+	"ismelen/inkomi/internal/domain/book"
 	"log"
 	"net/http"
 	"sync"
@@ -38,11 +38,11 @@ func (l *LibgenService) updateMirror() {
 	l.mirror.Store(fastest)
 }
 
-func (l *LibgenService) getFastestMirror(mirrors []ports.LibgenMirror) (ports.LibgenMirror, bool) {
+func (l *LibgenService) getFastestMirror(mirrors []book.LibgenMirror) (book.LibgenMirror, bool) {
 	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
 	defer cancel()
 
-	winner := make(chan ports.LibgenMirror, 1)
+	winner := make(chan book.LibgenMirror, 1)
 	var once sync.Once
 
 	client := &http.Client{
@@ -53,7 +53,7 @@ func (l *LibgenService) getFastestMirror(mirrors []ports.LibgenMirror) (ports.Li
 	}
 
 	for _, m := range mirrors {
-		go func(m ports.LibgenMirror) {
+		go func(m book.LibgenMirror) {
 			req, err := http.NewRequestWithContext(ctx, "GET", m.GetURL()+"/", nil)
 			if err != nil {
 				return
@@ -65,6 +65,11 @@ func (l *LibgenService) getFastestMirror(mirrors []ports.LibgenMirror) (ports.Li
 				return
 			}
 			resp.Body.Close()
+
+			if resp.StatusCode != http.StatusOK {
+				return
+			}
+
 			once.Do(func() { winner <- m })
 		}(m)
 	}

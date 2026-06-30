@@ -2,7 +2,7 @@ package libgen
 
 import (
 	"fmt"
-	"ismelen/inkomi/internal/domain"
+	"ismelen/inkomi/internal/domain/book"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -54,7 +54,7 @@ func (l LibgenMirrorBase) FetchURL(rawURL string, isDownload bool) (*http.Respon
 	return httpClient.Do(req)
 }
 
-func (l LibgenMirrorBase) Download(req domain.LibgenDownloadRequestDTO) (*domain.LibgenDownloadResultDTO, error) {
+func (l LibgenMirrorBase) Download(req book.LibgenDownloadRequest) (*book.LibgenDownloadResult, error) {
 	dlURL, err := l.resolveDownloadLink(req.DownloadURL)
 	if err != nil || dlURL == "" {
 		dlURL = req.DownloadURL
@@ -77,7 +77,7 @@ func (l LibgenMirrorBase) Download(req domain.LibgenDownloadRequestDTO) (*domain
 	filename := sanitizeFilename(req.Title) + "." + strings.ToLower(ext)
 	filename = filepath.Clean(filename)
 
-	return &domain.LibgenDownloadResultDTO{
+	return &book.LibgenDownloadResult{
 		Stream:        resp.Body,
 		ContentType:   resp.Header.Get("Content-Type"),
 		ContentLength: resp.ContentLength,

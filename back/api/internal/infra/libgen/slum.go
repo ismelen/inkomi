@@ -2,7 +2,7 @@ package libgen
 
 import (
 	"encoding/json"
-	"ismelen/inkomi/internal/ports"
+	"ismelen/inkomi/internal/domain/book"
 	"net/http"
 	"strings"
 	"time"
@@ -19,9 +19,7 @@ type slumResponse struct {
 	} `json:"publicGroupList"`
 }
 
-var asdfas ports.LibgenMirror = NewClassicMirror("adsf")
-
-var fallbackMirrors = []ports.LibgenMirror{
+var fallbackMirrors = []book.LibgenMirror{
 	NewPlusMirror("https://libgen.bz"),
 	NewPlusMirror("https://libgen.la"),
 	NewPlusMirror("https://libgen.gl"),
@@ -31,7 +29,7 @@ var fallbackMirrors = []ports.LibgenMirror{
 	NewClassicMirror("https://libgen.rs"),
 }
 
-func getMirrors() []ports.LibgenMirror {
+func getMirrors() []book.LibgenMirror {
 	client := &http.Client{Timeout: 8 * time.Second}
 	req, _ := http.NewRequest("GET", "https://open-slum.org/api/status-page/slum", nil)
 	req.Header.Set("User-Agent", "Mozilla/5.0")
@@ -46,7 +44,7 @@ func getMirrors() []ports.LibgenMirror {
 		return fallbackMirrors
 	}
 
-	var mirrors []ports.LibgenMirror
+	var mirrors []book.LibgenMirror
 	for _, group := range slum.PublicGroupList {
 		if !strings.Contains(strings.ToLower(group.Name), "libgen") &&
 			!strings.Contains(strings.ToLower(group.Name), "library genesis") {
@@ -60,7 +58,7 @@ func getMirrors() []ports.LibgenMirror {
 
 			base := strings.TrimRight(m.URL, "/")
 
-			var mirror ports.LibgenMirror
+			var mirror book.LibgenMirror
 			if strings.Contains(m.Name, "+") {
 				mirror = NewPlusMirror(base)
 			} else {
