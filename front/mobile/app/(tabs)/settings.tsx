@@ -28,7 +28,7 @@ export default function SettingsPage() {
 
   return (
     <ScrollView style={{ flex: 1, paddingHorizontal: 24 }}>
-      <Text style={{ fontFamily: 'bold', fontSize: 28 }}>Settings</Text>
+      <SText style={{ fontFamily: 'bold', fontSize: 28 }}>Settings</SText>
       <View style={{ marginTop: 14, gap: 4 }}>
         <SText style={styles.title}>READER MODEL</SText>
         <SSelect

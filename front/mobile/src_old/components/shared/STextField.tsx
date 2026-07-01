@@ -10,7 +10,7 @@ interface Props {
   hint: string;
   labelWidth?: number;
   onChange(value: string): void;
-  style: StyleProp<ViewStyle>;
+  style?: StyleProp<ViewStyle>;
   textAlign?: 'center' | 'left' | 'right';
   keyboardType?: KeyboardTypeOptions;
 }

@@ -5,4 +5,5 @@ export interface Upload {
   timestamp: number;
   id: string;
   error?: Error;
+  libgenMode: boolean;
 }

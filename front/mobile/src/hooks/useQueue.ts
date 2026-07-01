@@ -12,12 +12,14 @@ import { Upload } from '../models/upload';
 import { randomUUID } from 'expo-crypto';
 import RNBlobUtil from 'react-native-blob-util';
 import { useCloud } from './useCloud';
+import { LibgenTransactionRequest } from '../models/libgen-transaction-request';
+import { LinearGradient } from 'react-native-svg';
 
 interface State {
   uploads: Upload[];
   transactions: QueueElement[];
   completedTransactions: QueueElement[];
-  send(req: Partial<TransactionRequest>): Promise<boolean>;
+  send(req: Partial<TransactionRequest>, libgenMode?: boolean): Promise<boolean>;
   checkProgress(idx: number, id: string): Promise<boolean>;
   download(idx: number, id: string): Promise<boolean>;
   init(): Promise<void>;
@@ -97,22 +99,36 @@ export const useQueue = create<State>((set, get) => ({
     return false;
   },
 
-  async send(req: TransactionRequest): Promise<boolean> {
+  async send(req: TransactionRequest, libgenMode?: boolean): Promise<boolean> {
     if (req.mode === 'no-select') return false;
     if (req.sources.length === 0) return false;
     if (req.mode === 'folder' && (req.sources[0].children?.length ?? 0) === 0) return false;
 
-    let files: Source[] = [];
-    if (req.mode === 'files') {
-      //TODO: Divide by size
-      files = req.sources;
-    }
-    if (req.mode === 'folder') {
-      files = req.sources[0].children ?? [];
-    }
-    if (files.length === 0) return false;
-
     const form = new FormData();
+
+    if (libgenMode ?? false) {
+      const books = (req as LibgenTransactionRequest).books;
+      form.append('md5', books.map((e) => e.md5).join(','));
+    } else {
+      let files: Source[] = [];
+      if (req.mode === 'files') {
+        //TODO: Divide by size
+        files = req.sources;
+      }
+      if (req.mode === 'folder') {
+        files = req.sources[0].children ?? [];
+      }
+      if (files.length === 0) return false;
+
+      for (const file of files) {
+        form.append('files', {
+          uri: file.path,
+          name: file.name,
+          type: file.mime ?? 'application/zip',
+        } as any);
+      }
+    }
+
     const toCloud = req.destination === 'cloud';
 
     form.append('profile', 'KoCC'); //TODO: settings
@@ -129,18 +145,11 @@ export const useQueue = create<State>((set, get) => ({
       form.append('cloud_folder', folder);
     }
 
-    for (const file of files) {
-      form.append('files', {
-        uri: file.path,
-        name: file.name,
-        type: file.mime ?? 'application/zip',
-      } as any);
-    }
-
     const upload: Upload = {
       request: req,
       timestamp: Date.now(),
       id: randomUUID(),
+      libgenMode: libgenMode ?? false,
     };
     set((s) => ({ uploads: [...s.uploads, upload] }));
 
@@ -148,10 +157,13 @@ export const useQueue = create<State>((set, get) => ({
     await BackgroundService.start(
       async () => {
         try {
-          const resp = await fetch(`${BACKENDD_URL}/transaction/convert`, {
-            method: 'POST',
-            body: form,
-          });
+          const resp = await fetch(
+            `${BACKENDD_URL}/transaction/convert${(libgenMode ?? false) ? '?remote=true' : ''}`,
+            {
+              method: 'POST',
+              body: form,
+            }
+          );
 
           if (resp.status !== 200) {
             const json = await resp.json();

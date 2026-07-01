@@ -9,7 +9,7 @@ export default function SButton({ children, style, onPress, ...props }: Pressabl
     <Pressable
       {...props}
       android_ripple={{
-        color: hexToRgba('#e1e0ff', 0.25),
+        color: hexToRgba(colors.primary_fixed, 0.25),
         borderless: !disabled,
         foreground: !disabled,
       }}
