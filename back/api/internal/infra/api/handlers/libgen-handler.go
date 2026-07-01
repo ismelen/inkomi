@@ -29,7 +29,11 @@ func (l *LibgenHandler) HandleSearchBook(r *http.Request) (any, error) {
 
 	language := r.URL.Query().Get("lang")
 
-	formats := strings.Split(r.URL.Query().Get("fmt"), ",")
+	fmtQuery := r.URL.Query().Get("fmt")
+	var formats []string
+	if fmtQuery != "" {
+		formats = strings.Split(fmtQuery, ",")
+	}
 
 	books, err := l.libgenServ.Search(query, language, formats)
 	if err != nil {

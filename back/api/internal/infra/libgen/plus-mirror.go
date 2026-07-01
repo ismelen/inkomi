@@ -78,13 +78,11 @@ func (p PlusMirror) Search(query string) ([]book.Book, error) {
 		}
 
 		title := ""
-		tds.Eq(1).Find("a[href*='edition.php']").EachWithBreak(func(_ int, a *goquery.Selection) bool {
+		tds.Eq(1).Find("a[href*='edition.php']").Each(func(_ int, a *goquery.Selection) {
 			t := strings.TrimSpace(a.Text())
 			if len(t) > len(title) {
 				title = t
-				return false
 			}
-			return true
 		})
 
 		if title == "" {
@@ -104,7 +102,7 @@ func (p PlusMirror) Search(query string) ([]book.Book, error) {
 			href, _ := a.Attr("href")
 			if m := md5Re.FindString(strings.ToLower(href)); len(m) == 32 {
 				md5 = m
-				return false // MD5 encontrado, interrumpir el loop
+				return false
 			}
 			return true
 		})

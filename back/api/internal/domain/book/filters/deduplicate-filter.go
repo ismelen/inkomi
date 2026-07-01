@@ -3,6 +3,7 @@ package filters
 import (
 	"ismelen/inkomi/internal/domain/book"
 	"ismelen/inkomi/internal/shared/filter"
+	"ismelen/inkomi/internal/shared/strutil"
 	"regexp"
 	"strings"
 )
@@ -26,7 +27,7 @@ func (f *DeduplicateFilter) Filter(books []book.Book) (bool, []book.Book) {
 		if len([]rune(b.Title)) < 3 {
 			continue
 		}
-		key := b.Title
+		key := strings.ToLower(strutil.NormalizeString(b.Title))
 		if g, exists := groups[key]; exists {
 			g.count++
 			if g.best.MD5 == "" && b.MD5 != "" {
