@@ -1,10 +1,9 @@
 package book
 
 type Book struct {
-	ID          string `json:"id,omitempty"`
 	Title       string `json:"title"`
 	Author      string `json:"author"`
-	Pages       string `json:"pages"`
+	Pages       int    `json:"pages"`
 	Language    string `json:"language"`
 	Extension   string `json:"extension"`
 	MD5         string `json:"md5"`

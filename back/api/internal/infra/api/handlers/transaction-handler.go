@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"ismelen/inkomi/internal/domain/convert"
 	"ismelen/inkomi/internal/domain/manga"
-	"ismelen/inkomi/internal/infra/api/apierr"
 	"ismelen/inkomi/internal/infra/api/dto"
+	"ismelen/inkomi/internal/infra/api/requtil"
 	"ismelen/inkomi/internal/infra/api/validation"
 	"ismelen/inkomi/internal/infra/fs"
 	"ismelen/inkomi/internal/shared/filter"
@@ -79,7 +79,7 @@ func (ch *TransactionHandler) HandleConvert(r *http.Request) (any, error) {
 
 	pass, ext := filenamesFilter.Filter(filenames)
 	if !pass {
-		return nil, apierr.New(400, "All files must have same format")
+		return nil, requtil.New(400, "All files must have same format")
 	}
 
 	ctxId := uid.GetRandomID(6)
@@ -92,12 +92,12 @@ func (ch *TransactionHandler) HandleConvert(r *http.Request) (any, error) {
 	}
 
 	if len(children) == 0 {
-		return nil, apierr.New(400, "No files attached")
+		return nil, requtil.New(400, "No files attached")
 	}
 
 	pass, ext = filenamesFilter.Filter(children)
 	if !pass {
-		return nil, apierr.New(400, "All files must have same format")
+		return nil, requtil.New(400, "All files must have same format")
 	}
 
 	var reqDTO dto.TransactionConfigRequest
@@ -113,7 +113,7 @@ func (ch *TransactionHandler) HandleConvert(r *http.Request) (any, error) {
 
 	profile, err := convert.NewProfile(reqDTO.Profile)
 	if err != nil {
-		return nil, apierr.New(400, err.Error())
+		return nil, requtil.New(400, err.Error())
 	}
 
 	config := &convert.TransactionConfig{
@@ -130,14 +130,14 @@ func (ch *TransactionHandler) HandleConvert(r *http.Request) (any, error) {
 
 	switch ext {
 	case ".zip":
-		return nil, apierr.New(400, "Do not send nested zip files")
+		return nil, requtil.New(400, "Do not send nested zip files")
 	case ".epub":
 		config.Merge = false
 		return ch.handleEpubTransaction(children, config)
 	case ".cbz":
 		return ch.handleMangaTransaction(children, config)
 	default:
-		return nil, apierr.New(400, fmt.Sprintf("File format not suported %s", ext))
+		return nil, requtil.New(400, fmt.Sprintf("File format not suported %s", ext))
 	}
 }
 
@@ -258,7 +258,7 @@ func saveConvertFiles(ext string, files []*multipart.FileHeader, tempSavePath st
 	case ".cbz", ".epub":
 		return fs.CopyFormFiles(files, tempSavePath)
 	default:
-		return "", nil, apierr.New(400, fmt.Sprintf("File format not suported %s", ext))
+		return "", nil, requtil.New(400, fmt.Sprintf("File format not suported %s", ext))
 	}
 }
 
@@ -281,7 +281,7 @@ func (ch *TransactionHandler) HandleDownload(r *http.Request) (any, error) {
 		return nil, err
 	}
 
-	return apierr.FileResponse{
+	return requtil.FileResponse{
 		Path: path,
 		Name: filepath.Base(path),
 	}, nil

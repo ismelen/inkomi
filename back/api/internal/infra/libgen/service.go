@@ -32,7 +32,7 @@ func (l *LibgenService) Search(query string, language string, formats []string) 
 	return filteredBooks, nil
 }
 
-func (l *LibgenService) Download(request book.LibgenDownloadRequest) (*book.LibgenDownloadResult, error) {
+func (l *LibgenService) Download(md5 string) (*book.LibgenDownload, error) {
 	mirror := l.mirror.Load().(book.LibgenMirror)
-	return mirror.Download(request)
+	return mirror.Download(md5)
 }

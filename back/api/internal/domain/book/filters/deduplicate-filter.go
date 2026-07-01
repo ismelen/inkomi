@@ -27,9 +27,6 @@ func (f *DeduplicateFilter) Filter(books []book.Book) (bool, []book.Book) {
 			continue
 		}
 		key := b.Title
-		if key == "" {
-			key = "__" + b.ID
-		}
 		if g, exists := groups[key]; exists {
 			g.count++
 			if g.best.MD5 == "" && b.MD5 != "" {

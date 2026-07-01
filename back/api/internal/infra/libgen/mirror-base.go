@@ -2,20 +2,24 @@ package libgen
 
 import (
 	"fmt"
+	"io"
 	"ismelen/inkomi/internal/domain/book"
+	"ismelen/inkomi/internal/shared/strutil"
 	"net/http"
-	"net/url"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
 )
 
-type MirrorBase struct{}
+type MirrorBase struct {
+	Url string
+}
 
-func (l MirrorBase) Fetch(url string) (*goquery.Document, error) {
-	resp, err := l.FetchURL(url, false)
+func (m MirrorBase) Fetch(url string) (*goquery.Document, error) {
+	resp, err := m.FetchURL(url, false)
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +42,7 @@ var (
 	downloadClient = &http.Client{Timeout: 10 * time.Minute}
 )
 
-func (l MirrorBase) FetchURL(rawURL string, isDownload bool) (*http.Response, error) {
+func (m MirrorBase) FetchURL(rawURL string, isDownload bool) (*http.Response, error) {
 	req, err := http.NewRequest(http.MethodGet, rawURL, nil)
 	if err != nil {
 		return nil, err
@@ -54,30 +58,28 @@ func (l MirrorBase) FetchURL(rawURL string, isDownload bool) (*http.Response, er
 	return httpClient.Do(req)
 }
 
-func (l MirrorBase) Download(req book.LibgenDownloadRequest) (*book.LibgenDownloadResult, error) {
-	dlURL, err := l.resolveDownloadLink(req.DownloadURL)
-	if err != nil || dlURL == "" {
-		dlURL = req.DownloadURL
+func (m MirrorBase) Search(query string) ([]book.Book, error) { return nil, nil }
+
+func (m MirrorBase) GetURL() string { return m.Url }
+
+func (m MirrorBase) Download(md5 string) (*book.LibgenDownload, error) {
+	data, err := m.GetBasicBookFromMD5(md5)
+	if err != nil {
+		return nil, err
 	}
 
-	resp, err := l.FetchURL(dlURL, true)
+	resp, err := m.FetchURL(data.downloadUrl, true)
 	if err != nil {
 		return nil, err
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		resp.Body.Close()
-		return nil, fmt.Errorf("HTTP %d al descargar", resp.StatusCode)
+		return nil, fmt.Errorf("'%s' download failed", data.title)
 	}
 
-	ext := req.Extension
-	if ext == "" {
-		ext = "epub"
-	}
-	filename := sanitizeFilename(req.Title) + "." + strings.ToLower(ext)
-	filename = filepath.Clean(filename)
+	filename := filepath.Clean(strutil.NormalizeString(data.title) + "." + data.extension)
 
-	return &book.LibgenDownloadResult{
+	return &book.LibgenDownload{
 		Stream:        resp.Body,
 		ContentType:   resp.Header.Get("Content-Type"),
 		ContentLength: resp.ContentLength,
@@ -85,55 +87,95 @@ func (l MirrorBase) Download(req book.LibgenDownloadRequest) (*book.LibgenDownlo
 	}, nil
 }
 
-func (l MirrorBase) resolveDownloadLink(pageURL string) (string, error) {
-	resp, err := l.FetchURL(pageURL, false)
+type basicBook struct {
+	title, downloadUrl, extension, md5 string
+}
+
+var titleRe = regexp.MustCompile(`(?i)Title:\s*(.*?)<br>`)
+var extRe = regexp.MustCompile(`(?i)Extension:\s*([^,]+).*?Size:\s*(.*?)<br>`)
+var downloadRe = regexp.MustCompile(`(?i)href=["']([^"']+)["'][^>]*><h2>GET</h2>`)
+
+func (m MirrorBase) GetBasicBookFromMD5(md5 string) (*basicBook, error) {
+	url := m.Url + "/ads.php?md5=" + md5
+	resp, err := m.FetchURL(url, false)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("HTTP %d", resp.StatusCode)
+		resp.Body.Close()
+		return nil, fmt.Errorf("HTTP %d in %s", resp.StatusCode, m.Url)
 	}
 
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	b, err := io.ReadAll(resp.Body)
+	resp.Body.Close()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	var link string
-	for _, sel := range []string{"#download a", "a[href^='get.php']", "a[href*='cloudflare-ipfs']", "a[href*='ipfs.io']"} {
-		if link != "" {
-			break
+	html := string(b)
+
+	if !strings.Contains(html, "Title:") && !strings.Contains(html, "<h2>GET</h2>") {
+		return nil, fmt.Errorf("no book data from %s", m.Url)
+	}
+
+	book := &basicBook{md5: md5}
+
+	if match := titleRe.FindStringSubmatch(html); len(match) > 1 {
+		book.title = strings.TrimSpace(match[1])
+	}
+	if match := extRe.FindStringSubmatch(html); len(match) > 2 {
+		book.extension = strings.TrimSpace(match[1])
+	}
+	if match := downloadRe.FindStringSubmatch(html); len(match) > 1 {
+		href := strings.TrimSpace(match[1])
+		if strings.HasPrefix(href, "http") {
+			book.downloadUrl = href
+		} else if strings.HasPrefix(href, "/") {
+			book.downloadUrl = m.Url + href
+		} else {
+			book.downloadUrl = m.Url + "/" + href
 		}
-		doc.Find(sel).Each(func(_ int, s *goquery.Selection) {
-			if link != "" {
-				return
-			}
-			if href, ok := s.Attr("href"); ok {
-				if !strings.HasPrefix(href, "http") {
-					u, _ := url.Parse(pageURL)
-					href = fmt.Sprintf("%s://%s/%s", u.Scheme, u.Host, strings.TrimPrefix(href, "/"))
-				}
-				link = href
-			}
-		})
 	}
-	return link, nil
+
+	if book.title == "" || book.downloadUrl == "" {
+		return nil, fmt.Errorf("no book data from %s", m.Url)
+	}
+
+	if book.extension == "" {
+		book.extension = "epub"
+	}
+
+	return book, nil
 }
 
-func sanitizeFilename(s string) string {
-	rep := strings.NewReplacer(
-		"/", "-", "\\", "-", ":", "-", "*", "",
-		"?", "", "\"", "", "<", "", ">", "", "|", "",
-		"\n", " ", "\r", "",
-	)
-	result := strings.TrimSpace(rep.Replace(s))
-	if len(result) > 120 {
-		result = result[:120]
-	}
-	if result == "" {
-		result = "libro"
-	}
-	return result
-}
+// func (l MirrorBase) Download(req book.LibgenDownloadRequest) (*book.LibgenDownloadResult, error) {
+// 	dlURL, err := l.resolveDownloadLink(req.DownloadURL)
+// 	if err != nil || dlURL == "" {
+// 		dlURL = req.DownloadURL
+// 	}
+
+// 	resp, err := l.FetchURL(dlURL, true)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	if resp.StatusCode != http.StatusOK {
+// 		resp.Body.Close()
+// 		return nil, fmt.Errorf("HTTP %d al descargar", resp.StatusCode)
+// 	}
+
+// 	ext := req.Extension
+// 	if ext == "" {
+// 		ext = "epub"
+// 	}
+// 	filename := sanitizeFilename(req.Title) + "." + strings.ToLower(ext)
+// 	filename = filepath.Clean(filename)
+
+// 	return &book.LibgenDownloadResult{
+// 		Stream:        resp.Body,
+// 		ContentType:   resp.Header.Get("Content-Type"),
+// 		ContentLength: resp.ContentLength,
+// 		Filename:      filename,
+// 	}, nil
+// }

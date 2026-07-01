@@ -16,15 +16,10 @@ import (
 
 type ClassicMirror struct {
 	MirrorBase
-	url string
 }
 
 func NewClassicMirror(url string) ClassicMirror {
-	return ClassicMirror{url: url}
-}
-
-func (c ClassicMirror) GetURL() string {
-	return c.url
+	return ClassicMirror{MirrorBase{url}}
 }
 
 func (c ClassicMirror) Search(query string) ([]book.Book, error) {
@@ -43,7 +38,7 @@ func (c ClassicMirror) Search(query string) ([]book.Book, error) {
 	params := url.Values{}
 	params.Set("ids", strings.Join(ids, ","))
 	params.Set("fields", "id,title,author,pages,language,extension,md5")
-	jsonURL := c.url + "/json.php?" + params.Encode()
+	jsonURL := c.Url + "/json.php?" + params.Encode()
 
 	resp, err := c.FetchURL(jsonURL, false)
 	if err != nil {
@@ -79,7 +74,7 @@ func (c ClassicMirror) getIds(query string) ([]string, error) {
 	params.Set("view", "simple")
 	params.Set("phrase", "1")
 	params.Set("column", "def")
-	searchURL := c.url + "/search.php?" + params.Encode()
+	searchURL := c.Url + "/search.php?" + params.Encode()
 
 	doc, err := c.Fetch(searchURL)
 	if err != nil {
