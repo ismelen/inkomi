@@ -30,9 +30,10 @@ type TransactionHandler struct {
 	mangaUC  *usecases.MangaTransactionUC
 	epubUC   *usecases.EpubTransactionUC
 	decoder  *schema.Decoder
+	remoteUC *usecases.RemoteTransactionUC
 }
 
-func NewConvertHandler(mangaUC *usecases.MangaTransactionUC, epubUC *usecases.EpubTransactionUC) *TransactionHandler {
+func NewConvertHandler(mangaUC *usecases.MangaTransactionUC, epubUC *usecases.EpubTransactionUC, remoteUC *usecases.RemoteTransactionUC) *TransactionHandler {
 	wd, err := os.Getwd()
 	if err != nil {
 		log.Fatal(err)
@@ -51,6 +52,7 @@ func NewConvertHandler(mangaUC *usecases.MangaTransactionUC, epubUC *usecases.Ep
 		mangaUC:  mangaUC,
 		epubUC:   epubUC,
 		decoder:  decoder,
+		remoteUC: remoteUC,
 	}
 }
 
@@ -60,44 +62,14 @@ var filenamesFilter = filter.Use(
 )
 
 func (ch *TransactionHandler) HandleConvert(r *http.Request) (any, error) {
+	modeQuery := r.URL.Query().Get("remote")
+	remoteMode := false
+	if modeQuery == "true" {
+		remoteMode = true
+	}
+
 	if err := r.ParseMultipartForm(250 << 20); err != nil {
 		return nil, err
-	}
-
-	files, err := GetFormFiles(r, "files")
-	if err != nil {
-		return nil, err
-	}
-
-	filenames := make([]string, 0, len(files))
-	for _, file := range files {
-		if decodedName, err := url.QueryUnescape(file.Filename); err == nil {
-			file.Filename = decodedName
-		}
-		filenames = append(filenames, file.Filename)
-	}
-
-	pass, ext := filenamesFilter.Filter(filenames)
-	if !pass {
-		return nil, requtil.New(400, "All files must have same format")
-	}
-
-	ctxId := uid.GetRandomID(6)
-	tempSavePath := filepath.Join(ch.basePath, "tmp", ctxId)
-	defer os.RemoveAll(tempSavePath)
-
-	_, children, err := saveConvertFiles(ext, files, tempSavePath)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(children) == 0 {
-		return nil, requtil.New(400, "No files attached")
-	}
-
-	pass, ext = filenamesFilter.Filter(children)
-	if !pass {
-		return nil, requtil.New(400, "All files must have same format")
 	}
 
 	var reqDTO dto.TransactionConfigRequest
@@ -128,6 +100,20 @@ func (ch *TransactionHandler) HandleConvert(r *http.Request) (any, error) {
 		ProfileData: profile,
 	}
 
+	if remoteMode {
+		var md5s []string
+		if reqDTO.Md5s == "" {
+			return nil, fmt.Errorf("No MD5s specified")
+		}
+		md5s = strings.Split(reqDTO.Md5s, ",")
+		return ch.handleRemoteTransaction(md5s, config)
+	}
+
+	children, ext, err := ch.getFilesToProcess(r)
+	if err != nil {
+		return nil, err
+	}
+
 	switch ext {
 	case ".zip":
 		return nil, requtil.New(400, "Do not send nested zip files")
@@ -139,6 +125,83 @@ func (ch *TransactionHandler) HandleConvert(r *http.Request) (any, error) {
 	default:
 		return nil, requtil.New(400, fmt.Sprintf("File format not suported %s", ext))
 	}
+}
+
+func (ch *TransactionHandler) getFilesToProcess(r *http.Request) ([]string, string, error) {
+	files, err := GetFormFiles(r, "files")
+	if err != nil {
+		return nil, "", err
+	}
+
+	filenames := make([]string, 0, len(files))
+	for _, file := range files {
+		if decodedName, err := url.QueryUnescape(file.Filename); err == nil {
+			file.Filename = decodedName
+		}
+		filenames = append(filenames, file.Filename)
+	}
+
+	pass, ext := filenamesFilter.Filter(filenames)
+	if !pass {
+		return nil, "", requtil.New(400, "All files must have same format")
+	}
+
+	ctxId := uid.GetRandomID(6)
+	tempSavePath := filepath.Join(ch.basePath, "tmp", ctxId)
+	defer os.RemoveAll(tempSavePath)
+
+	_, children, err := saveConvertFiles(ext, files, tempSavePath)
+	if err != nil {
+		return nil, "", err
+	}
+
+	if len(children) == 0 {
+		return nil, "", requtil.New(400, "No files attached")
+	}
+
+	pass, ext = filenamesFilter.Filter(children)
+	if !pass {
+		return nil, "", requtil.New(400, "All files must have same format")
+	}
+
+	return children, ext, nil
+}
+
+func (ch *TransactionHandler) handleRemoteTransaction(md5s []string, config *convert.TransactionConfig) (any, error) {
+	type TransactionInfo struct {
+		md5     string
+		config  *convert.TransactionConfig
+		dstPath string
+	}
+
+	responses := make([]dto.TransactionResponse, 0, len(md5s))
+	transactions := make([]TransactionInfo, 0, len(md5s))
+
+	for _, md5 := range md5s {
+		id := uid.GetRandomID(6)
+		newConfig := config.WithId(id)
+
+		dstPath := filepath.Join(ch.basePath, id)
+		if err := os.MkdirAll(dstPath, os.ModePerm); err != nil {
+			return nil, err
+		}
+
+		transactions = append(transactions, TransactionInfo{
+			config:  newConfig,
+			md5:     md5,
+			dstPath: dstPath,
+		})
+
+		responses = append(responses, dto.TransactionResponse{Id: id, Filename: md5})
+	}
+
+	go func() {
+		for _, tran := range transactions {
+			ch.remoteUC.Execute(tran.md5, tran.config, tran.dstPath)
+		}
+	}()
+
+	return responses, nil
 }
 
 func (ch *TransactionHandler) handleEpubTransaction(files []string, config *convert.TransactionConfig) (any, error) {

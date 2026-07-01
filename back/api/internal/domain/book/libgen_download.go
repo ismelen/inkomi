@@ -7,4 +7,6 @@ type LibgenDownload struct {
 	ContentType   string
 	ContentLength int64
 	Filename      string
+	Title         string
+	Ext           string
 }

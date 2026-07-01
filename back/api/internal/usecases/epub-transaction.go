@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"ismelen/inkomi/internal/domain/convert"
+	"ismelen/inkomi/internal/infra/cloud"
 	"os"
 	"path/filepath"
 
@@ -14,18 +15,15 @@ import (
 type EpubTransactionUC struct {
 	pushNotifier convert.PushNotifier
 	tranStore    convert.TransactionStore
-	cloudStorage convert.CloudStorage
 }
 
 func NewEpubTransactionUC(
 	pushNotifier convert.PushNotifier,
 	tranStore convert.TransactionStore,
-	cloudStorage convert.CloudStorage,
 ) *EpubTransactionUC {
 	return &EpubTransactionUC{
 		pushNotifier: pushNotifier,
 		tranStore:    tranStore,
-		cloudStorage: cloudStorage,
 	}
 }
 
@@ -52,9 +50,11 @@ func (e *EpubTransactionUC) Execute(src string, config *convert.TransactionConfi
 
 	tran.SetResultPath(src)
 
-	if config.Cloud && e.cloudStorage != nil {
+	if config.Cloud {
 		e.pushNotifier.Send(config.NotifyToken, "Success", fmt.Sprintf("Sending %s to cloud", filepath.Base(src)))
-		if err := e.cloudStorage.Upload(src); err != nil {
+		cld, _ := cloud.NewDropboxCloud(config.CloudToken, config.CloudFolder)
+
+		if err := cld.Upload(src); err != nil {
 			e.pushNotifier.Send(config.NotifyToken, "Error", fmt.Sprintf("Cannot send %s to cloud", filepath.Base(src)))
 			tran.SetError(err)
 			return

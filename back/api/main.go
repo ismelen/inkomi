@@ -2,10 +2,8 @@ package main
 
 import (
 	"context"
-	"ismelen/inkomi/internal/domain/convert"
 	"ismelen/inkomi/internal/infra/api/handlers"
 	"ismelen/inkomi/internal/infra/api/routes"
-	"ismelen/inkomi/internal/infra/cloud"
 	"ismelen/inkomi/internal/infra/epub"
 	infraImage "ismelen/inkomi/internal/infra/image"
 	"ismelen/inkomi/internal/infra/libgen"
@@ -14,7 +12,6 @@ import (
 	"ismelen/inkomi/internal/usecases"
 	"log"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -49,24 +46,16 @@ func main() {
 
 	tranStore := store.GetManager()
 
-	var cloudStorage convert.CloudStorage
-	if token := os.Getenv("DROPBOX_TOKEN"); token != "" {
-		if folder := os.Getenv("DROPBOX_FOLDER"); folder != "" {
-			if c, err := cloud.NewDropboxCloud(token, folder); err == nil {
-				cloudStorage = c
-			}
-		}
-	}
-
 	imgProcessor := infraImage.NewPageProcessor()
 	bookBuilder := epub.New()
 
 	// — Usecases —
-	epubUC := usecases.NewEpubTransactionUC(pushNotifier, tranStore, cloudStorage)
-	mangaUC := usecases.NewMangaTransactionUC(pushNotifier, tranStore, cloudStorage, bookBuilder, imgProcessor)
+	epubUC := usecases.NewEpubTransactionUC(pushNotifier, tranStore)
+	mangaUC := usecases.NewMangaTransactionUC(pushNotifier, tranStore, bookBuilder, imgProcessor)
+	remoteUC := usecases.NewRemoteTransactionUC(pushNotifier, tranStore, libgenServ)
 
 	// — Handlers & Routes —
-	convertHandler := handlers.NewConvertHandler(mangaUC, epubUC)
+	convertHandler := handlers.NewConvertHandler(mangaUC, epubUC, remoteUC)
 	routes.SetupConvertRoutes(api, convertHandler)
 
 	libgenHandler := handlers.NewLibgenHandler(libgenServ)

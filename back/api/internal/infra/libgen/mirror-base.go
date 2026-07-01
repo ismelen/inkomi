@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"ismelen/inkomi/internal/domain/book"
-	"ismelen/inkomi/internal/shared/strutil"
 	"net/http"
 	"path/filepath"
 	"regexp"
@@ -77,13 +76,15 @@ func (m MirrorBase) Download(md5 string) (*book.LibgenDownload, error) {
 		return nil, fmt.Errorf("'%s' download failed", data.title)
 	}
 
-	filename := filepath.Clean(strutil.NormalizeString(data.title) + "." + data.extension)
+	filename := filepath.Clean(data.title + "." + data.extension)
 
 	return &book.LibgenDownload{
 		Stream:        resp.Body,
 		ContentType:   resp.Header.Get("Content-Type"),
 		ContentLength: resp.ContentLength,
 		Filename:      filename,
+		Title:         data.title,
+		Ext:           data.extension,
 	}, nil
 }
 

@@ -10,4 +10,5 @@ type TransactionConfigRequest struct {
 	CloudToken  string `form:"cloud_token"`
 	CloudFolder string `form:"cloud_folder"`
 	NotifyToken string `form:"notify_token"`
+	Md5s        string `form:"md5s"`
 }
