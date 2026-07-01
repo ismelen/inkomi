@@ -7,6 +7,7 @@ interface State {
   selected: Record<string, LibgenBook>;
 
   selectBook(book: LibgenBook): void;
+  clear(): void;
 }
 
 export const useLibgen = create<State>((set, get) => ({
@@ -21,6 +22,10 @@ export const useLibgen = create<State>((set, get) => ({
 
     if (!resp.ok || resp.status !== 200) return;
     return await resp.json();
+  },
+
+  clear() {
+    set({ selected: {} });
   },
 
   selectBook(book: LibgenBook) {

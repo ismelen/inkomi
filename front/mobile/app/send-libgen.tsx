@@ -33,10 +33,11 @@ export default function SendLibgen() {
     books: [],
   });
 
-  const { selectedBooks, onDelete } = useLibgen(
+  const { selectedBooks, onDelete, clear } = useLibgen(
     useShallow((s) => ({
       selectedBooks: s.selected,
       onDelete: s.selectBook,
+      clear: s.clear,
     }))
   );
 
@@ -92,8 +93,11 @@ export default function SendLibgen() {
             req.books = Object.values(selectedBooks);
             if (req.books.length === 0) return;
 
-            const done = await send(req);
-            if (done) router.navigate('/(tabs)/queue');
+            const done = await send(req, true);
+            if (done) {
+              clear();
+              router.navigate('/(tabs)/queue');
+            }
           }}
           style={{
             backgroundColor: colors.primary_container,

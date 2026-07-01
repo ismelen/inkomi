@@ -95,20 +95,20 @@ export const useQueue = create<State>((set, get) => ({
       return true; // completado, detener el intervalo
     }
 
-    set((s) => ({ transactions: [...s.transactions] }));
     return false;
   },
 
   async send(req: TransactionRequest, libgenMode?: boolean): Promise<boolean> {
-    if (req.mode === 'no-select') return false;
-    if (req.sources.length === 0) return false;
-    if (req.mode === 'folder' && (req.sources[0].children?.length ?? 0) === 0) return false;
-
+    if (!(libgenMode ?? false)) {
+      if (req.mode === 'no-select') return false;
+      if (req.sources.length === 0) return false;
+      if (req.mode === 'folder' && (req.sources[0].children?.length ?? 0) === 0) return false;
+    }
     const form = new FormData();
 
     if (libgenMode ?? false) {
       const books = (req as LibgenTransactionRequest).books;
-      form.append('md5', books.map((e) => e.md5).join(','));
+      form.append('md5s', books.map((e) => e.md5).join(','));
     } else {
       let files: Source[] = [];
       if (req.mode === 'files') {
@@ -168,6 +168,7 @@ export const useQueue = create<State>((set, get) => ({
           if (resp.status !== 200) {
             const json = await resp.json();
             alert(json.error);
+            return;
           }
 
           const data: QueueElement[] = await resp.json();
@@ -175,6 +176,13 @@ export const useQueue = create<State>((set, get) => ({
             e.destination = req.destination;
             e.timestamp = Date.now();
           });
+
+          if (libgenMode) {
+            const books = (req as LibgenTransactionRequest).books;
+            data.forEach((e) => {
+              e.title = books.find((b) => b.md5 === e.filename)?.title ?? e.filename;
+            });
+          }
 
           set((s) => ({ transactions: [...s.transactions, ...data] }));
           StorageService.SetAsync(TRANSACTIONS_KEY, get().transactions);

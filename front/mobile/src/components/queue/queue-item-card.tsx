@@ -27,8 +27,8 @@ export default function QueueItemCard({ data, idx, autoCheck = false }: Props) {
       if (done) clearInterval(intervalRef.current);
     };
 
-    run();
     intervalRef.current = setInterval(run, 2000);
+    run(); // primera ejecución inmediata, pero el ref ya está asignado
 
     return () => clearInterval(intervalRef.current);
   }, [autoCheck, data.id]);

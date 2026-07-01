@@ -5,6 +5,7 @@ import { colors, hexToRgba } from '../../theme/colors';
 import SText from '../shared/SText';
 import SButton from '../shared/SButton';
 import SIcon from '../icons/SIcon';
+import { LibgenTransactionRequest } from '../../models/libgen-transaction-request';
 
 interface Props {
   data: Upload;
@@ -12,8 +13,20 @@ interface Props {
 }
 
 export default function UploadCard({ data, onRetry }: Props) {
-  const sources =
-    data.request.mode === 'files' ? data.request.sources : (data.request.sources[0].children ?? []);
+  let titles: string[] = [];
+
+  if (!data.libgenMode) {
+    titles = (
+      data.request.mode === 'files'
+        ? data.request.sources
+        : (data.request.sources[0].children ?? [])
+    ).map((e) => e.name);
+  } else {
+    const req = data.request as LibgenTransactionRequest;
+    titles = req.books.map((e) => e.title);
+  }
+
+  const source = titles.slice(0, 3).join(', ');
 
   return (
     <SButton
@@ -30,10 +43,7 @@ export default function UploadCard({ data, onRetry }: Props) {
       }}
     >
       <SText style={{ flexShrink: 1, fontSize: 16 }} numberOfLines={2} ellipsizeMode="tail">
-        {sources
-          .slice(0, 3)
-          .map((e) => e.name)
-          .join(', ')}
+        {source}
       </SText>
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginTop: 3, gap: 10 }}>
         <View style={{ flex: 1 }}>
