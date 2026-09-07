@@ -69,6 +69,7 @@ export function CardHeader({ data }: { data: Transaction }) {
         <SText style={s.meta}>
           {new Date(data.timestamp * 1000).toLocaleString(undefined, {
             day: 'numeric',
+            month: 'short',
             hour: '2-digit',
             minute: '2-digit',
           })}

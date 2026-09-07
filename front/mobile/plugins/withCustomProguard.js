@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 const customProguardRules = `
+
 # --- REGLAS INYECTADAS POR EXPO PLUGIN ---
 
 -keep class com.facebook.react.** { *; }
@@ -51,3 +52,4 @@ module.exports = function withCustomProguard(config) {
     },
   ]);
 };
+
