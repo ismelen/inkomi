@@ -123,6 +123,8 @@ export default function RootLayout() {
     }
   }, [fontsLoaded]);
 
+  const showAuthError = useCloud((s) => s.showAuthError);
+
   if (!fontsLoaded) {
     return null;
   }
@@ -140,7 +142,7 @@ export default function RootLayout() {
       />
       <DropboxFolderPickerModal />
       <SConfirmDialog
-        visible={useCloud((s) => s.showAuthError)}
+        visible={showAuthError}
         title={t('error.auth_failed_title', 'Authentication Error')}
         message={t(
           'error.auth_failed_message',
