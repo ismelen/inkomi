@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { StyleSheet, View, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SText from '../src/components/shared/SText';
 import { Stack, usePathname } from 'expo-router';
 import { colors } from '../src/theme/colors';
@@ -18,6 +19,7 @@ import SConfirmDialog from '../src/components/shared/SConfirmDialog';
 import { useShallow } from 'zustand/react/shallow';
 
 export default function SendBookPage() {
+  const insets = useSafeAreaInsets();
   const [showConfirm, setShowConfirm] = useState(false);
   const {
     sending,
@@ -123,7 +125,9 @@ export default function SendBookPage() {
         disabled={isSendDisabled}
         style={{
           backgroundColor: isSendDisabled ? colors.surface_variant : colors.primary_container,
-          margin: 24,
+          marginTop: 0,
+          marginHorizontal: 24,
+          marginBottom: 24 + insets.bottom,
           paddingVertical: 12,
           alignItems: 'center',
           justifyContent: 'center',

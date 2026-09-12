@@ -1,5 +1,6 @@
 import React from 'react';
 import { Modal, View, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useVersionChecker } from '../../hooks/useVersionhecker';
 import { useShallow } from 'zustand/react/shallow';
 import { colors, hexToRgba } from '../../theme/colors';
@@ -7,6 +8,7 @@ import SButton from '../shared/SButton';
 import SText from '../shared/SText';
 
 export default function NewVersionModal() {
+  const insets = useSafeAreaInsets();
   const { install, show } = useVersionChecker(
     useShallow((s) => ({
       install: s.installNewVersion,
@@ -16,7 +18,9 @@ export default function NewVersionModal() {
 
   return (
     <Modal transparent={true} visible={show} animationType="fade">
-      <View style={styles.overlay}>
+      <View
+        style={[styles.overlay, { paddingTop: 24 + insets.top, paddingBottom: 24 + insets.bottom }]}
+      >
         <View style={styles.modalContainer}>
           <SText style={styles.title}>Nueva versión disponible</SText>
           <SText style={styles.message}>

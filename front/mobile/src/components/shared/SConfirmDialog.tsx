@@ -1,5 +1,6 @@
 import React from 'react';
 import { Modal, View, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, hexToRgba } from '../../theme/colors';
 import SButton from './SButton';
 import SText from './SText';
@@ -23,9 +24,13 @@ export default function SConfirmDialog({
   confirmText = 'OK',
   cancelText = 'Cancel',
 }: Props) {
+  const insets = useSafeAreaInsets();
+
   return (
     <Modal transparent={true} visible={visible} animationType="fade" onRequestClose={onCancel}>
-      <View style={styles.overlay}>
+      <View
+        style={[styles.overlay, { paddingTop: 24 + insets.top, paddingBottom: 24 + insets.bottom }]}
+      >
         <View style={styles.modalContainer}>
           <SText style={styles.title}>{title}</SText>
           <SText style={styles.message}>{message}</SText>

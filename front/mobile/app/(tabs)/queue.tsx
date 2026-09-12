@@ -1,5 +1,6 @@
 import { useShallow } from 'zustand/react/shallow';
 import { StyleSheet, View, SectionList, ActivityIndicator } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueue } from '../../src/hooks/useQueue';
 import SIcon from '../../src/components/icons/SIcon';
 import { colors } from '../../src/theme/colors';
@@ -12,6 +13,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Transaction } from '../../src/models/transaction';
 
 export default function QueuePage() {
+  const insets = useSafeAreaInsets();
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
@@ -134,7 +136,7 @@ export default function QueuePage() {
           </SText>
         )}
         ListEmptyComponent={renderEmpty}
-        contentContainerStyle={{ gap: 10, paddingBottom: 16 }}
+        contentContainerStyle={{ gap: 10, paddingBottom: 16 + insets.bottom }}
         showsVerticalScrollIndicator={false}
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}

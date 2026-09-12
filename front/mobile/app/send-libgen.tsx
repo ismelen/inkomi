@@ -3,6 +3,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { colors } from '../src/theme/colors';
 import SIcon from '../src/components/icons/SIcon';
 import { StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SText from '../src/components/shared/SText';
 import SSelect from '../src/components/shared/SSelect';
 import { eReaderProfiles } from '../src/constants';
@@ -19,6 +20,7 @@ import { useCloud } from '../src/hooks/useCloud';
 import SConfirmDialog from '../src/components/shared/SConfirmDialog';
 
 export default function SendLibgen() {
+  const insets = useSafeAreaInsets();
   const { sending, config, setConfig, send, clear: clearSender } = useSender('md5');
   const { t } = useTranslation();
   const { oauth, folder, showAuthConfirm, resolveAuthConfirm } = useCloud(
@@ -74,8 +76,8 @@ export default function SendLibgen() {
           ),
         }}
       />
-      <View style={{ flex: 1, paddingBottom: 24, paddingHorizontal: 24 }}>
-        <ScrollView style={{ flex: 1, gap: 32 }}>
+      <View style={{ flex: 1, paddingBottom: 24 + insets.bottom }}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 24, gap: 32 }}>
           <View style={styles.section}>
             <SText style={styles.title}>{t('sendLibgen.books')}</SText>
             {Object.values(selectedBooks).map((e) => (
@@ -116,6 +118,7 @@ export default function SendLibgen() {
           disabled={isSendDisabled}
           style={{
             backgroundColor: isSendDisabled ? colors.surface_variant : colors.primary_container,
+            marginHorizontal: 24,
             paddingVertical: 12,
             alignItems: 'center',
             justifyContent: 'center',

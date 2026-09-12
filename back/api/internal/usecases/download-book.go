@@ -17,7 +17,7 @@ func NewDownloadBookUC(provider book.BooksProvider) *DownloadBookUC {
 
 func (d *DownloadBookUC) Execute(md5 string, retries int) (*book.LibgenDownload, error) {
 	if retries <= 0 {
-		return nil, fmt.Errorf("download failed after %d retries, no working mirror", retries)
+		return nil, fmt.Errorf("download failed, no working mirror")
 	}
 
 	mirror, ok := d.provider.GetMirror()
@@ -27,7 +27,9 @@ func (d *DownloadBookUC) Execute(md5 string, retries int) (*book.LibgenDownload,
 
 	resp, err := mirror.Download(md5)
 	if err != nil {
-		// d.refreshMirror()
+		if updated := d.provider.Refresh(); !updated {
+			return nil, fmt.Errorf("no working mirrors")
+		}
 		return d.Execute(md5, retries-1)
 	}
 

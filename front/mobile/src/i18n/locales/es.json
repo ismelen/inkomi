@@ -140,5 +140,11 @@
   "error": {
     "auth_failed_title": "Error de autenticación",
     "auth_failed_message": "Tu sesión ha expirado o el token es inválido. Por favor, vuelve a iniciar sesión en Dropbox para continuar."
+  },
+  "tabs": {
+    "home": "Inicio",
+    "queue": "Cola",
+    "search": "Buscar",
+    "settings": "Ajustes"
   }
 }

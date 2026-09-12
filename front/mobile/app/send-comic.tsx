@@ -1,6 +1,7 @@
 import { Stack, usePathname } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../src/theme/colors';
 import SText from '../src/components/shared/SText';
 import SourceSelector from '../src/components/senders/source-selector';
@@ -19,6 +20,7 @@ import SConfirmDialog from '../src/components/shared/SConfirmDialog';
 import { useShallow } from 'zustand/react/shallow';
 
 export default function SendComicPage() {
+  const insets = useSafeAreaInsets();
   const [showConfirm, setShowConfirm] = useState(false);
   const {
     sending,
@@ -151,7 +153,9 @@ export default function SendComicPage() {
         disabled={isSendDisabled}
         style={{
           backgroundColor: isSendDisabled ? colors.surface_variant : colors.primary_container,
-          margin: 24,
+          marginTop: 0,
+          marginHorizontal: 24,
+          marginBottom: 24 + insets.bottom,
           paddingVertical: 12,
           alignItems: 'center',
           justifyContent: 'center',

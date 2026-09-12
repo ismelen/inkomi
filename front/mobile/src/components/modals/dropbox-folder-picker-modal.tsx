@@ -10,6 +10,7 @@ import {
   View,
   ActivityIndicator,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCloud } from '../../hooks/useCloud';
 import { usePathname } from 'expo-router';
 import { colors } from '../../theme/colors';
@@ -18,7 +19,6 @@ import SButton from '../shared/SButton';
 import SIcon from '../icons/SIcon';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
-const DRAWER_HEIGHT = SCREEN_HEIGHT * 0.85;
 
 interface DropboxFolder {
   id: string;
@@ -28,6 +28,8 @@ interface DropboxFolder {
 }
 
 export function DropboxFolderPickerModal() {
+  const insets = useSafeAreaInsets();
+  const DRAWER_HEIGHT = SCREEN_HEIGHT * 0.85 - insets.top;
   const pathname = usePathname();
   const showDialog = useCloud((s) => s.showDialog);
   const onFolderSelect = useCloud((s) => s.onFolderSelect);
@@ -140,7 +142,9 @@ export function DropboxFolderPickerModal() {
         <Pressable style={StyleSheet.absoluteFill} onPress={close} />
       </Animated.View>
 
-      <Animated.View style={[styles.drawer, { transform: [{ translateY }] }]}>
+      <Animated.View
+        style={[styles.drawer, { height: DRAWER_HEIGHT, transform: [{ translateY }] }]}
+      >
         <View style={styles.handle} />
 
         <View style={styles.header}>
@@ -212,7 +216,7 @@ export function DropboxFolderPickerModal() {
           )}
         </View>
 
-        <View style={styles.bottomBar}>
+        <View style={[styles.bottomBar, { paddingBottom: 20 + insets.bottom }]}>
           <SButton
             onPress={handleSelectCurrent}
             style={[
@@ -254,7 +258,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: DRAWER_HEIGHT,
     backgroundColor: colors.surface_container_lowest,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,

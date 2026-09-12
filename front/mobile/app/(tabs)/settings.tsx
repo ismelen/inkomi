@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { StyleSheet, View, ActivityIndicator } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SText from '../../src/components/shared/SText';
 import { colors } from '../../src/theme/colors';
 import SSelect from '../../src/components/shared/SSelect';
@@ -22,6 +23,7 @@ const languageOptions: { value: SupportedLanguage; label: string }[] = [
 ];
 
 export default function SettingsPage() {
+  const insets = useSafeAreaInsets();
   const pathname = usePathname();
   const { t, i18n } = useTranslation();
 
@@ -46,7 +48,10 @@ export default function SettingsPage() {
 
   return (
     <>
-      <ScrollView style={{ flex: 1, paddingHorizontal: 24 }}>
+      <ScrollView
+        style={{ flex: 1, paddingHorizontal: 24 }}
+        contentContainerStyle={{ paddingBottom: 24 + insets.bottom }}
+      >
         <SText style={{ fontFamily: 'bold', fontSize: 28 }}>{t('settings.title')}</SText>
         <View style={{ marginTop: 14, gap: 4 }}>
           <SText style={styles.title}>{t('settings.readerModel')}</SText>

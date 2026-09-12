@@ -3,9 +3,11 @@ import React from 'react';
 import { colors } from '../../src/theme/colors';
 import SIcon from '../../src/components/icons/SIcon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
 
   return (
     <Tabs
@@ -57,7 +59,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
+          title: t('tabs.home'),
           tabBarIcon: ({ color, size, focused }) => (
             <SIcon color={color} size={size} name="home" type={focused ? 'filled' : 'outlined'} />
           ),
@@ -66,7 +68,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="queue"
         options={{
-          title: 'Queue',
+          title: t('tabs.queue'),
           tabBarIcon: ({ color, size, focused }) => (
             <SIcon
               color={color}
@@ -80,7 +82,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="search"
         options={{
-          title: 'Search',
+          title: t('tabs.search'),
           tabBarIcon: ({ color, size }) => (
             <SIcon color={color} size={size} name="search" type="outlined" />
           ),
@@ -89,7 +91,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="settings"
         options={{
-          title: 'Settings',
+          title: t('tabs.settings'),
           tabBarIcon: ({ color, size, focused }) => (
             <SIcon
               color={color}

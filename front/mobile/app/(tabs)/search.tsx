@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SText from '../../src/components/shared/SText';
 import { colors, hexToRgba } from '../../src/theme/colors';
 import { ScrollView } from 'react-native-gesture-handler';
@@ -16,6 +17,7 @@ import { useTranslation } from 'react-i18next';
 import { BACKEND_API_URL } from '../../src/constants';
 
 export default function Search() {
+  const insets = useSafeAreaInsets();
   const { search, selectBook, selectedBooks } = useLibgen(
     useShallow((s) => ({
       search: s.search,
@@ -100,7 +102,11 @@ export default function Search() {
           </SButton>
         </View>
       </View>
-      <ScrollView style={{ paddingHorizontal: 24, marginTop: 10 }} bounces>
+      <ScrollView
+        style={{ paddingHorizontal: 24, marginTop: 10 }}
+        contentContainerStyle={{ paddingBottom: 80 + insets.bottom }}
+        bounces
+      >
         {isSearching
           ? Array.from({ length: 3 }).map((_, i) => <SearchedBookCardSkeleton key={i} />)
           : results.map((e) => (
@@ -118,7 +124,7 @@ export default function Search() {
           onPress={() => router.navigate('/send-libgen')}
           style={{
             position: 'absolute',
-            bottom: 20,
+            bottom: 20 + insets.bottom,
             right: 20,
             left: 20,
             backgroundColor: colors.primary_container,
