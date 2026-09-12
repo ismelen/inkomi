@@ -37,7 +37,8 @@ export default function TabsLayout() {
         tabBarStyle: {
           alignItems: 'center',
           justifyContent: 'space-evenly',
-          height: 70,
+          height: 70 + insets.bottom,
+          paddingBottom: insets.bottom,
           backgroundColor: colors.background,
           borderTopWidth: 0,
           elevation: 0,

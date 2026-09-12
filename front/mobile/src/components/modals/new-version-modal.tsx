@@ -7,31 +7,23 @@ import SButton from '../shared/SButton';
 import SText from '../shared/SText';
 
 export default function NewVersionModal() {
-  const { hide, install, show } = useVersionChecker(
+  const { install, show } = useVersionChecker(
     useShallow((s) => ({
-      hide: s.hideDialog,
       install: s.installNewVersion,
       show: s.showDialog,
     }))
   );
 
   return (
-    <Modal
-      transparent={true}
-      visible={show}
-      animationType="fade"
-      onRequestClose={hide}
-    >
+    <Modal transparent={true} visible={show} animationType="fade">
       <View style={styles.overlay}>
         <View style={styles.modalContainer}>
           <SText style={styles.title}>Nueva versión disponible</SText>
           <SText style={styles.message}>
-            Hay una nueva versión de la aplicación. Por favor, actualiza para disfrutar de las últimas mejoras y correcciones.
+            Hay una nueva versión de la aplicación. Por favor, actualiza para disfrutar de las
+            últimas mejoras y correcciones.
           </SText>
           <View style={styles.buttonContainer}>
-            <SButton style={styles.cancelButton} onPress={hide}>
-              <SText style={styles.cancelButtonText}>Más tarde</SText>
-            </SButton>
             <SButton style={styles.installButton} onPress={install}>
               <SText style={styles.installButtonText}>Instalar</SText>
             </SButton>

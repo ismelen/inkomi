@@ -14,6 +14,7 @@ import {
 import { TRANSACTIONS_KEY, useQueue } from '../src/hooks/useQueue';
 import { useCloud } from '../src/hooks/useCloud';
 import { DropboxFolderPickerModal } from '../src/components/modals/dropbox-folder-picker-modal';
+import NewVersionModal from '../src/components/modals/new-version-modal';
 import { useSettings } from '../src/hooks/useSettings';
 import { useMonitoredFolders } from '../src/hooks/useMonitoredFolders';
 import {
@@ -139,6 +140,7 @@ export default function RootLayout() {
         }}
       />
       <DropboxFolderPickerModal />
+      <NewVersionModal />
       <SConfirmDialog
         visible={useCloud((s) => s.showAuthError)}
         title={t('error.auth_failed_title', 'Authentication Error')}
