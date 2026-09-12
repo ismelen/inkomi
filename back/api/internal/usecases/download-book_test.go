@@ -36,7 +36,7 @@ func TestDownloadBookUC_Execute_ZeroRetries_Error(t *testing.T) {
 
 	// Act
 	result, err := uc.Execute("abc123", 0)
-	
+
 	// Assert
 	require.Error(t, err)
 	assert.Nil(t, result)
@@ -50,7 +50,7 @@ func TestDownloadBookUC_Execute_NoMirror_Error(t *testing.T) {
 
 	// Act
 	_, err := uc.Execute("abc123", 3)
-	
+
 	// Assert
 	require.Error(t, err)
 	assert.Contains(t, strings.ToLower(err.Error()), "mirror")
@@ -65,7 +65,7 @@ func TestDownloadBookUC_Execute_Normal_Success(t *testing.T) {
 
 	// Act
 	result, err := uc.Execute("abc123", 3)
-	
+
 	// Assert
 	require.NoError(t, err)
 	require.NotNil(t, result)
@@ -81,14 +81,35 @@ func TestDownloadBookUC_Execute_RetriesAndSucceeds_ShouldSucceed(t *testing.T) {
 	src.DownloadResult = makeDownload()
 	src.WithDownloadFailN(2)
 
-	uc, _ := newDownloadUC(true, src)
+	uc, prov := newDownloadUC(true, src)
+	prov.RefreshResult = true // Refresh devuelve updated=true para que el retry continúe
 
 	// Act
 	result, err := uc.Execute("abc123", 3)
-	
+
 	// Assert
 	require.NoError(t, err)
 	assert.NotNil(t, result)
+}
+
+func TestDownloadBookUC_Execute_NoWorkingMirrors_ShouldError(t *testing.T) {
+	t.Parallel()
+	// Arrange
+	downloadErr := errors.New("always fails")
+	src := mocks.NewBooksSourceMock("http://test.example")
+	src.DownloadErr = downloadErr
+	src.WithDownloadFailN(999) // always fail
+
+	uc, prov := newDownloadUC(true, src)
+	prov.RefreshResult = false // Refresh devuelve updated=false → "no working mirrors"
+
+	// Act
+	result, err := uc.Execute("abc123", 2)
+
+	// Assert
+	require.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "no working mirrors")
 }
 
 func TestDownloadBookUC_Execute_ExhaustsRetries_ShouldError(t *testing.T) {
@@ -99,12 +120,14 @@ func TestDownloadBookUC_Execute_ExhaustsRetries_ShouldError(t *testing.T) {
 	src.DownloadErr = downloadErr
 	src.WithDownloadFailN(999) // always fail
 
-	uc, _ := newDownloadUC(true, src)
+	uc, prov := newDownloadUC(true, src)
+	prov.RefreshResult = true // Refresh ok, pero se agotan los reintentos
 
 	// Act
 	result, err := uc.Execute("abc123", 2)
-	
+
 	// Assert
 	require.Error(t, err)
 	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "no working mirror")
 }
