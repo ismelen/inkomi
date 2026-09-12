@@ -6,7 +6,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { colors } from '../../theme/colors';
 import { Transaction } from '../../models/transaction';
 import { useQueue } from '../../hooks/useQueue';
-import SButton from '../shared/SButton';
+
 import SText from '../shared/SText';
 
 import { CardHeader } from './card-header';
@@ -89,7 +89,7 @@ function QueueItemCard({ data, idx }: Props) {
     data.status === 'waiting' && data.uploads.some((u) => u.status === 'pending');
 
   return (
-    <SButton style={[s.card, isError && s.cardError]}>
+    <View style={[s.card, isError && s.cardError]}>
       {/* Header */}
       <CardHeader data={data} />
 
@@ -148,7 +148,7 @@ function QueueItemCard({ data, idx }: Props) {
 
       {/* Cancel button */}
       {isCancellable && <CancelButton onPress={() => cancel(idx)} />}
-    </SButton>
+    </View>
   );
 }
 

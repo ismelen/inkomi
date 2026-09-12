@@ -42,8 +42,8 @@ module.exports = function withApkSizeReduction(config) {
     }
 `;
       buildGradle = buildGradle.replace(
-        /androidResources\\s*\{\\s*ignoreAssetsPattern[^*]*\.*\s*end_of_block\s*\}/m,
-        `$&${splitsBlock}`
+        /androidResources\s*{\s*ignoreAssetsPattern\s*'[^']*'\s*}/m,
+        `$&\n${splitsBlock}`
       );
     }
 
@@ -53,3 +53,4 @@ module.exports = function withApkSizeReduction(config) {
 
   return config;
 };
+
