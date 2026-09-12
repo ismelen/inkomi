@@ -50,6 +50,7 @@ func (m MirrorBase) FetchURL(rawURL string, isDownload bool) (*http.Response, er
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
 	req.Header.Set("Accept", "text/html,application/xhtml+xml,*/*;q=0.8")
 	req.Header.Set("Accept-Language", "es-ES,es;q=0.9,en;q=0.8")
+	req.Header.Set("Referer", m.Url+"/")
 
 	if isDownload {
 		return downloadClient.Do(req)
@@ -149,34 +150,3 @@ func (m MirrorBase) GetBasicBookFromMD5(md5 string) (*basicBook, error) {
 
 	return book, nil
 }
-
-// func (l MirrorBase) Download(req book.LibgenDownloadRequest) (*book.LibgenDownloadResult, error) {
-// 	dlURL, err := l.resolveDownloadLink(req.DownloadURL)
-// 	if err != nil || dlURL == "" {
-// 		dlURL = req.DownloadURL
-// 	}
-
-// 	resp, err := l.FetchURL(dlURL, true)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	if resp.StatusCode != http.StatusOK {
-// 		resp.Body.Close()
-// 		return nil, fmt.Errorf("HTTP %d al descargar", resp.StatusCode)
-// 	}
-
-// 	ext := req.Extension
-// 	if ext == "" {
-// 		ext = "epub"
-// 	}
-// 	filename := sanitizeFilename(req.Title) + "." + strings.ToLower(ext)
-// 	filename = filepath.Clean(filename)
-
-// 	return &book.LibgenDownloadResult{
-// 		Stream:        resp.Body,
-// 		ContentType:   resp.Header.Get("Content-Type"),
-// 		ContentLength: resp.ContentLength,
-// 		Filename:      filename,
-// 	}, nil
-// }
