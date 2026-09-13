@@ -7,18 +7,83 @@ import (
 	"ismelen/inkomi/internal/domain/book"
 	"log"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 
 	"golang.org/x/sync/singleflight"
 )
 
-// stableTestMD5 is the MD5 of a well-known, stable LibGen book used to verify
-// that a mirror's /ads.php endpoint is actually serving real content and not a
-// default nginx page or a bot-protection wall.
-// "Clean Code" by Robert C. Martin — present in every LibGen snapshot.
-const stableTestMD5 = "2c0b9c1e7f0a1c1b5f4d3e2a6b8c9d0f"
+// mirrorProber is implemented by mirror types that expose a type-appropriate
+// probe endpoint for health-checking (PlusMirror → /index.php, ClassicMirror →
+// /search.php). This avoids relying on a specific book MD5 being present.
+type mirrorProber interface {
+	probeURL() string
+	probeCheck(body string) bool
+}
+
+// getFastestMirror races all candidates by probing their type-appropriate
+// search endpoint. The first mirror that responds with HTTP 200 and real LibGen
+// HTML (not nginx default, not a bot-protection wall) wins.
+func (s *SourceDiscoverer) getFastestMirror(mirrors []book.BooksSource) (book.BooksSource, bool) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	winner := make(chan book.BooksSource, 1)
+	var once sync.Once
+
+	client := &http.Client{
+		Timeout:   15 * time.Second,
+		Transport: baseTransport,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+
+	for _, m := range mirrors {
+		prober, ok := m.(mirrorProber)
+		if !ok {
+			continue
+		}
+
+		go func(m book.BooksSource, prober mirrorProber) {
+			req, err := http.NewRequestWithContext(ctx, "GET", prober.probeURL(), nil)
+			if err != nil {
+				return
+			}
+			req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+			req.Header.Set("Accept", "text/html,application/xhtml+xml,*/*;q=0.8")
+			req.Header.Set("Accept-Encoding", "identity")
+
+			resp, err := client.Do(req)
+			if err != nil {
+				return
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode != http.StatusOK {
+				return
+			}
+
+			limited, err := io.ReadAll(io.LimitReader(resp.Body, 8192))
+			if err != nil {
+				return
+			}
+
+			if !prober.probeCheck(string(limited)) {
+				return
+			}
+
+			once.Do(func() { winner <- m })
+		}(m, prober)
+	}
+
+	select {
+	case m := <-winner:
+		return m, true
+	case <-ctx.Done():
+		return nil, false
+	}
+}
 
 type SourceDiscoverer struct {
 	singleUpdater singleflight.Group
@@ -80,68 +145,4 @@ func (s *SourceDiscoverer) UpdateSource() book.BooksSource {
 	}
 
 	return mirror.(book.BooksSource)
-}
-
-// getFastestMirror races all candidates by probing their /ads.php endpoint
-// with a known stable MD5. The first mirror to respond with HTTP 200 and HTML
-// that contains real book data (not a default nginx page or bot-protection
-// wall) wins. This ensures that only mirrors with a fully functional download
-// pipeline are selected.
-func (s *SourceDiscoverer) getFastestMirror(mirrors []book.BooksSource) (book.BooksSource, bool) {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
-	winner := make(chan book.BooksSource, 1)
-	var once sync.Once
-
-	client := &http.Client{
-		Timeout:   15 * time.Second,
-		Transport: baseTransport,
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
-	}
-
-	for _, m := range mirrors {
-		go func(m book.BooksSource) {
-			probeURL := m.GetURL() + "/ads.php?md5=" + stableTestMD5
-			req, err := http.NewRequestWithContext(ctx, "GET", probeURL, nil)
-			if err != nil {
-				return
-			}
-			req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
-			req.Header.Set("Accept", "text/html,application/xhtml+xml,*/*;q=0.8")
-			req.Header.Set("Accept-Encoding", "identity")
-
-			resp, err := client.Do(req)
-			if err != nil {
-				return
-			}
-			defer resp.Body.Close()
-
-			if resp.StatusCode != http.StatusOK {
-				return
-			}
-
-			// Read a limited chunk to verify we got real book data,
-			// not the default nginx welcome page or a Cloudflare wall.
-			limited, err := io.ReadAll(io.LimitReader(resp.Body, 4096))
-			if err != nil {
-				return
-			}
-			body := string(limited)
-			if !strings.Contains(body, "Title:") && !strings.Contains(body, "<h2>GET</h2>") {
-				return
-			}
-
-			once.Do(func() { winner <- m })
-		}(m)
-	}
-
-	select {
-	case m := <-winner:
-		return m, true
-	case <-ctx.Done():
-		return nil, false
-	}
 }

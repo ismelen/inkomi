@@ -21,6 +21,17 @@ func NewPlusMirror(url string) PlusMirror {
 	return PlusMirror{MirrorBase{url}}
 }
 
+// probeURL returns the URL used by getFastestMirror to verify this mirror is
+// alive and serving real LibGen content. PlusMirror uses /index.php.
+func (p PlusMirror) probeURL() string {
+	return p.Url + "/index.php?req=dune&res=1&filesuns=all"
+}
+
+// probeCheck returns true if the response body looks like real LibGen HTML.
+func (p PlusMirror) probeCheck(body string) bool {
+	return strings.Contains(body, "Library Genesis") || strings.Contains(body, "tablelibgen")
+}
+
 var md5Re = regexp.MustCompile(`(?i)[0-9a-f]{32}`)
 
 func (p PlusMirror) Search(query string) ([]book.Book, error) {

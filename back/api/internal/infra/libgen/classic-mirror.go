@@ -22,6 +22,17 @@ func NewClassicMirror(url string) ClassicMirror {
 	return ClassicMirror{MirrorBase{url}}
 }
 
+// probeURL returns the URL used by getFastestMirror to verify this mirror is
+// alive and serving real LibGen content. ClassicMirror uses /search.php.
+func (c ClassicMirror) probeURL() string {
+	return c.Url + "/search.php?req=dune&res=1&view=simple"
+}
+
+// probeCheck returns true if the response body looks like real LibGen HTML.
+func (c ClassicMirror) probeCheck(body string) bool {
+	return strings.Contains(body, "Library Genesis") || strings.Contains(body, "table.c")
+}
+
 func (c ClassicMirror) Search(query string) ([]book.Book, error) {
 	ids, err := c.getIds(query)
 	if err != nil {
