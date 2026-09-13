@@ -41,7 +41,9 @@ var (
 	baseTransport = func() *http.Transport {
 		t := http.DefaultTransport.(*http.Transport).Clone()
 		t.ForceAttemptHTTP2 = false
-		t.TLSNextProto = make(map[string]func(string, *tls.Conn) http.RoundTripper)
+		t.TLSClientConfig = &tls.Config{
+			NextProtos: []string{"http/1.1"},
+		}
 		return t
 	}()
 
