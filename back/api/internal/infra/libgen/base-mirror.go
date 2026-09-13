@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"ismelen/inkomi/internal/domain/book"
+	"ismelen/inkomi/internal/shared/strutil"
 	"net/http"
 	"path/filepath"
 	"regexp"
@@ -41,6 +42,7 @@ var (
 	baseTransport = func() *http.Transport {
 		t := http.DefaultTransport.(*http.Transport).Clone()
 		t.ForceAttemptHTTP2 = false
+		t.DisableCompression = true
 		t.TLSClientConfig = &tls.Config{
 			NextProtos: []string{"http/1.1"},
 		}
@@ -66,6 +68,7 @@ func (m MirrorBase) FetchURL(rawURL string, isDownload bool) (*http.Response, er
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
 	req.Header.Set("Accept", "text/html,application/xhtml+xml,*/*;q=0.8")
 	req.Header.Set("Accept-Language", "es-ES,es;q=0.9,en;q=0.8")
+	req.Header.Set("Accept-Encoding", "identity")
 	req.Header.Set("Referer", m.Url+"/")
 
 	if isDownload {
@@ -93,7 +96,8 @@ func (m MirrorBase) Download(md5 string) (*book.LibgenDownload, error) {
 		return nil, fmt.Errorf("'%s' download failed", data.title)
 	}
 
-	filename := filepath.Clean(data.title + "." + data.extension)
+	safeTitle := strutil.SanitizeFilename(data.title)
+	filename := filepath.Clean(safeTitle + "." + data.extension)
 
 	return &book.LibgenDownload{
 		Stream:        resp.Body,
