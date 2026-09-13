@@ -1,79 +1,74 @@
 package libgen
 
 import (
-	"encoding/json"
 	"ismelen/inkomi/internal/domain/book"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/PuerkitoBio/goquery"
 )
 
-type slumResponse struct {
-	PublicGroupList []struct {
-		Name        string `json:"name"`
-		MonitorList []struct {
-			Name    string `json:"name"`
-			URL     string `json:"url"`
-			SendURL int    `json:"sendUrl"`
-		} `json:"monitorList"`
-	} `json:"publicGroupList"`
-}
+var slumURL = "https://open-slum.org/libgen.html"
 
-var fallbackMirrors = []book.BooksSource{
-	NewPlusMirror("https://libgen.bz"),
-	NewPlusMirror("https://libgen.la"),
-	NewPlusMirror("https://libgen.gl"),
-	NewPlusMirror("https://libgen.vg"),
-	NewClassicMirror("https://libgen.is"),
-	NewClassicMirror("https://libgen.st"),
-	NewClassicMirror("https://libgen.rs"),
-}
-
-var slumURL = "https://open-slum.org/api/status-page/slum"
-
+// getMirrors scrapes open-slum.org/libgen.html and returns all mirrors whose
+// current status badge is "up" (case-insensitive). Protected, degraded and
+// down mirrors are excluded. If the page cannot be fetched or no UP mirrors
+// are found, an empty slice is returned — no hardcoded fallback list.
 var getMirrors = func() []book.BooksSource {
-	client := &http.Client{Timeout: 8 * time.Second}
-	req, _ := http.NewRequest("GET", slumURL, nil)
-	req.Header.Set("User-Agent", "Mozilla/5.0")
+	client := &http.Client{Timeout: 10 * time.Second}
+	req, err := http.NewRequest("GET", slumURL, nil)
+	if err != nil {
+		return nil
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return fallbackMirrors
+		return nil
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil
 	}
 
-	var slum slumResponse
-	if err := json.NewDecoder(resp.Body).Decode(&slum); err != nil {
-		return fallbackMirrors
+	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	if err != nil {
+		return nil
 	}
 
 	var mirrors []book.BooksSource
-	for _, group := range slum.PublicGroupList {
-		if !strings.Contains(strings.ToLower(group.Name), "libgen") &&
-			!strings.Contains(strings.ToLower(group.Name), "library genesis") {
-			continue
+
+	// Each mirror is wrapped in a <div class="card" id="libgen.XX">.
+	// Inside it we find:
+	//   <a href="https://libgen.XX" class="card-title">  → the mirror URL
+	//   <span class="status-badge up|protected|degraded|down">  → current status
+	//
+	// We only include mirrors whose status-badge class list contains "up"
+	// (the badge has two classes: "status-badge" and the status itself).
+	doc.Find(".card").Each(func(_ int, card *goquery.Selection) {
+		status := strings.ToLower(strings.TrimSpace(card.Find(".status-badge").Last().Text()))
+		if status != "up" {
+			return
 		}
 
-		for _, m := range group.MonitorList {
-			if m.URL == "" || m.SendURL == 0 {
-				continue
-			}
-
-			base := strings.TrimRight(m.URL, "/")
-
-			var mirror book.BooksSource
-			if strings.Contains(m.Name, "+") {
-				mirror = NewPlusMirror(base)
-			} else {
-				mirror = NewClassicMirror(base)
-			}
-
-			mirrors = append(mirrors, mirror)
+		href, exists := card.Find("a.card-title").Attr("href")
+		if !exists || href == "" {
+			return
 		}
-	}
 
-	if len(mirrors) == 0 {
-		return fallbackMirrors
-	}
+		base := strings.TrimRight(href, "/")
+
+		// Determine mirror type by probing which search endpoint exists.
+		// Plus mirrors expose /index.php; classic mirrors expose /search.php.
+		// We defer this detection to SourceDiscoverer's health-check, so here
+		// we try Plus first (it's the more common modern variant) and fall back
+		// to Classic. Both are created and the discoverer will probe with a
+		// known MD5 to find which one actually works.
+		mirrors = append(mirrors, NewPlusMirror(base))
+		mirrors = append(mirrors, NewClassicMirror(base))
+	})
 
 	return mirrors
 }

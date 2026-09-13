@@ -3,12 +3,10 @@ package libgen
 import (
 	"crypto/tls"
 	"fmt"
-	"io"
 	"ismelen/inkomi/internal/domain/book"
 	"ismelen/inkomi/internal/shared/strutil"
 	"net/http"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
@@ -87,32 +85,21 @@ func (m MirrorBase) Download(md5 string) (*book.LibgenDownload, error) {
 		return nil, err
 	}
 
-	req, err := http.NewRequest(http.MethodGet, data.downloadUrl, nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
-	req.Header.Set("Accept", "text/html,application/xhtml+xml,*/*;q=0.8")
-	req.Header.Set("Accept-Language", "es-ES,es;q=0.9,en;q=0.8")
-	req.Header.Set("Accept-Encoding", "identity")
-	req.Header.Set("Referer", m.Url+"/")
-
-	resp, err := downloadClient.Do(req)
+	resp, err := m.FetchURL(data.downloadUrl, true)
 	if err != nil {
 		return nil, err
 	}
 
 	if resp.StatusCode != http.StatusOK {
+		resp.Body.Close()
 		return nil, fmt.Errorf("'%s' download failed", data.title)
 	}
 
 	safeTitle := strutil.SanitizeFilename(data.title)
 	filename := filepath.Clean(safeTitle + "." + data.extension)
 
-	resilientStream := NewResilientReader(downloadClient, req, resp)
-
 	return &book.LibgenDownload{
-		Stream:        resilientStream,
+		Stream:        resp.Body,
 		ContentType:   resp.Header.Get("Content-Type"),
 		ContentLength: resp.ContentLength,
 		Filename:      filename,
@@ -125,60 +112,92 @@ type basicBook struct {
 	title, downloadUrl, extension, md5 string
 }
 
-var titleRe = regexp.MustCompile(`(?i)Title:\s*(.*?)<br>`)
-var extRe = regexp.MustCompile(`(?i)Extension:\s*([^,]+).*?Size:\s*(.*?)<br>`)
-var downloadRe = regexp.MustCompile(`(?i)href=["']([^"']+)["'][^>]*><h2>GET</h2>`)
-
+// GetBasicBookFromMD5 fetches the ads.php page for the given MD5 and parses
+// title, extension and download URL using goquery instead of fragile regexes.
+// The ads.php page layout:
+//
+//	<td>Title: <b>…</b></td>          or    Title: …<br>
+//	<td>Extension: <b>epub</b></td>   or    Extension: epub,  Size: …<br>
+//	<a href="…"><h2>GET</h2></a>       — the direct download link
 func (m MirrorBase) GetBasicBookFromMD5(md5 string) (*basicBook, error) {
-	url := m.Url + "/ads.php?md5=" + md5
-	resp, err := m.FetchURL(url, false)
+	adsURL := m.Url + "/ads.php?md5=" + md5
+	doc, err := m.Fetch(adsURL)
 	if err != nil {
 		return nil, err
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		resp.Body.Close()
-		return nil, fmt.Errorf("HTTP %d in %s", resp.StatusCode, m.Url)
-	}
+	bk := &basicBook{md5: md5}
 
-	b, err := io.ReadAll(resp.Body)
-	resp.Body.Close()
-	if err != nil {
-		return nil, err
-	}
-
-	html := string(b)
-
-	if !strings.Contains(html, "Title:") && !strings.Contains(html, "<h2>GET</h2>") {
-		return nil, fmt.Errorf("no book data from %s", m.Url)
-	}
-
-	book := &basicBook{md5: md5}
-
-	if match := titleRe.FindStringSubmatch(html); len(match) > 1 {
-		book.title = strings.TrimSpace(match[1])
-	}
-	if match := extRe.FindStringSubmatch(html); len(match) > 2 {
-		book.extension = strings.TrimSpace(match[1])
-	}
-	if match := downloadRe.FindStringSubmatch(html); len(match) > 1 {
-		href := strings.TrimSpace(match[1])
-		if strings.HasPrefix(href, "http") {
-			book.downloadUrl = href
-		} else if strings.HasPrefix(href, "/") {
-			book.downloadUrl = m.Url + href
-		} else {
-			book.downloadUrl = m.Url + "/" + href
+	// --- Title ---
+	// Look for a <td> or any element whose text starts with "Title:"
+	doc.Find("td, li, p").EachWithBreak(func(_ int, s *goquery.Selection) bool {
+		text := strings.TrimSpace(s.Text())
+		if strings.HasPrefix(strings.ToLower(text), "title:") {
+			// Prefer the text inside a <b> or <a> child if present
+			if child := s.Find("b, a").First(); child.Length() > 0 {
+				bk.title = strings.TrimSpace(child.Text())
+			} else {
+				after, _ := strings.CutPrefix(strings.ToLower(text), "title:")
+				bk.title = strings.TrimSpace(text[len(text)-len(after):])
+			}
+			return bk.title == ""
 		}
-	}
+		return true
+	})
 
-	if book.title == "" || book.downloadUrl == "" {
+	// --- Extension ---
+	doc.Find("td, li, p").EachWithBreak(func(_ int, s *goquery.Selection) bool {
+		text := strings.TrimSpace(s.Text())
+		lower := strings.ToLower(text)
+		if strings.HasPrefix(lower, "extension:") {
+			if child := s.Find("b").First(); child.Length() > 0 {
+				bk.extension = strings.ToLower(strings.TrimSpace(child.Text()))
+			} else {
+				after, _ := strings.CutPrefix(lower, "extension:")
+				// Extension field may be "epub, Size: 1.2 MB" — take first token
+				bk.extension = strings.ToLower(strings.TrimSpace(strings.SplitN(after, ",", 2)[0]))
+			}
+			return bk.extension == ""
+		}
+		return true
+	})
+
+	// --- Download URL ---
+	// Find any <a> that wraps an <h2> whose text is "GET" (case-insensitive),
+	// or whose own text is "GET". This is more robust than a single regex.
+	doc.Find("a").EachWithBreak(func(_ int, a *goquery.Selection) bool {
+		h2 := a.Find("h2")
+		linkText := strings.ToUpper(strings.TrimSpace(a.Text()))
+		h2Text := strings.ToUpper(strings.TrimSpace(h2.Text()))
+
+		if h2Text != "GET" && linkText != "GET" {
+			return true
+		}
+
+		href, exists := a.Attr("href")
+		if !exists || href == "" {
+			return true
+		}
+
+		href = strings.TrimSpace(href)
+		switch {
+		case strings.HasPrefix(href, "http"):
+			bk.downloadUrl = href
+		case strings.HasPrefix(href, "/"):
+			bk.downloadUrl = m.Url + href
+		default:
+			bk.downloadUrl = m.Url + "/" + href
+		}
+		return false
+	})
+
+	if bk.title == "" || bk.downloadUrl == "" {
 		return nil, fmt.Errorf("no book data from %s", m.Url)
 	}
 
-	if book.extension == "" {
-		book.extension = "epub"
+	if bk.extension == "" {
+		bk.extension = "epub"
 	}
 
-	return book, nil
+	return bk, nil
 }
