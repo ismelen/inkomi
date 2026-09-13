@@ -87,7 +87,17 @@ func (m MirrorBase) Download(md5 string) (*book.LibgenDownload, error) {
 		return nil, err
 	}
 
-	resp, err := m.FetchURL(data.downloadUrl, true)
+	req, err := http.NewRequest(http.MethodGet, data.downloadUrl, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,*/*;q=0.8")
+	req.Header.Set("Accept-Language", "es-ES,es;q=0.9,en;q=0.8")
+	req.Header.Set("Accept-Encoding", "identity")
+	req.Header.Set("Referer", m.Url+"/")
+
+	resp, err := downloadClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -99,8 +109,10 @@ func (m MirrorBase) Download(md5 string) (*book.LibgenDownload, error) {
 	safeTitle := strutil.SanitizeFilename(data.title)
 	filename := filepath.Clean(safeTitle + "." + data.extension)
 
+	resilientStream := NewResilientReader(downloadClient, req, resp)
+
 	return &book.LibgenDownload{
-		Stream:        resp.Body,
+		Stream:        resilientStream,
 		ContentType:   resp.Header.Get("Content-Type"),
 		ContentLength: resp.ContentLength,
 		Filename:      filename,
