@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, View, StyleSheet } from 'react-native';
+import { Modal, View, StyleSheet, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useVersionChecker } from '../../hooks/useVersionhecker';
 import { useShallow } from 'zustand/react/shallow';
@@ -9,15 +9,16 @@ import SText from '../shared/SText';
 
 export default function NewVersionModal() {
   const insets = useSafeAreaInsets();
-  const { install, show } = useVersionChecker(
+  const { install, show, isDownloading } = useVersionChecker(
     useShallow((s) => ({
       install: s.installNewVersion,
       show: s.showDialog,
+      isDownloading: s.isDownloading,
     }))
   );
 
   return (
-    <Modal transparent={true} visible={show} animationType="fade">
+    <Modal transparent={true} visible={show} animationType="fade" onRequestClose={() => {}}>
       <View
         style={[styles.overlay, { paddingTop: 24 + insets.top, paddingBottom: 24 + insets.bottom }]}
       >
@@ -28,9 +29,16 @@ export default function NewVersionModal() {
             últimas mejoras y correcciones.
           </SText>
           <View style={styles.buttonContainer}>
-            <SButton style={styles.installButton} onPress={install}>
-              <SText style={styles.installButtonText}>Instalar</SText>
-            </SButton>
+            {isDownloading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <SText style={styles.loadingText}>Descargando...</SText>
+              </View>
+            ) : (
+              <SButton style={styles.installButton} onPress={install}>
+                <SText style={styles.installButtonText}>Instalar</SText>
+              </SButton>
+            )}
           </View>
         </View>
       </View>
@@ -96,6 +104,18 @@ const styles = StyleSheet.create({
   },
   installButtonText: {
     color: colors.on_primary,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  loadingText: {
+    color: colors.primary,
     fontSize: 16,
     fontWeight: '600',
   },

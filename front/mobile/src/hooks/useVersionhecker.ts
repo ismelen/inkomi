@@ -7,6 +7,7 @@ import { startActivityAsync } from 'expo-intent-launcher';
 interface State {
   showDialog: boolean;
   newVersion?: string;
+  isDownloading: boolean;
   init(): Promise<void>;
   hideDialog(): void;
   installNewVersion(): Promise<void>;
@@ -14,6 +15,7 @@ interface State {
 
 export const useVersionChecker = create<State>((set) => ({
   showDialog: false,
+  isDownloading: false,
 
   async init() {
     try {
@@ -35,17 +37,28 @@ export const useVersionChecker = create<State>((set) => ({
   },
 
   async installNewVersion() {
-    set({ showDialog: false });
     if (Platform.OS !== 'android') return;
 
-    const destFile = new File(`${Paths.cache}update.apk`);
-    const file = await File.downloadFileAsync(`${BACKEND_URL}/app/download`, destFile);
-    if (!file || !file.contentUri) return;
+    set({ isDownloading: true });
 
-    await startActivityAsync('android.intent.action.VIEW', {
-      data: file.contentUri,
-      flags: 1,
-      type: 'application/vnd.android.package-archive',
-    });
+    try {
+      const destFile = new File(`${Paths.cache}update.apk`);
+      const file = await File.downloadFileAsync(`${BACKEND_URL}/app/download`, destFile);
+      if (!file || !file.contentUri) {
+        set({ isDownloading: false });
+        return;
+      }
+
+      await startActivityAsync('android.intent.action.VIEW', {
+        data: file.contentUri,
+        flags: 1,
+        type: 'application/vnd.android.package-archive',
+      });
+
+      set({ isDownloading: false });
+    } catch (e) {
+      console.error('Error installing update', e);
+      set({ isDownloading: false });
+    }
   },
 }));
