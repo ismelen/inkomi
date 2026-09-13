@@ -1,6 +1,7 @@
 package libgen
 
 import (
+	"crypto/tls"
 	"fmt"
 	"io"
 	"ismelen/inkomi/internal/domain/book"
@@ -37,8 +38,21 @@ func (m MirrorBase) Fetch(url string) (*goquery.Document, error) {
 }
 
 var (
-	httpClient     = &http.Client{Timeout: 20 * time.Second}
-	downloadClient = &http.Client{Timeout: 10 * time.Minute}
+	baseTransport = func() *http.Transport {
+		t := http.DefaultTransport.(*http.Transport).Clone()
+		t.ForceAttemptHTTP2 = false
+		t.TLSNextProto = make(map[string]func(string, *tls.Conn) http.RoundTripper)
+		return t
+	}()
+
+	downloadTransport = func() *http.Transport {
+		t := baseTransport.Clone()
+		t.ResponseHeaderTimeout = 15 * time.Second
+		return t
+	}()
+
+	httpClient     = &http.Client{Timeout: 20 * time.Second, Transport: baseTransport}
+	downloadClient = &http.Client{Timeout: 10 * time.Minute, Transport: downloadTransport}
 )
 
 func (m MirrorBase) FetchURL(rawURL string, isDownload bool) (*http.Response, error) {
