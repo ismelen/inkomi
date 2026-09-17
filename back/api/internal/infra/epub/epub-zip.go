@@ -4,7 +4,9 @@ import (
 	"archive/zip"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
+	"strings"
 )
 
 func writeEpubZip(outputPath string, files map[string][]byte) error {
@@ -33,7 +35,14 @@ func writeEpubZip(outputPath string, files map[string][]byte) error {
 	sort.Strings(names) // orden determinista, útil para reproducibilidad/tests
 
 	for _, name := range names {
-		w, err := zw.CreateHeader(&zip.FileHeader{Name: name, Method: zip.Deflate})
+		method := uint16(zip.Deflate)
+		ext := strings.ToLower(filepath.Ext(name))
+		switch ext {
+		case ".jpg", ".jpeg", ".png", ".webp", ".gif":
+			method = zip.Store
+		}
+
+		w, err := zw.CreateHeader(&zip.FileHeader{Name: name, Method: method})
 		if err != nil {
 			return err
 		}

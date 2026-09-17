@@ -187,7 +187,14 @@ func (b *EpubBuilder) copyFile(srcPath, dstPath string) error {
 	}
 	defer src.Close()
 
-	w, err := b.writer.Create(dstPath)
+	method := uint16(zip.Deflate)
+	ext := strings.ToLower(filepath.Ext(dstPath))
+	switch ext {
+	case ".jpg", ".jpeg", ".png", ".webp", ".gif":
+		method = zip.Store
+	}
+
+	w, err := b.writer.CreateHeader(&zip.FileHeader{Name: dstPath, Method: method})
 	if err != nil {
 		return err
 	}
