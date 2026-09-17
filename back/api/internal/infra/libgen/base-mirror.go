@@ -14,11 +14,13 @@ import (
 
 // metadataSuffixes are the libgen ads.php field labels that may appear
 // concatenated after the real title (e.g. "My Book Author(s): John Doe …").
+// We intentionally omit the leading space so the match is robust regardless
+// of whether libgen separates the title from the metadata with a space or not.
 var metadataSuffixes = []string{
-	" Author(s):",
-	" Authors:",
-	" Series:",
-	" Publisher:",
+	"Author(s):",
+	"Authors:",
+	"Series:",
+	"Publisher:",
 	" Year:",
 	" ISBN:",
 	" Pages:",
