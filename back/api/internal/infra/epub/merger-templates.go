@@ -17,6 +17,7 @@ const MergerOPFStart = `<?xml version="1.0" encoding="UTF-8"?>
     <dc:language>es</dc:language>
     <meta property="dcterms:modified">%s</meta>
     <meta name="cover" content="%s"/>
+    <meta name="primary-writing-mode" content="%s"/>
   </metadata>
   <manifest>
 `
@@ -25,7 +26,7 @@ const MergerOPFItem = `    <item id="%s" href="%s" media-type="%s"%s/>
 `
 
 const MergerOPFSpineStart = `  </manifest>
-  <spine toc="%s">
+  <spine toc="%s" page-progression-direction="%s">
 `
 
 const MergerOPFItemRef = `    <itemref idref="%s"/>

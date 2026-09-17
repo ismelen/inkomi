@@ -1,6 +1,9 @@
 package mocks
 
-import "ismelen/inkomi/internal/domain/convert"
+import (
+	"ismelen/inkomi/internal/domain/convert"
+	"ismelen/inkomi/internal/domain/manga"
+)
 
 type MockTransactionUC struct {
 	ProcessResult *convert.TransactionResultFile
@@ -13,4 +16,8 @@ func (m *MockTransactionUC) Process(file *convert.TransactionFile, tran *convert
 
 func (m *MockTransactionUC) Execute(file *convert.TransactionFile, tran *convert.Transaction, transPath string) {
 	m.ExecuteCalled = true
+}
+
+func (m *MockTransactionUC) GetImageSettings() *manga.ImageSettings {
+	return nil
 }

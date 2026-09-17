@@ -8,9 +8,9 @@ import (
 	"github.com/google/uuid"
 )
 
-func buildOPF(title, author string, manifest []mergedItem, spineIDs []string, coverItemID, tocID string) string {
+func buildOPF(title, author string, manifest []mergedItem, spineIDs []string, coverItemID, tocID, pageProgression, writingMode string) string {
 	b := fileBuilder.New()
-	b.AddFromTemplate(MergerOPFStart, uuid.New().String(), xmlEscape(title), xmlEscape(author), time.Now().UTC().Format("2006-01-02T15:04:05Z"), coverItemID)
+	b.AddFromTemplate(MergerOPFStart, uuid.New().String(), xmlEscape(title), xmlEscape(author), time.Now().UTC().Format("2006-01-02T15:04:05Z"), coverItemID, writingMode)
 
 	for _, m := range manifest {
 		props := ""
@@ -20,7 +20,7 @@ func buildOPF(title, author string, manifest []mergedItem, spineIDs []string, co
 		b.AddFromTemplate(MergerOPFItem, m.ID, m.Href, m.MediaType, props)
 	}
 
-	b.AddFromTemplate(MergerOPFSpineStart, tocID)
+	b.AddFromTemplate(MergerOPFSpineStart, tocID, pageProgression)
 	for _, id := range spineIDs {
 		b.AddFromTemplate(MergerOPFItemRef, id)
 	}

@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"ismelen/inkomi/internal/domain/convert"
+	"ismelen/inkomi/internal/domain/manga"
 	"ismelen/inkomi/internal/infra/epub"
 	"ismelen/inkomi/internal/shared/uid"
 	"os"
@@ -19,6 +20,7 @@ import (
 type TransactionUC interface {
 	Process(file *convert.TransactionFile, tran *convert.Transaction, transPath string) *convert.TransactionResultFile
 	Execute(file *convert.TransactionFile, tran *convert.Transaction, transPath string)
+	GetImageSettings() *manga.ImageSettings
 }
 
 const MAX_CHUNK_SIZE = 200 << 20
@@ -27,6 +29,10 @@ type BaseTransactionUC struct {
 	pushNotifier convert.PushNotifier
 	cloud        convert.CloudStorage
 	processor    TransactionUC
+}
+
+func (m BaseTransactionUC) GetImageSettings() *manga.ImageSettings {
+	return nil
 }
 
 func (m BaseTransactionUC) Execute(file *convert.TransactionFile, tran *convert.Transaction, transPath string) {
@@ -150,7 +156,7 @@ func (m BaseTransactionUC) MergeFiles(results []*convert.TransactionResultFile, 
 	}
 
 	outPath := filepath.Join(outDir, filename)
-	err := epub.NewEpubMerger().Merge(results, title, tran.Config.Author, outPath)
+	err := epub.NewEpubMerger().SetSettings(m.processor.GetImageSettings()).Merge(results, title, tran.Config.Author, outPath)
 	if err != nil {
 		return nil, err
 	}

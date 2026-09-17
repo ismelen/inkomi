@@ -38,6 +38,10 @@ func NewMangaTransactionUC(
 	return t
 }
 
+func (c MangaTransactionUC) GetImageSettings() *manga.ImageSettings {
+	return c.imageSettings
+}
+
 func (c MangaTransactionUC) GetChapter(file string, chaptersDir string) (*manga.Chapter, error) {
 	ext := filepath.Ext(file)
 

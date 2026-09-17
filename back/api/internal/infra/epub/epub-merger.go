@@ -3,6 +3,7 @@ package epub
 import (
 	"fmt"
 	"ismelen/inkomi/internal/domain/convert"
+	"ismelen/inkomi/internal/domain/manga"
 	"path"
 	"strings"
 )
@@ -19,10 +20,17 @@ type navEntry struct {
 	Href  string
 }
 
-type EpubMerger struct{}
+type EpubMerger struct {
+	settings *manga.ImageSettings
+}
 
 func NewEpubMerger() *EpubMerger {
 	return &EpubMerger{}
+}
+
+func (m *EpubMerger) SetSettings(settings *manga.ImageSettings) *EpubMerger {
+	m.settings = settings
+	return m
 }
 
 func (m *EpubMerger) Merge(paths []*convert.TransactionResultFile, title, author, outputPath string) error {
@@ -112,9 +120,16 @@ func (m *EpubMerger) Merge(paths []*convert.TransactionResultFile, title, author
 		mergedItem{ID: "ncx", Href: "toc.ncx", MediaType: "application/x-dtbncx+xml"},
 	)
 
+	pageProgression := "ltr"
+	writingMode := "horizontal-lr"
+	if m.settings != nil && m.settings.RightToLeft {
+		pageProgression = "rtl"
+		writingMode = "horizontal-rl"
+	}
+
 	outFiles["mimetype"] = []byte("application/epub+zip")
 	outFiles["META-INF/container.xml"] = []byte(MergerContainerXML)
-	outFiles["OEBPS/content.opf"] = []byte(buildOPF(title, author, manifest, spineIDs, coverItemID, "ncx"))
+	outFiles["OEBPS/content.opf"] = []byte(buildOPF(title, author, manifest, spineIDs, coverItemID, "ncx", pageProgression, writingMode))
 	outFiles["OEBPS/nav.xhtml"] = []byte(buildNav(title, navEntries))
 	outFiles["OEBPS/toc.ncx"] = []byte(buildNCX(title, navEntries))
 
