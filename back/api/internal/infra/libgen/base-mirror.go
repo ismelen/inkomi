@@ -6,12 +6,37 @@ import (
 	"ismelen/inkomi/internal/domain/book"
 	"ismelen/inkomi/internal/shared/strutil"
 	"net/http"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
 )
+
+// metadataSuffixes are the libgen ads.php field labels that may appear
+// concatenated after the real title (e.g. "My Book Author(s): John Doe …").
+var metadataSuffixes = []string{
+	" Author(s):",
+	" Authors:",
+	" Series:",
+	" Publisher:",
+	" Year:",
+	" ISBN:",
+	" Pages:",
+	" Language:",
+	" Edition:",
+	" Volume:",
+}
+
+// stripLibgenMetadata removes any trailing libgen metadata that ads.php
+// sometimes concatenates into the title <b> element.
+func stripLibgenMetadata(title string) string {
+	for _, suffix := range metadataSuffixes {
+		if idx := strings.Index(title, suffix); idx != -1 {
+			title = title[:idx]
+		}
+	}
+	return strings.TrimSpace(title)
+}
 
 type MirrorBase struct {
 	Url string
@@ -95,8 +120,8 @@ func (m MirrorBase) Download(md5 string) (*book.LibgenDownload, error) {
 		return nil, fmt.Errorf("'%s' download failed", data.title)
 	}
 
-	safeTitle := strutil.SanitizeFilename(data.title)
-	filename := filepath.Clean(safeTitle + "." + data.extension)
+	safeTitle := strutil.SanitizeFilename(stripLibgenMetadata(data.title))
+	filename := safeTitle + "." + data.extension
 
 	return &book.LibgenDownload{
 		Stream:        resp.Body,
@@ -135,10 +160,10 @@ func (m MirrorBase) GetBasicBookFromMD5(md5 string) (*basicBook, error) {
 		if strings.HasPrefix(strings.ToLower(text), "title:") {
 			// Prefer the text inside a <b> or <a> child if present
 			if child := s.Find("b, a").First(); child.Length() > 0 {
-				bk.title = strings.TrimSpace(child.Text())
+				bk.title = stripLibgenMetadata(strings.TrimSpace(child.Text()))
 			} else {
 				after, _ := strings.CutPrefix(strings.ToLower(text), "title:")
-				bk.title = strings.TrimSpace(text[len(text)-len(after):])
+				bk.title = stripLibgenMetadata(strings.TrimSpace(text[len(text)-len(after):]))
 			}
 			return bk.title == ""
 		}
