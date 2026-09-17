@@ -20,8 +20,8 @@ func TestMD5TransactionUC_Process_Normal_ShouldProcess(t *testing.T) {
 
 	mockSource := &mocks.BooksSourceMock{
 		DownloadResult: &book.LibgenDownload{
-			Stream:   io.NopCloser(bytes.NewBufferString("dummy book data")),
-			Filename: "downloaded_book.epub",
+			Stream: io.NopCloser(bytes.NewBufferString("dummy book data")),
+			Ext:    "epub",
 		},
 	}
 	mockProvider := &mocks.BooksProviderMock{
@@ -54,8 +54,8 @@ func TestMD5TransactionUC_Process_Normal_ShouldProcess(t *testing.T) {
 	// Assert
 	assert.NotNil(t, result, "Expected result, got nil")
 	if result != nil {
-		assert.Equal(t, "downloaded_book", result.Name, "Expected result name downloaded_book")
-		expectedPath := filepath.Join(tempDir, "tran1", "file1", "downloaded_book.epub")
+		assert.Equal(t, "test_md5", result.Name, "Expected result name test_md5")
+		expectedPath := filepath.Join(tempDir, "tran1", "file1", "test_md5.epub")
 		assert.Equal(t, expectedPath, result.Path, "Expected path to match")
 	}
 
