@@ -3,6 +3,7 @@ package usecases
 import (
 	"ismelen/inkomi/internal/domain/convert"
 	"ismelen/inkomi/internal/infra/fs"
+	"ismelen/inkomi/internal/shared/strutil"
 	"ismelen/inkomi/internal/shared/uid"
 	"os"
 	"path/filepath"
@@ -37,6 +38,9 @@ func (m MD5UC) Process(file *convert.TransactionFile, tran *convert.Transaction,
 		return nil
 	}
 	defer result.Stream.Close()
+
+	safeTitle := strutil.SanitizeFilename(file.Name)
+	result.Filename = safeTitle + "." + result.Ext
 
 	dstPath := filepath.Join(transPath, tran.Id, file.Id, result.Filename)
 	src, err := fs.CopyFromStream(result.Stream, dstPath)
