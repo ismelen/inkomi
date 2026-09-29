@@ -64,6 +64,7 @@ require (
 	github.com/googleapis/enterprise-certificate-proxy v0.3.16 // indirect
 	github.com/googleapis/gax-go/v2 v2.22.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.30.0 // indirect
+	github.com/h2non/bimg v1.1.9 // indirect
 	github.com/hhrutter/tiff v1.0.6 // indirect
 	github.com/kr/smartypants v0.1.0 // indirect
 	github.com/mattn/go-runewidth v0.0.27 // indirect
