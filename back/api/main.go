@@ -8,6 +8,7 @@ import (
 	"ismelen/inkomi/internal/infra/api/routes"
 	"ismelen/inkomi/internal/infra/cloud"
 	"ismelen/inkomi/internal/infra/libgen"
+	"ismelen/inkomi/internal/infra/observability"
 	"ismelen/inkomi/internal/infra/push"
 	"ismelen/inkomi/internal/infra/store"
 	"ismelen/inkomi/internal/usecases"
@@ -19,13 +20,27 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"github.com/joho/godotenv"
+	"github.com/riandyrn/otelchi"
 )
 
 func main() {
 	godotenv.Load()
 
+	shutdown, err := observability.InitTracer(context.Background(), "inkomi-api")
+	if err != nil {
+		log.Fatalf("failed to initialize tracer: %v", err)
+	}
+	defer func() {
+		if err := shutdown(context.Background()); err != nil {
+			log.Printf("failed to shutdown tracer: %v", err)
+		}
+	}()
+
 	api := chi.NewRouter()
 	public := chi.NewRouter()
+
+	// Add opentelemetry middleware for the public router
+	public.Use(otelchi.Middleware("inkomi-api"))
 	public.Mount("/api", api)
 
 	api.Use(

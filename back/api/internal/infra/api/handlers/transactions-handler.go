@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"ismelen/inkomi/internal/domain/convert"
@@ -186,12 +187,13 @@ func (t *TransactionsV2Handler) HandleAttachFile(r *http.Request) (*string, erro
 	tranFile := convert.NewTransactionFile(tranFileId, filename, dstPath, header.Size)
 	fileId, err := tran.AttachFile(tranFile)
 
+	ctx := context.WithoutCancel(r.Context())
 	go func() {
 		switch tran.Config.Type {
 		case "cbz":
-			t.mangaUC.Execute(tranFile, tran, t.transPath)
+			t.mangaUC.Execute(ctx, tranFile, tran, t.transPath)
 		case "epub":
-			t.epubUC.Execute(tranFile, tran, t.transPath)
+			t.epubUC.Execute(ctx, tranFile, tran, t.transPath)
 		}
 	}()
 
@@ -207,6 +209,7 @@ func (t *TransactionsV2Handler) handleAttachMd5(tran *convert.Transaction, r *ht
 	tranFile := convert.NewTransactionFile(uid.GetRandomID(6), input.Title, input.Md5, 0)
 	fileId, err := tran.AttachFile(tranFile)
 
-	go func() { t.md5UC.Execute(tranFile, tran, t.transPath) }()
+	ctx := context.WithoutCancel(r.Context())
+	go func() { t.md5UC.Execute(ctx, tranFile, tran, t.transPath) }()
 	return &fileId, err
 }

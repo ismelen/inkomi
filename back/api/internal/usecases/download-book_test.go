@@ -1,6 +1,7 @@
 package usecases
 
 import (
+	"context"
 	"errors"
 	"io"
 	"strings"
@@ -35,8 +36,8 @@ func TestDownloadBookUC_Execute_ZeroRetries_Error(t *testing.T) {
 	uc, _ := newDownloadUC(true, src)
 
 	// Act
-	result, err := uc.Execute("abc123", 0)
-	
+	result, err := uc.Execute(context.Background(), "abc123", 0)
+
 	// Assert
 	require.Error(t, err)
 	assert.Nil(t, result)
@@ -49,8 +50,8 @@ func TestDownloadBookUC_Execute_NoMirror_Error(t *testing.T) {
 	uc, _ := newDownloadUC(false, src)
 
 	// Act
-	_, err := uc.Execute("abc123", 3)
-	
+	_, err := uc.Execute(context.Background(), "abc123", 3)
+
 	// Assert
 	require.Error(t, err)
 	assert.Contains(t, strings.ToLower(err.Error()), "mirror")
@@ -64,8 +65,8 @@ func TestDownloadBookUC_Execute_Normal_Success(t *testing.T) {
 	uc, _ := newDownloadUC(true, src)
 
 	// Act
-	result, err := uc.Execute("abc123", 3)
-	
+	result, err := uc.Execute(context.Background(), "abc123", 3)
+
 	// Assert
 	require.NoError(t, err)
 	require.NotNil(t, result)
@@ -84,8 +85,8 @@ func TestDownloadBookUC_Execute_RetriesAndSucceeds_ShouldSucceed(t *testing.T) {
 	uc, _ := newDownloadUC(true, src)
 
 	// Act
-	result, err := uc.Execute("abc123", 3)
-	
+	result, err := uc.Execute(context.Background(), "abc123", 3)
+
 	// Assert
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -102,8 +103,8 @@ func TestDownloadBookUC_Execute_ExhaustsRetries_ShouldError(t *testing.T) {
 	uc, _ := newDownloadUC(true, src)
 
 	// Act
-	result, err := uc.Execute("abc123", 2)
-	
+	result, err := uc.Execute(context.Background(), "abc123", 2)
+
 	// Assert
 	require.Error(t, err)
 	assert.Nil(t, result)

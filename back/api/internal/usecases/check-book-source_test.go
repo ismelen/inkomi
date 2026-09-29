@@ -38,7 +38,7 @@ func TestCheckBooksSourceUC_Execute_WithMirrorAlive_ShouldReturnOk(t *testing.T)
 
 	// Act
 	ok, err := uc.Execute(context.Background())
-	
+
 	// Assert
 	require.NoError(t, err)
 	assert.True(t, ok)
@@ -57,7 +57,7 @@ func TestCheckBooksSourceUC_Execute_WithMirrorDead_RefreshCalled(t *testing.T) {
 
 	// Act
 	_, err := uc.Execute(context.Background())
-	
+
 	// Assert
 	require.NoError(t, err)
 	assert.True(t, prov.RefreshCalled)
@@ -79,7 +79,7 @@ func TestCheckBooksSourceUC_Execute_MirrorDead_CooldownActive(t *testing.T) {
 
 	// Act
 	ok, err := uc.Execute(context.Background())
-	
+
 	// Assert
 	require.NoError(t, err)
 	assert.False(t, ok)
@@ -93,7 +93,7 @@ func TestCheckBooksSourceUC_Execute_NoMirror_RefreshSucceeds(t *testing.T) {
 
 	// Act
 	ok, err := uc.Execute(context.Background())
-	
+
 	// Assert
 	require.NoError(t, err)
 	assert.True(t, ok)
@@ -107,7 +107,7 @@ func TestCheckBooksSourceUC_Execute_NoMirror_RefreshFails(t *testing.T) {
 
 	// Act
 	ok, err := uc.Execute(context.Background())
-	
+
 	// Assert
 	require.NoError(t, err)
 	assert.False(t, ok)

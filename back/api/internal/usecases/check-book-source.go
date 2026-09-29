@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
+	"go.opentelemetry.io/otel"
 )
 
 type CheckBooksSourceUC struct {
@@ -21,6 +23,9 @@ func NewCheckBooksSourceUC(provider book.BooksProvider) *CheckBooksSourceUC {
 }
 
 func (c *CheckBooksSourceUC) Execute(ctx context.Context) (bool, error) {
+	ctx, span := otel.Tracer("inkomi-api").Start(ctx, "CheckBooksSourceUC.Execute")
+	defer span.End()
+
 	mirror, ok := c.provider.GetMirror()
 	if ok && c.pingMirror(ctx, mirror) {
 		return true, nil

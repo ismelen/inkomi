@@ -1,6 +1,7 @@
 package usecases
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -52,7 +53,7 @@ func TestBaseTransactionUC_Execute_Normal_ShouldProcess(t *testing.T) {
 	tran := convert.NewTransaction("tran1", config, tempDir)
 
 	// Act
-	baseUC.Execute(file, tran, tempDir)
+	baseUC.Execute(context.Background(), file, tran, tempDir)
 
 	// Assert
 	assert.True(t, mockPush.SendCalled, "Expected push notification to be sent")

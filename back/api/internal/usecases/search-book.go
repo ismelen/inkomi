@@ -1,10 +1,14 @@
 package usecases
 
 import (
+	"context"
 	"fmt"
 	"ismelen/inkomi/internal/domain/book"
 	booksFilter "ismelen/inkomi/internal/domain/book/filters"
 	"ismelen/inkomi/internal/shared/filter"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
 )
 
 type SearchBookUC struct {
@@ -17,14 +21,22 @@ func NewSearchBookUC(provider book.BooksProvider) *SearchBookUC {
 	}
 }
 
-func (s *SearchBookUC) Execute(query string, language string, formats []string) ([]book.Book, error) {
+func (s *SearchBookUC) Execute(ctx context.Context, query string, language string, formats []string) ([]book.Book, error) {
+	ctx, span := otel.Tracer("inkomi-api").Start(ctx, "SearchBookUC.Execute")
+	defer span.End()
+
 	mirror, ok := s.provider.GetMirror()
 	if !ok {
-		return nil, fmt.Errorf("no mirror available yet")
+		err := fmt.Errorf("no mirror available yet")
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
 	}
 
 	books, err := mirror.Search(query)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
 

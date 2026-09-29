@@ -1,6 +1,7 @@
 package usecases
 
 import (
+	"context"
 	"ismelen/inkomi/internal/domain/convert"
 	"ismelen/inkomi/internal/test/mocks"
 	"os"
@@ -34,7 +35,7 @@ func TestEpubTransactionUC_Process_Normal_ShouldProcess(t *testing.T) {
 	}
 
 	// Act
-	result := uc.Process(file, tran, tempDir)
+	result := uc.Process(context.Background(), file, tran, tempDir)
 
 	// Assert
 	assert.NotNil(t, result, "Expected result, got nil")

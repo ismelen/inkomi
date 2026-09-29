@@ -17,8 +17,8 @@ import (
 )
 
 type TransactionUC interface {
-	Process(file *convert.TransactionFile, tran *convert.Transaction, transPath string) *convert.TransactionResultFile
-	Execute(file *convert.TransactionFile, tran *convert.Transaction, transPath string)
+	Process(ctx context.Context, file *convert.TransactionFile, tran *convert.Transaction, transPath string) *convert.TransactionResultFile
+	Execute(ctx context.Context, file *convert.TransactionFile, tran *convert.Transaction, transPath string)
 }
 
 const MAX_CHUNK_SIZE = 200 << 20
@@ -29,9 +29,9 @@ type BaseTransactionUC struct {
 	processor    TransactionUC
 }
 
-func (m BaseTransactionUC) Execute(file *convert.TransactionFile, tran *convert.Transaction, transPath string) {
+func (m BaseTransactionUC) Execute(ctx context.Context, file *convert.TransactionFile, tran *convert.Transaction, transPath string) {
 	file.Processing()
-	result := m.processor.Process(file, tran, transPath)
+	result := m.processor.Process(ctx, file, tran, transPath)
 
 	if result == nil {
 		return
@@ -214,7 +214,7 @@ func (m BaseTransactionUC) KepubifyEpub(src, outBase, filename string) (string, 
 	return kPath, converter.Convert(ctx, out, in)
 }
 
-func (m BaseTransactionUC) Process(file *convert.TransactionFile, tran *convert.Transaction, transPath string) *convert.TransactionResultFile {
+func (m BaseTransactionUC) Process(ctx context.Context, file *convert.TransactionFile, tran *convert.Transaction, transPath string) *convert.TransactionResultFile {
 	return nil
 }
 

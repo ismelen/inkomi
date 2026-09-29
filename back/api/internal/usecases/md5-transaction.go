@@ -1,11 +1,15 @@
 package usecases
 
 import (
+	"context"
 	"ismelen/inkomi/internal/domain/convert"
 	"ismelen/inkomi/internal/infra/fs"
 	"ismelen/inkomi/internal/shared/uid"
 	"os"
 	"path/filepath"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
 )
 
 type MD5UC struct {
@@ -30,9 +34,14 @@ func NewMd5TransactionUC(
 	return t
 }
 
-func (m MD5UC) Process(file *convert.TransactionFile, tran *convert.Transaction, transPath string) *convert.TransactionResultFile {
-	result, err := m.downloadBookUC.Execute(file.SrcPath, 3)
+func (m MD5UC) Process(ctx context.Context, file *convert.TransactionFile, tran *convert.Transaction, transPath string) *convert.TransactionResultFile {
+	ctx, span := otel.Tracer("inkomi-api").Start(ctx, "MD5UC.Process")
+	defer span.End()
+
+	result, err := m.downloadBookUC.Execute(ctx, file.SrcPath, 3)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		file.SetError(err)
 		return nil
 	}
@@ -41,6 +50,8 @@ func (m MD5UC) Process(file *convert.TransactionFile, tran *convert.Transaction,
 	dstPath := filepath.Join(transPath, tran.Id, file.Id, result.Filename)
 	src, err := fs.CopyFromStream(result.Stream, dstPath)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		file.SetError(err)
 		os.RemoveAll(src)
 		return nil

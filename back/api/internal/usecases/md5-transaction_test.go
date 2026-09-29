@@ -2,6 +2,7 @@ package usecases
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"ismelen/inkomi/internal/domain/book"
 	"ismelen/inkomi/internal/domain/convert"
@@ -49,7 +50,7 @@ func TestMD5TransactionUC_Process_Normal_ShouldProcess(t *testing.T) {
 	}
 
 	// Act
-	result := uc.Process(file, tran, tempDir)
+	result := uc.Process(context.Background(), file, tran, tempDir)
 
 	// Assert
 	assert.NotNil(t, result, "Expected result, got nil")

@@ -1,6 +1,7 @@
 package usecases
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"testing"
@@ -30,8 +31,8 @@ func TestSearchBookUC_Execute_NoMirror_ReturnsError(t *testing.T) {
 	uc, _ := newSearchUC(false, nil, nil)
 
 	// Act
-	_, err := uc.Execute("golang", "English", []string{"epub"})
-	
+	_, err := uc.Execute(context.Background(), "golang", "English", []string{"epub"})
+
 	// Assert
 	require.Error(t, err)
 	assert.Contains(t, strings.ToLower(err.Error()), "mirror")
@@ -47,8 +48,8 @@ func TestSearchBookUC_Execute_FiltersByLanguage_ShouldFilter(t *testing.T) {
 	uc, _ := newSearchUC(true, books, nil)
 
 	// Act
-	result, err := uc.Execute("go", "English", []string{"epub"})
-	
+	result, err := uc.Execute(context.Background(), "go", "English", []string{"epub"})
+
 	// Assert
 	require.NoError(t, err)
 	require.Len(t, result, 1)
@@ -65,8 +66,8 @@ func TestSearchBookUC_Execute_FiltersByFormat_ShouldFilter(t *testing.T) {
 	uc, _ := newSearchUC(true, books, nil)
 
 	// Act
-	result, err := uc.Execute("go", "English", []string{"epub"})
-	
+	result, err := uc.Execute(context.Background(), "go", "English", []string{"epub"})
+
 	// Assert
 	require.NoError(t, err)
 	require.Len(t, result, 1)
@@ -84,8 +85,8 @@ func TestSearchBookUC_Execute_Deduplicates_ShouldDeduplicate(t *testing.T) {
 	uc, _ := newSearchUC(true, books, nil)
 
 	// Act
-	result, err := uc.Execute("go", "English", []string{"epub"})
-	
+	result, err := uc.Execute(context.Background(), "go", "English", []string{"epub"})
+
 	// Assert
 	require.NoError(t, err)
 	assert.Len(t, result, 1)
@@ -98,8 +99,8 @@ func TestSearchBookUC_Execute_MirrorError_ShouldPropagate(t *testing.T) {
 	uc, _ := newSearchUC(true, nil, searchErr)
 
 	// Act
-	_, err := uc.Execute("go", "", []string{"epub"})
-	
+	_, err := uc.Execute(context.Background(), "go", "", []string{"epub"})
+
 	// Assert
 	require.ErrorIs(t, err, searchErr)
 }
@@ -115,8 +116,8 @@ func TestSearchBookUC_Execute_EmptyLanguage_ReturnsAll(t *testing.T) {
 
 	// Act
 	// language="" -> LanguageFilter passes through; formats=["epub","pdf"] -> both pass
-	result, err := uc.Execute("go", "", []string{"epub", "pdf"})
-	
+	result, err := uc.Execute(context.Background(), "go", "", []string{"epub", "pdf"})
+
 	// Assert
 	require.NoError(t, err)
 	assert.Len(t, result, 2)

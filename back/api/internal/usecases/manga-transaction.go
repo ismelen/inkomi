@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -60,7 +62,10 @@ func (c MangaTransactionUC) GetChapter(file string, chaptersDir string) (*manga.
 	return manga.NewChapter(filename, chapterPath, pages), nil
 }
 
-func (c MangaTransactionUC) Process(file *convert.TransactionFile, tran *convert.Transaction, transPath string) *convert.TransactionResultFile {
+func (c MangaTransactionUC) Process(ctx context.Context, file *convert.TransactionFile, tran *convert.Transaction, transPath string) *convert.TransactionResultFile {
+	ctx, span := otel.Tracer("inkomi-api").Start(ctx, "MangaTransactionUC.Process")
+	defer span.End()
+
 	defer os.RemoveAll(filepath.Join(file.SrcPath))
 	dir := filepath.Dir(file.SrcPath)
 	builder := epub.NewEpubBuilder().
@@ -74,6 +79,8 @@ func (c MangaTransactionUC) Process(file *convert.TransactionFile, tran *convert
 
 	chapter, err := c.GetChapter(file.SrcPath, chaptersDir)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		file.SetError(err)
 		return nil
 	}
@@ -100,6 +107,8 @@ func (c MangaTransactionUC) Process(file *convert.TransactionFile, tran *convert
 	}
 
 	if err := group.Wait(); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		file.SetError(err)
 		return nil
 	}
@@ -110,6 +119,8 @@ func (c MangaTransactionUC) Process(file *convert.TransactionFile, tran *convert
 
 	path, err := builder.Build()
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		file.SetError(err)
 		return nil
 	}

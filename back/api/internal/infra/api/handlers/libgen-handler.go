@@ -59,7 +59,7 @@ func (l *LibgenHandler) HandleSearchBook(r *http.Request) (*[]book.Book, error) 
 		formats = strings.Split(fmtQuery, ",")
 	}
 
-	books, err := l.searchUC.Execute(query, language, formats)
+	books, err := l.searchUC.Execute(r.Context(), query, language, formats)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +69,7 @@ func (l *LibgenHandler) HandleSearchBook(r *http.Request) (*[]book.Book, error) 
 
 func (l *LibgenHandler) HandleDownloadBook(r *http.Request) (*requtil.FileResponse, error) {
 	md5 := chi.URLParam(r, "md5")
-	result, err := l.downloadUC.Execute(md5, 3)
+	result, err := l.downloadUC.Execute(r.Context(), md5, 3)
 	if err != nil {
 		return nil, err
 	}

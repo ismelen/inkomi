@@ -2,6 +2,7 @@ package usecases
 
 import (
 	"archive/zip"
+	"context"
 	"image"
 	"image/color"
 	"image/jpeg"
@@ -73,7 +74,7 @@ func TestMangaTransactionUC_Process_Normal_ShouldProcess(t *testing.T) {
 	}
 
 	// Act
-	result := uc.Process(file, tran, tempDir)
+	result := uc.Process(context.Background(), file, tran, tempDir)
 
 	// Assert
 	assert.NotNil(t, result, "Expected result, got nil. Error: %v", file.Error)
