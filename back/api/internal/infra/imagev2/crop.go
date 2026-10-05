@@ -2,39 +2,49 @@ package imagev2
 
 import (
 	"image"
-	"image/color"
+	"math"
 )
 
 // calculateCropBox scans the image from the 4 edges to the center
-// to find the content bounding box (ink).
-func calculateCropBox(img image.Image) image.Rectangle {
+// to find the content bounding box (ink). It dynamically adapts to
+// black, white, or grey pages by calculating the baseline luminance
+// of each margin and looking for contrasting pixels.
+func calculateCropBox(img image.Image, tolerance int) image.Rectangle {
 	bounds := img.Bounds()
 	width := bounds.Dx()
 	height := bounds.Dy()
 
-	// Threshold for darkness (0-255). Lower is darker.
-	// Let's say if luminance is < 200, it's considered ink.
-	// Or we can use binarization threshold (e.g., 200).
-	const darkThreshold = 200
-
-	// Tolerance: > 2% of pixels must be darker than threshold
-	xTolerance := int(float64(height) * 0.02)
-	yTolerance := int(float64(width) * 0.02)
-
-	if xTolerance < 1 {
-		xTolerance = 1
-	}
-	if yTolerance < 1 {
-		yTolerance = 1
+	// Tolerance: number of pixels that must differ from the margin baseline.
+	// If 0, default to 2% of the dimension.
+	xTolerance := tolerance
+	yTolerance := tolerance
+	
+	if tolerance <= 0 {
+		xTolerance = int(float64(height) * 0.02)
+		yTolerance = int(float64(width) * 0.02)
 	}
 
-	isDarkPixel := func(c color.Color) bool {
-		r, g, b, _ := c.RGBA()
-		// Convert to luminance (0-255)
-		// Y = 0.299 R + 0.587 G + 0.114 B
-		// Since RGBA() returns 16-bit pre-multiplied values (0-65535), we divide by 256
-		y := (0.299*float64(r) + 0.587*float64(g) + 0.114*float64(b)) / 256.0
-		return y < darkThreshold
+	if xTolerance < 1 { xTolerance = 1 }
+	if yTolerance < 1 { yTolerance = 1 }
+
+	// Minimum luminance difference to be considered "content" (out of 255)
+	const contrastThreshold = 40.0
+
+	getLuma := func(x, y int) float64 {
+		r, g, b, _ := img.At(x, y).RGBA()
+		return (0.299*float64(r) + 0.587*float64(g) + 0.114*float64(b)) / 256.0
+	}
+
+	getLineAvgLuma := func(isHorizontal bool, fixedIdx, minIdx, maxIdx int) float64 {
+		sum := 0.0
+		for i := minIdx; i < maxIdx; i++ {
+			if isHorizontal {
+				sum += getLuma(i, fixedIdx)
+			} else {
+				sum += getLuma(fixedIdx, i)
+			}
+		}
+		return sum / float64(maxIdx-minIdx)
 	}
 
 	minY := bounds.Min.Y
@@ -42,57 +52,61 @@ func calculateCropBox(img image.Image) image.Rectangle {
 	minX := bounds.Min.X
 	maxX := bounds.Max.X
 
-	// Scan from Top
+	// 1. Scan from Top
+	topBaseline := getLineAvgLuma(true, bounds.Min.Y, bounds.Min.X, bounds.Max.X)
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
-		darkCount := 0
+		diffCount := 0
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
-			if isDarkPixel(img.At(x, y)) {
-				darkCount++
+			if math.Abs(getLuma(x, y)-topBaseline) > contrastThreshold {
+				diffCount++
 			}
 		}
-		if darkCount > yTolerance {
+		if diffCount > yTolerance {
 			minY = y
 			break
 		}
 	}
 
-	// Scan from Bottom
+	// 2. Scan from Bottom
+	bottomBaseline := getLineAvgLuma(true, bounds.Max.Y-1, bounds.Min.X, bounds.Max.X)
 	for y := bounds.Max.Y - 1; y >= minY; y-- {
-		darkCount := 0
+		diffCount := 0
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
-			if isDarkPixel(img.At(x, y)) {
-				darkCount++
+			if math.Abs(getLuma(x, y)-bottomBaseline) > contrastThreshold {
+				diffCount++
 			}
 		}
-		if darkCount > yTolerance {
+		if diffCount > yTolerance {
 			maxY = y + 1
 			break
 		}
 	}
 
-	// Scan from Left
+	// 3. Scan from Left
+	leftBaseline := getLineAvgLuma(false, bounds.Min.X, bounds.Min.Y, bounds.Max.Y)
 	for x := bounds.Min.X; x < bounds.Max.X; x++ {
-		darkCount := 0
+		diffCount := 0
 		for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
-			if isDarkPixel(img.At(x, y)) {
-				darkCount++
+			if math.Abs(getLuma(x, y)-leftBaseline) > contrastThreshold {
+				diffCount++
 			}
 		}
-		if darkCount > xTolerance {
+		if diffCount > xTolerance {
 			minX = x
 			break
 		}
 	}
 
-	// Scan from Right
+	// 4. Scan from Right
+	rightBaseline := getLineAvgLuma(false, bounds.Max.X-1, bounds.Min.Y, bounds.Max.Y)
 	for x := bounds.Max.X - 1; x >= minX; x-- {
-		darkCount := 0
+		diffCount := 0
 		for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
-			if isDarkPixel(img.At(x, y)) {
-				darkCount++
+			if math.Abs(getLuma(x, y)-rightBaseline) > contrastThreshold {
+				diffCount++
 			}
 		}
-		if darkCount > xTolerance {
+		if diffCount > xTolerance {
 			maxX = x + 1
 			break
 		}

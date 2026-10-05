@@ -4,6 +4,8 @@ import (
 	"image"
 	"image/color"
 	"math"
+
+	"ismelen/inkomi/internal/domain/manga"
 )
 
 // HSL represents a color in HSL space
@@ -12,11 +14,22 @@ type HSL struct {
 }
 
 // applyLevelsAndColor normalizes contrast based on luminance percentiles
-// and boosts saturation.
-func applyLevelsAndColor(img *image.RGBA) {
+// and applies custom ColorOptions (Gamma, Brightness, Contrast, Grayscale).
+func applyLevelsAndColor(img *image.RGBA, opts manga.ColorOptions) {
 	bounds := img.Bounds()
 	width := bounds.Dx()
 	height := bounds.Dy()
+
+	// Extract values with safe fallbacks if 0
+	gamma := opts.Gamma
+	if gamma == 0 {
+		gamma = 1.0 // neutral
+	}
+	brightness := opts.Brightness
+	contrast := opts.Contrast
+	if contrast == 0 {
+		contrast = 1.0
+	}
 
 	// Create histogram for Luminance
 	histogram := make([]int, 256)
@@ -46,7 +59,8 @@ func applyLevelsAndColor(img *image.RGBA) {
 		}
 	}
 
-	// Calculate 1% and 99% percentiles
+	// Calculate 1% and 99% percentiles for auto-levels (could use WhitePoint/BlackPoint here if we prefer manual)
+	// For now, we apply WhitePoint/BlackPoint strictly via clipping.
 	totalPixels := width * height
 	p1Target := int(float64(totalPixels) * 0.01)
 	p99Target := int(float64(totalPixels) * 0.99)
@@ -67,24 +81,34 @@ func applyLevelsAndColor(img *image.RGBA) {
 		p99 = 255
 	}
 
-	// Generate LUT for Luminance with a slight gamma curve (e.g., gamma = 0.9 to lighten midtones)
+	// Calculate LUT for L channel
 	lut := make([]float64, 256)
-	gamma := 0.9
-
 	for i := 0; i < 256; i++ {
-		if i <= p1 {
+		normVal := float64(i) / 255.0
+		
+		if normVal <= opts.BlackPoint {
+			lut[i] = 0.0
+		} else if normVal >= opts.WhitePoint && opts.WhitePoint > 0 {
+			lut[i] = 1.0
+		} else if i <= p1 {
 			lut[i] = 0.0
 		} else if i >= p99 {
 			lut[i] = 1.0
 		} else {
 			// Normalize to 0.0 - 1.0 range based on percentiles
 			norm := float64(i-p1) / float64(p99-p1)
-			// Apply gamma
+			
+			// Apply Contrast and Brightness
+			norm = (norm-0.5)*contrast + 0.5 + brightness
+			if norm < 0 { norm = 0 }
+			if norm > 1 { norm = 1 }
+
+			// Apply Gamma
 			lut[i] = math.Pow(norm, gamma)
 		}
 	}
 
-	// Apply corrections: mapping luminance and boosting saturation
+	// Apply corrections: mapping luminance and boosting saturation (or grayscale)
 	idx = 0
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
@@ -101,10 +125,15 @@ func applyLevelsAndColor(img *image.RGBA) {
 			}
 			newL := lut[lumaIdx]
 
-			// Boost S
-			newS := hsl.S * 1.5
-			if newS > 1.0 {
-				newS = 1.0
+			newS := hsl.S
+			if opts.Grayscale {
+				newS = 0 // Pure grayscale
+			} else {
+				// Boost S slightly if not grayscale
+				newS = hsl.S * 1.5
+				if newS > 1.0 {
+					newS = 1.0
+				}
 			}
 
 			// Back to RGB

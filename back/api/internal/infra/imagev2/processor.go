@@ -100,19 +100,7 @@ func processSinglePage(imgData []byte, opts manga.ProcessOptions) ([]byte, error
 		}
 
 		if goImg != nil {
-			// In a real implementation we would pass opts.Crop to calculateCropBox
-			cropRect := calculateCropBox(goImg) // using hardcoded for now, or adapt calculateCropBox
-			
-			// Override with manual margins if not auto
-			if opts.Crop.Algorithm == "manual" {
-				bounds := goImg.Bounds()
-				cropRect = image.Rect(
-					bounds.Min.X+opts.Crop.Margins.Left,
-					bounds.Min.Y+opts.Crop.Margins.Top,
-					bounds.Max.X-opts.Crop.Margins.Right,
-					bounds.Max.Y-opts.Crop.Margins.Bottom,
-				)
-			}
+			cropRect := calculateCropBox(goImg, opts.Crop.Tolerance)
 			
 			if cropRect.Dx() > 0 && cropRect.Dy() > 0 {
 				imgData, err = bImg.Extract(cropRect.Min.Y, cropRect.Min.X, cropRect.Dx(), cropRect.Dy())
@@ -125,18 +113,13 @@ func processSinglePage(imgData []byte, opts manga.ProcessOptions) ([]byte, error
 	}
 
 	// 2. Redimensionado (Scaling)
-	targetW := opts.Resize.TargetWidth
+	targetW := opts.TargetWidth
 	if targetW == 0 {
 		targetW = 1448
 	}
-	targetH := opts.Resize.TargetHeight
+	targetH := opts.TargetHeight
 	if targetH == 0 {
 		targetH = 1072
-	}
-
-	interpolator := bimg.Interpolator(opts.Resize.Interpolator)
-	if interpolator == 0 {
-		interpolator = bimg.Lanczos3
 	}
 
 	imgData, err := bimg.Resize(imgData, bimg.Options{
@@ -144,7 +127,7 @@ func processSinglePage(imgData []byte, opts manga.ProcessOptions) ([]byte, error
 		Height:       targetH,
 		Enlarge:      opts.Resize.Enlarge,
 		Embed:        opts.Resize.Embed,
-		Interpolator: interpolator,
+		Interpolator: bimg.Lanczos3,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to resize: %w", err)
@@ -172,8 +155,7 @@ func processSinglePage(imgData []byte, opts manga.ProcessOptions) ([]byte, error
 		}
 
 		if opts.Color.Enabled {
-			// Ideally we would pass opts.Color to applyLevelsAndColor
-			applyLevelsAndColor(rgba)
+			applyLevelsAndColor(rgba, opts.Color)
 		}
 
 		if opts.Dither.Enabled {
