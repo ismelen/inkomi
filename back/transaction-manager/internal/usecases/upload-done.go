@@ -15,6 +15,16 @@ type UploadDoneUC struct {
 	queue      ports.Queue
 }
 
+func NewUploadDoneUC(
+	sourceRepo ports.SourceRepository,
+	queue ports.Queue,
+) *UploadDoneUC {
+	return &UploadDoneUC{
+		sourceRepo,
+		queue,
+	}
+}
+
 func (u *UploadDoneUC) Execute(ctx context.Context, userId int, sourceId string) error {
 	src, err := u.sourceRepo.GetByIdAndUserIdCompact(ctx, sourceId, userId)
 	if err != nil {

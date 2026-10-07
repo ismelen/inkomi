@@ -12,13 +12,13 @@ import (
 )
 
 type UploadsHandler struct {
-	newUploadUC usecases.NewUploadRequestUC
-	uploadDone  usecases.UploadDoneUC
+	newUploadUC  *usecases.NewUploadRequestUC
+	uploadDoneUC *usecases.UploadDoneUC
 }
 
 func NewUploadsHandler(
-	newUploadUC usecases.NewUploadRequestUC,
-	uploadDone usecases.UploadDoneUC,
+	newUploadUC *usecases.NewUploadRequestUC,
+	uploadDone *usecases.UploadDoneUC,
 ) *UploadsHandler {
 	return &UploadsHandler{
 		newUploadUC,
@@ -42,6 +42,6 @@ func (u *UploadsHandler) HandleOnComplete(w http.ResponseWriter, r *http.Request
 	token, _ := middlewares.GetUserClaims(r.Context())
 	sourceId := chi.URLParam(r, "sourceId")
 
-	err := u.uploadDone.Execute(r.Context(), token.Id, sourceId)
+	err := u.uploadDoneUC.Execute(r.Context(), token.Id, sourceId)
 	return nil, err
 }

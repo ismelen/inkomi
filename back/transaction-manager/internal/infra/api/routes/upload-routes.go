@@ -7,7 +7,7 @@ import (
 	requtil "github.com/ismelen/inkomi/back/transaction-manager/internal/infra/api/requtils"
 )
 
-func SetupUploadRoutes(api *chi.Mux, handler handlers.UploadsHandler) {
+func SetupUploadRoutes(api *chi.Mux, handler *handlers.UploadsHandler) {
 	r := chi.NewRouter()
 	api.Mount("/uploads", r)
 
