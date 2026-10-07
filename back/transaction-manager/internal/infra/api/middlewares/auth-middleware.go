@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 	"sync"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/ismelen/inkomi/back/transaction-manager/internal/config"
 )
 
 const UserClaimsKey string = "userClaims"
@@ -68,7 +68,7 @@ var (
 func getPublicKey() (any, error) {
 	var err error
 	initPubKeyOnce.Do(func() {
-		pubKeyPEM := os.Getenv("JWT_PUBLIC_KEY")
+		pubKeyPEM := config.Env.JwtPublicKey
 		pemStr := strings.ReplaceAll(pubKeyPEM, "\\n", "\n")
 		rsaPublicKey, err = jwt.ParseRSAPublicKeyFromPEM([]byte(pemStr))
 	})

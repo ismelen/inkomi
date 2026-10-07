@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/ismelen/inkomi/back/transaction-manager/internal/config"
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/infra/api/handlers"
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/infra/api/middlewares"
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/infra/api/routes"
@@ -14,18 +15,16 @@ import (
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/infra/repositories"
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/infra/sockethub"
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/usecases"
-	"github.com/joho/godotenv"
-	"github.com/nats-io/nats.go"
 )
 
 func main() {
-	godotenv.Load()
+	config.Load()
 
 	api := chi.NewRouter()
 	api.Use(middlewares.AuthMiddleware)
 
 	sockethub := sockethub.NewSocketHub()
-	queue, err := queue.NewNatsQueue(nats.DefaultURL)
+	queue, err := queue.NewNatsQueue(config.Env.NATSUrl)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -42,7 +41,16 @@ func main() {
 
 	sourceRepo := repositories.NewSQLiteSourceRepository(db.DB)
 	configRepo := repositories.NewSQLiteConfigRepository(db.DB)
-	cloudStorage := cloud.NewCloudflareR2Storage()
+
+	cloudStorage, err := cloud.NewCloudflareR2Storage(
+		config.Env.R2AccountId,
+		config.Env.R2AccessKeyId,
+		config.Env.R2SecretAccessKey,
+		config.Env.R2BucketName,
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	newUploadRequestUC := usecases.NewNewUploadRequestUC(db, sourceRepo, configRepo, cloudStorage)
 	uploadDoneUC := usecases.NewUploadDoneUC(sourceRepo, queue)
