@@ -3,15 +3,15 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/ismelen/inkomi/back/transaction-manager/internal/domain"
+	"github.com/ismelen/inkomi/back/transaction-manager/internal/domain/ports"
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/infra/api/middlewares"
 )
 
 type WSHandler struct {
-	sockethub domain.SocketHub
+	sockethub ports.SocketHub
 }
 
-func NewWSHandler(sockethub domain.SocketHub) *WSHandler {
+func NewWSHandler(sockethub ports.SocketHub) *WSHandler {
 	return &WSHandler{
 		sockethub: sockethub,
 	}
@@ -19,7 +19,7 @@ func NewWSHandler(sockethub domain.SocketHub) *WSHandler {
 
 func (h *WSHandler) HandleConnect(w http.ResponseWriter, r *http.Request) (*any, error) {
 	token, _ := middlewares.GetUserClaims(r.Context())
-	err := h.sockethub.Register(token.ID, w, r)
+	err := h.sockethub.Register(token.Id, w, r)
 
 	return nil, err
 }

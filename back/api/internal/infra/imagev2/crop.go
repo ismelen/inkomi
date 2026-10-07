@@ -9,20 +9,22 @@ import (
 // to find the content bounding box (ink). It dynamically adapts to
 // black, white, or grey pages by calculating the baseline luminance
 // of each margin and looking for contrasting pixels.
-func calculateCropBox(img image.Image, tolerance int) image.Rectangle {
+func calculateCropBox(img image.Image, tolerance float64) image.Rectangle {
 	bounds := img.Bounds()
 	width := bounds.Dx()
 	height := bounds.Dy()
 
-	// Tolerance: number of pixels that must differ from the margin baseline.
-	// If 0, default to 2% of the dimension.
-	xTolerance := tolerance
-	yTolerance := tolerance
-	
+	// Tolerance: percentage of the dimension that must differ from the margin baseline.
+	// If <= 0, default to 2% of the dimension.
 	if tolerance <= 0 {
-		xTolerance = int(float64(height) * 0.02)
-		yTolerance = int(float64(width) * 0.02)
+		tolerance = 0.02
+	} else if tolerance > 1.0 {
+		// Just in case someone passes percentages like 2.0 instead of 0.02
+		tolerance = tolerance / 100.0
 	}
+
+	xTolerance := int(float64(height) * tolerance)
+	yTolerance := int(float64(width) * tolerance)
 
 	if xTolerance < 1 { xTolerance = 1 }
 	if yTolerance < 1 { yTolerance = 1 }

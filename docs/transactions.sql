@@ -1,10 +1,17 @@
 CREATE TABLE IF NOT EXISTS sources (
-	id INTEGER NOT NULL,
+	id TEXT NOT NULL,
 	userId INTEGER NOT NULL,
 
 	size INTEGER,
 	filename TEXT NOT NULL,
 	title TEXT NOT NULL,
+	kepubify BOOLEAN NOT NULL FALSE,
+
+	type TEXT NOT NULL CHECK (type IN (
+		'file',
+		'folder',
+		'library'
+	))
 
 	status TEXT NOT NULL DEFAULT 'pending_upload'
 		CHECK (status IN (
@@ -27,7 +34,7 @@ CREATE TABLE IF NOT EXISTS sources (
 	readingDirection TEXT NOT NULL DEFAULT 'ltr'
     CHECK (readingDirection IN ('ltr', 'rtl'))
 
-	folderId INTEGER,
+	folderId TEXT,
 
 	configHash TEXT,
 

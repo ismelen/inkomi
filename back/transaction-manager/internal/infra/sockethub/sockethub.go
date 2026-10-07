@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"github.com/gorilla/websocket"
-	"github.com/ismelen/inkomi/back/transaction-manager/internal/domain"
+	"github.com/ismelen/inkomi/back/transaction-manager/internal/domain/ports"
 )
 
 var upgrader = websocket.Upgrader{
@@ -20,26 +20,26 @@ var upgrader = websocket.Upgrader{
 
 type SocketHub struct {
 	mu      sync.RWMutex
-	clients map[string]*client
+	clients map[int]*client
 }
 
 func NewSocketHub() *SocketHub {
 	return &SocketHub{
-		clients: make(map[string]*client),
+		clients: make(map[int]*client),
 	}
 }
 
-var _ domain.SocketHub = NewSocketHub()
+var _ ports.SocketHub = NewSocketHub()
 
-func (h *SocketHub) Register(id string, w http.ResponseWriter, r *http.Request) error {
+func (h *SocketHub) Register(id int, w http.ResponseWriter, r *http.Request) error {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("Error actualizando a websocket para el cliente %s: %v", id, err)
+		log.Printf("Error actualizando a websocket para el cliente %d: %v", id, err)
 		return err
 	}
 
 	client := &client{
-		ID:   id,
+		Id:   id,
 		Conn: conn,
 	}
 
@@ -54,7 +54,7 @@ func (h *SocketHub) Register(id string, w http.ResponseWriter, r *http.Request) 
 	return nil
 }
 
-func (h *SocketHub) Send(id string, v any) error {
+func (h *SocketHub) Send(id int, v any) error {
 	h.mu.RLock()
 	client, ok := h.clients[id]
 	h.mu.RUnlock()
@@ -70,7 +70,7 @@ func (h *SocketHub) Send(id string, v any) error {
 
 func (h *SocketHub) readPump(c *client) {
 	defer func() {
-		h.unregister(c.ID)
+		h.unregister(c.Id)
 		c.Conn.Close()
 	}()
 
@@ -78,14 +78,14 @@ func (h *SocketHub) readPump(c *client) {
 		_, _, err := c.Conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Printf("Error en conexión websocket del cliente %s: %v", c.ID, err)
+				log.Printf("Error en conexión websocket del cliente %s: %v", c.Id, err)
 			}
 			break
 		}
 	}
 }
 
-func (h *SocketHub) unregister(id string) {
+func (h *SocketHub) unregister(id int) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if c, ok := h.clients[id]; ok {

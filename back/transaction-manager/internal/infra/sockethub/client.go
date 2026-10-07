@@ -7,7 +7,7 @@ import (
 )
 
 type client struct {
-	ID   string
+	Id   int
 	Conn *websocket.Conn
 	mu   sync.Mutex // Protege las escrituras concurrentes en la conexión
 }

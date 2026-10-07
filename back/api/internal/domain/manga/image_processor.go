@@ -22,7 +22,7 @@ type ProcessOptions struct {
 // CropOptions define los parámetros para el recorte automático de márgenes blancos.
 type CropOptions struct {
 	Enabled   bool
-	Tolerance int
+	Tolerance float64
 }
 
 // ResizeOptions define parámetros adicionales para escalar la imagen.
@@ -79,7 +79,7 @@ func NewDefaultProcessOptions() ProcessOptions {
 		TargetHeight:     1072,
 		Crop: CropOptions{
 			Enabled:   true,
-			Tolerance: 15,
+			Tolerance: 0.02,
 		},
 		Resize: ResizeOptions{
 			Enlarge: false,
