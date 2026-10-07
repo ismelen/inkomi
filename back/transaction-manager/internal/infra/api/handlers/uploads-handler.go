@@ -13,13 +13,16 @@ import (
 
 type UploadsHandler struct {
 	newUploadUC usecases.NewUploadRequestUC
+	uploadDone  usecases.UploadDoneUC
 }
 
 func NewUploadsHandler(
 	newUploadUC usecases.NewUploadRequestUC,
+	uploadDone usecases.UploadDoneUC,
 ) *UploadsHandler {
 	return &UploadsHandler{
 		newUploadUC,
+		uploadDone,
 	}
 }
 
@@ -39,5 +42,6 @@ func (u *UploadsHandler) HandleOnComplete(w http.ResponseWriter, r *http.Request
 	token, _ := middlewares.GetUserClaims(r.Context())
 	sourceId := chi.URLParam(r, "sourceId")
 
-	return nil, nil
+	err := u.uploadDone.Execute(r.Context(), token.Id, sourceId)
+	return nil, err
 }

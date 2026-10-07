@@ -24,9 +24,9 @@ const (
 type SourceType string
 
 const (
-	SourceTypeFolder  SourceStatus = "folder"
-	SourceTypeFile    SourceStatus = "file"
-	SourceTypeLibrary SourceStatus = "library"
+	SourceTypeFolder  SourceType = "folder"
+	SourceTypeFile    SourceType = "file"
+	SourceTypeLibrary SourceType = "library"
 )
 
 type Source struct {
@@ -46,4 +46,5 @@ type Source struct {
 	FolderId         *string          `json:"folderId"`
 	ConfigHash       *string          `json:"configHash"`
 	Kepubify         bool             `json:"kepubify"`
+	MangaConfig      Config           `json:"mangaConfig"`
 }

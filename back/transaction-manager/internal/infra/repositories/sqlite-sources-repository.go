@@ -50,25 +50,46 @@ func (r *SQLiteSourceRepository) Create(ctx context.Context, source *models.Sour
 	return source.Id, nil
 }
 
-func (r *SQLiteSourceRepository) CreateAll(ctx context.Context, sources []*models.Source) ([]string, error) {
-	ids := make([]string, 0, len(sources))
-	for _, source := range sources {
-		id, err := r.Create(ctx, source)
-		if err != nil {
-			return nil, err
+func (r *SQLiteSourceRepository) GetByIdAndUserIdCompact(ctx context.Context, id string, userID int) (*models.CompactSoruce, error) {
+	query := `
+		SELECT 
+			s.id, s.userId, s.filename, s.title, s.shouldJoin, 
+			s.readingDirection, s.folderId, c.data
+		FROM sources as s
+		INNER JOIN configs as c ON c.hash = s.configHash
+		WHERE id = ? AND userId = ?
+	`
+	row := datasources.GetDB(ctx, r.db).QueryRowContext(ctx, query, id, userID)
+
+	var source models.CompactSoruce
+	err := row.Scan(
+		&source.Id,
+		&source.UserId,
+		&source.Filename,
+		&source.Title,
+		&source.ShouldJoin,
+		&source.ReadingDirection,
+		&source.FolderId,
+		&source.Config.Data,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil // Or domain specific error
 		}
-		ids = append(ids, id)
+		return nil, err
 	}
-	return ids, nil
+
+	return &source, nil
 }
 
 func (r *SQLiteSourceRepository) GetByIDAndUserID(ctx context.Context, id string, userID int) (*models.Source, error) {
 	query := `
 		SELECT 
-			id, userId, size, filename, title, status, error, 
-			createdAt, updatedAt, completedAt, shouldJoin, 
-			readingDirection, folderId, configHash
-		FROM sources
+			s.id, s.userId, s.size, s.filename, s.title, s.status, s.error, 
+			s.createdAt, s.updatedAt, s.completedAt, s.shouldJoin, 
+			s.readingDirection, s.folderId, s.configHash
+		FROM sources as s
+		INNER JOIN configs as c ON c.hash = s.configHash
 		WHERE id = ? AND userId = ?
 	`
 	row := datasources.GetDB(ctx, r.db).QueryRowContext(ctx, query, id, userID)
@@ -89,6 +110,10 @@ func (r *SQLiteSourceRepository) GetByIDAndUserID(ctx context.Context, id string
 		&source.ReadingDirection,
 		&source.FolderId,
 		&source.ConfigHash,
+		&source.MangaConfig.Hash,
+		&source.MangaConfig.Data,
+		&source.MangaConfig.CreatedAt,
+		&source.MangaConfig.LastUsed,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -100,35 +125,19 @@ func (r *SQLiteSourceRepository) GetByIDAndUserID(ctx context.Context, id string
 	return &source, nil
 }
 
-func (r *SQLiteSourceRepository) Update(ctx context.Context, source *models.Source) error {
+func (r *SQLiteSourceRepository) UpdateStatus(ctx context.Context, id string, userId int, status models.SourceStatus, errMsg *string) error {
 	query := `
 		UPDATE sources SET
-			size = ?,
-			filename = ?,
-			title = ?,
 			status = ?,
 			error = ?,
-			updatedAt = CURRENT_TIMESTAMP,
-			completedAt = ?,
-			shouldJoin = ?,
-			readingDirection = ?,
-			folderId = ?,
-			configHash = ?
+			updatedAt = CURRENT_TIMESTAMP
 		WHERE id = ? AND userId = ?
 	`
 	_, err := datasources.GetDB(ctx, r.db).ExecContext(ctx, query,
-		source.Size,
-		source.Filename,
-		source.Title,
-		source.Status,
-		source.Error,
-		source.CompletedAt,
-		source.ShouldJoin,
-		source.ReadingDirection,
-		source.FolderId,
-		source.ConfigHash,
-		source.Id,
-		source.UserId,
+		status,
+		errMsg,
+		id,
+		userId,
 	)
 	return err
 }

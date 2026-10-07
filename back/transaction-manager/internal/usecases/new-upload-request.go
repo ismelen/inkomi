@@ -75,19 +75,22 @@ func (n *NewUploadRequestUC) saveSources(op *uploadOperation) error {
 	return n.txManager.ExecuteTx(op.ctx, func(txCtx context.Context) (err error) {
 		for i, s := range op.data.Sources {
 			data := n.getSource(&s.NoItemsSourceDTO, op.userId)
-			data.ShouldJoin = s.ShouldJoin
-			if data.Kepubify, err = n.shouldKepubify(s.ConfigHash, op); err != nil {
-				return err
-			}
-			if s.ConfigHash != nil {
-				hash := op.keyToHash[*s.ConfigHash]
-				data.ConfigHash = &hash
+			if len(s.Items) == 0 {
+				if s.Type == models.SourceTypeFile && s.ConfigHash != nil {
+					hash := op.keyToHash[*s.ConfigHash]
+					data.ConfigHash = &hash
+				}
+				if data.Kepubify, err = n.shouldKepubify(s.ConfigHash, op); err != nil {
+					return err
+				}
+				s.Kepubify = data.Kepubify
+			} else {
+				data.ShouldJoin = s.ShouldJoin
 			}
 
 			if s.Id, err = n.sourceRepo.Create(txCtx, data); err != nil {
 				return err
 			}
-			s.Kepubify = data.Kepubify
 			op.data.Sources[i] = s
 
 			for j, item := range s.Items {
@@ -96,8 +99,13 @@ func (n *NewUploadRequestUC) saveSources(op *uploadOperation) error {
 				if data.Kepubify, err = n.shouldKepubify(item.ConfigHash, op); err != nil {
 					return err
 				}
-				if item.ConfigHash != nil {
-					hash := op.keyToHash[*item.ConfigHash]
+				if item.Type == models.SourceTypeFile &&
+					filepath.Ext(item.Filename) != ".epub" &&
+					(item.ConfigHash != nil || s.ConfigHash != nil) {
+					hash, ok := op.keyToHash[*item.ConfigHash]
+					if !ok {
+						hash = op.keyToHash[*s.ConfigHash]
+					}
 					data.ConfigHash = &hash
 				}
 				data.ShouldJoin = s.ShouldJoin
