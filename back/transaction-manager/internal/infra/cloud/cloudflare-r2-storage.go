@@ -12,6 +12,7 @@ import (
 )
 
 type CloudflareR2Storage struct {
+	client        *s3.Client
 	presignClient *s3.PresignClient
 	bucketName    string
 }
@@ -32,6 +33,7 @@ func NewCloudflareR2Storage(accountId, accessKeyId, secretAccessKey, bucketName 
 	presignClient := s3.NewPresignClient(client)
 
 	return &CloudflareR2Storage{
+		client:        client,
 		presignClient: presignClient,
 		bucketName:    bucketName,
 	}, nil
@@ -50,4 +52,13 @@ func (c *CloudflareR2Storage) GetUrl(id string, ext string) (string, error) {
 	}
 
 	return request.URL, nil
+}
+
+func (c *CloudflareR2Storage) Check(id string, ext string) bool {
+	key := id + ext
+	_, err := c.client.HeadObject(context.TODO(), &s3.HeadObjectInput{
+		Bucket: aws.String(c.bucketName),
+		Key:    aws.String(key),
+	})
+	return err == nil
 }

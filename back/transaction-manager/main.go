@@ -53,7 +53,7 @@ func main() {
 	}
 
 	newUploadRequestUC := usecases.NewNewUploadRequestUC(db, sourceRepo, configRepo, cloudStorage)
-	uploadDoneUC := usecases.NewUploadDoneUC(sourceRepo, queue)
+	uploadDoneUC := usecases.NewUploadDoneUC(sourceRepo, cloudStorage, queue)
 	uploadsHandler := handlers.NewUploadsHandler(newUploadRequestUC, uploadDoneUC)
 	routes.SetupUploadRoutes(api, uploadsHandler)
 

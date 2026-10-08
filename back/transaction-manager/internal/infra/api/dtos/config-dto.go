@@ -6,7 +6,8 @@ import (
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/domain/models"
 )
 
-type MangaConfigDTO struct {
+type ConfigDTO struct {
+	Hash                string
 	EReaderKey          string                  `json:"ereader_key"`
 	RotateDoublePage    bool                    `json:"rotate_double_page"`
 	CropTolerance       float32                 `json:"crop_tolerance,omitempty"` // [0.0, 1.0]; def=0.0
@@ -22,6 +23,7 @@ type MangaConfigDTO struct {
 	Palette8bit         bool                    `json:"pallete_8_bit"` // convert to 8-bit palette instead of 24-bit
 	Quality             int8                    `json:"quality"`       // %
 	Sharpen             *MangaSharpenOptionsDTO `json:"sharpen,omitempty"`
+	Kepubify            bool
 }
 
 type MangaSharpenOptionsDTO struct {
@@ -33,14 +35,14 @@ type MangaSharpenOptionsDTO struct {
 	M2     float32 `json:"m2"`     // [1.0, 5.0]; def=3
 }
 
-func (m *MangaConfigDTO) UnmarshalJSON(data []byte) error {
-	*m = MangaConfigDTO{
+func (m *ConfigDTO) UnmarshalJSON(data []byte) error {
+	*m = ConfigDTO{
 		Gamma:               1.0,
 		Contrast:            1.0,
 		BlackPointThreshold: 0.06,
 		WhitePointThreshold: 0.95,
 	}
-	type Alias MangaConfigDTO
+	type Alias ConfigDTO
 	aux := (*Alias)(m)
 	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
@@ -50,16 +52,22 @@ func (m *MangaConfigDTO) UnmarshalJSON(data []byte) error {
 		m.Sharpen = nil
 	}
 
+	ereader, err := models.NewEreader(m.EReaderKey)
+	if err != nil {
+		return err
+	}
+
+	m.Kepubify = ereader.IsKepub
 	return nil
 }
 
-func (m MangaConfigDTO) MarshalJSON() ([]byte, error) {
+func (m ConfigDTO) MarshalJSON() ([]byte, error) {
 	ereader, err := models.NewEreader(m.EReaderKey)
 	if err != nil {
 		return nil, err
 	}
 
-	type Alias MangaConfigDTO
+	type Alias ConfigDTO
 
 	return json.Marshal(&struct {
 		Alias

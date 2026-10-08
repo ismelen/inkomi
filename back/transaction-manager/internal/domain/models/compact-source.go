@@ -10,4 +10,5 @@ type CompactSoruce struct {
 	ReadingDirection ReadingDirection `json:"readingDirection,omitempty,omitzero"`
 	FolderId         *string          `json:"folderId,omitempty,omitzero"`
 	Config           *Config          `json:"config,omitempty,omitzero"`
+	Kepubify         bool             `json:"kepubify,omitempty"`
 }

@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"path/filepath"
 
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/domain/models"
@@ -37,7 +36,6 @@ func NewNewUploadRequestUC(
 type uploadOperation struct {
 	userId      int
 	data        *dtos.UploadRequestDTO
-	keyToHash   map[string]string
 	ctx         context.Context
 	mainEreader *models.EReader
 }
@@ -53,106 +51,87 @@ func (n *NewUploadRequestUC) Execute(ctx context.Context, data dtos.UploadReques
 		data:        &data,
 		ctx:         ctx,
 		mainEreader: ereader,
-		keyToHash:   make(map[string]string),
 	}
 
 	if err := n.saveConfigs(operation); err != nil {
 		return nil, err
 	}
 
-	if err := n.saveSources(operation); err != nil {
-		return nil, err
+	for i, topSrc := range data.Sources {
+		if len(topSrc.Items) > 0 && topSrc.Type != models.SourceTypeFolder {
+			topSrc.Type = models.SourceTypeFolder
+		}
+		n.saveSource(operation, &topSrc.NoItemsSourceDTO, &topSrc)
+		data.Sources[i] = topSrc
+
+		for j, childSrc := range topSrc.Items {
+			n.saveSource(operation, &childSrc, &topSrc)
+			data.Sources[i].Items[j] = childSrc
+		}
 	}
 
-	for _, src := range data.Sources {
+	return data.Sources, nil
+}
+
+func (n *NewUploadRequestUC) saveSource(op *uploadOperation, src *dtos.NoItemsSourceDTO, parent *dtos.SourceDTO) error {
+	if src.Type == models.SourceTypeFolder {
+		src.Size = new(int64)
+	}
+
+	shouldJoin := false
+	var folderId, configHash *string
+
+	if src.ConfigKey != nil {
+		if config, ok := op.data.Configs[*src.ConfigKey]; ok {
+			configHash = &config.Hash
+			src.Kepubify = config.Kepubify
+		}
+	}
+
+	if parent != nil {
+		src.Kepubify = parent.Kepubify
+		shouldJoin = parent.ShouldJoin
+		src.ReadingDirection = parent.ReadingDirection
+		folderId = &parent.Id
+
+		if configHash == nil && parent.ConfigKey != nil {
+			if config, ok := op.data.Configs[*parent.ConfigKey]; ok {
+				configHash = &config.Hash
+				src.Kepubify = config.Kepubify
+			}
+		}
+	}
+
+	if configHash == nil {
+		ereader, err := models.NewEreader(op.data.EReaderKey)
+		if err != nil {
+			return err
+		}
+		src.Kepubify = ereader.IsKepub
+	}
+
+	id, err := n.sourceRepo.Create(op.ctx, &models.Source{
+		UserId:           op.userId,
+		Size:             src.Size,
+		Filename:         src.Filename,
+		Title:            src.Title,
+		Kepubify:         src.Kepubify,
+		Type:             src.Type,
+		ShouldJoin:       shouldJoin,
+		ReadingDirection: src.ReadingDirection,
+		FolderId:         folderId,
+		ConfigHash:       configHash,
+	})
+	if err != nil {
+		return err
+	}
+
+	src.Id = id
+	if src.Type != models.SourceTypeFolder {
 		src.Url, err = n.cloudStorage.GetUrl(src.Id, filepath.Ext(src.Filename))
 	}
 
-	return operation.data.Sources, nil
-}
-
-func (n *NewUploadRequestUC) saveSources(op *uploadOperation) error {
-	return n.txManager.ExecuteTx(op.ctx, func(txCtx context.Context) (err error) {
-		for i, s := range op.data.Sources {
-			data := n.getSource(&s.NoItemsSourceDTO, op.userId)
-			if len(s.Items) == 0 {
-				if s.Type == models.SourceTypeFile && s.ConfigHash != nil {
-					hash := op.keyToHash[*s.ConfigHash]
-					data.ConfigHash = &hash
-				}
-				if data.Kepubify, err = n.shouldKepubify(s.ConfigHash, op); err != nil {
-					return err
-				}
-				s.Kepubify = data.Kepubify
-			} else {
-				data.ShouldJoin = s.ShouldJoin
-			}
-
-			if s.Id, err = n.sourceRepo.Create(txCtx, data); err != nil {
-				return err
-			}
-			op.data.Sources[i] = s
-
-			for j, item := range s.Items {
-				data = n.getSource(&item, op.userId)
-				data.FolderId = &s.Id
-				if data.Kepubify, err = n.shouldKepubify(item.ConfigHash, op); err != nil {
-					return err
-				}
-				if item.Type == models.SourceTypeFile &&
-					filepath.Ext(item.Filename) != ".epub" &&
-					(item.ConfigHash != nil || s.ConfigHash != nil) {
-					hash, ok := op.keyToHash[*item.ConfigHash]
-					if !ok {
-						hash = op.keyToHash[*s.ConfigHash]
-					}
-					data.ConfigHash = &hash
-				}
-				data.ShouldJoin = s.ShouldJoin
-				item.Id, err = n.sourceRepo.Create(txCtx, data)
-				if err != nil {
-					return err
-				}
-				item.Kepubify = data.Kepubify
-				op.data.Sources[i].Items[j] = item
-			}
-		}
-
-		return nil
-	})
-}
-
-func (n *NewUploadRequestUC) shouldKepubify(configKey *string, op *uploadOperation) (bool, error) {
-	if configKey == nil {
-		return op.mainEreader.IsKepub, nil
-	}
-
-	config, ok := op.data.Configs[*configKey]
-	if !ok {
-		return false, fmt.Errorf("invalid config reference")
-	}
-
-	if config.EReaderKey == op.mainEreader.Key {
-		return op.mainEreader.IsKepub, nil
-	}
-
-	ereader, err := models.NewEreader(config.EReaderKey)
-	if err != nil {
-		return false, err
-	}
-
-	return ereader.IsKepub, nil
-}
-
-func (n *NewUploadRequestUC) getSource(s *dtos.NoItemsSourceDTO, userId int) *models.Source {
-	return &models.Source{
-		UserId:           userId,
-		Title:            s.Title,
-		Size:             s.Size,
-		Filename:         s.Filename,
-		Type:             s.Type,
-		ReadingDirection: s.ReadingDirection,
-	}
+	return err
 }
 
 func (n *NewUploadRequestUC) saveConfigs(op *uploadOperation) error {
@@ -173,7 +152,8 @@ func (n *NewUploadRequestUC) saveConfigs(op *uploadOperation) error {
 				return err
 			}
 
-			op.keyToHash[key] = hash
+			config.Hash = hash
+			op.data.Configs[key] = config
 		}
 		return nil
 	})

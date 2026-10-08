@@ -60,7 +60,7 @@ func (h *SocketHub) Send(id int, v any) error {
 	h.mu.RUnlock()
 
 	if !ok {
-		return fmt.Errorf("cliente %s no encontrado", id)
+		return fmt.Errorf("cliente %d no encontrado", id)
 	}
 
 	client.mu.Lock()
@@ -78,7 +78,7 @@ func (h *SocketHub) readPump(c *client) {
 		_, _, err := c.Conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Printf("Error en conexión websocket del cliente %s: %v", c.Id, err)
+				log.Printf("Error en conexión websocket del cliente %d: %v", c.Id, err)
 			}
 			break
 		}

@@ -54,7 +54,7 @@ func (r *SQLiteSourceRepository) GetByIdAndUserIdCompact(ctx context.Context, id
 	query := `
 		SELECT 
 			s.id, s.userId, s.filename, s.title, s.shouldJoin, 
-			s.readingDirection, s.folderId, c.data
+			s.readingDirection, s.folderId, s.kepubify, c.data
 		FROM sources as s
 		INNER JOIN configs as c ON c.hash = s.configHash
 		WHERE id = ? AND userId = ?
@@ -70,6 +70,7 @@ func (r *SQLiteSourceRepository) GetByIdAndUserIdCompact(ctx context.Context, id
 		&source.ShouldJoin,
 		&source.ReadingDirection,
 		&source.FolderId,
+		&source.Kepubify,
 		&source.Config.Data,
 	)
 	if err != nil {
