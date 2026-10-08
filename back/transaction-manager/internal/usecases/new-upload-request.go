@@ -56,21 +56,23 @@ func (n *NewUploadRequestUC) Execute(ctx context.Context, data dtos.UploadReques
 	if err := n.saveConfigs(operation); err != nil {
 		return nil, err
 	}
+	err = n.txManager.ExecuteTx(operation.ctx, func(txCtx context.Context) error {
+		for i, topSrc := range data.Sources {
+			if len(topSrc.Items) > 0 && topSrc.Type != models.SourceTypeFolder {
+				topSrc.Type = models.SourceTypeFolder
+			}
+			n.saveSource(operation, &topSrc.NoItemsSourceDTO, &topSrc)
+			data.Sources[i] = topSrc
 
-	for i, topSrc := range data.Sources {
-		if len(topSrc.Items) > 0 && topSrc.Type != models.SourceTypeFolder {
-			topSrc.Type = models.SourceTypeFolder
+			for j, childSrc := range topSrc.Items {
+				n.saveSource(operation, &childSrc, &topSrc)
+				data.Sources[i].Items[j] = childSrc
+			}
 		}
-		n.saveSource(operation, &topSrc.NoItemsSourceDTO, &topSrc)
-		data.Sources[i] = topSrc
+		return nil
+	})
 
-		for j, childSrc := range topSrc.Items {
-			n.saveSource(operation, &childSrc, &topSrc)
-			data.Sources[i].Items[j] = childSrc
-		}
-	}
-
-	return data.Sources, nil
+	return data.Sources, err
 }
 
 func (n *NewUploadRequestUC) saveSource(op *uploadOperation, src *dtos.NoItemsSourceDTO, parent *dtos.SourceDTO) error {
@@ -127,7 +129,7 @@ func (n *NewUploadRequestUC) saveSource(op *uploadOperation, src *dtos.NoItemsSo
 	}
 
 	src.Id = id
-	if src.Type != models.SourceTypeFolder {
+	if src.Type == models.SourceTypeFile {
 		src.Url, err = n.cloudStorage.GetUrl(src.Id, filepath.Ext(src.Filename))
 	}
 

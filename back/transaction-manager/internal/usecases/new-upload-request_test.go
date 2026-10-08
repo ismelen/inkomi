@@ -118,7 +118,7 @@ func TestNewUploadRequestUC_Execute_WithConfigs_SavesConfigsAndSources(t *testin
 	assert.NotEmpty(t, configHashCreated, "expected config to be saved and hash generated")
 }
 
-func TestNewUploadRequestUC_Execute_SourceWithItemsNotFolder_ReturnsError(t *testing.T) {
+func TestNewUploadRequestUC_Execute_SourceWithItemsNotFolder_SetsFolderAsType(t *testing.T) {
 	// Arrange
 	uc := usecases.NewNewUploadRequestUC(
 		&MockTxManager{},
@@ -142,11 +142,11 @@ func TestNewUploadRequestUC_Execute_SourceWithItemsNotFolder_ReturnsError(t *tes
 	}
 
 	// Act
-	_, err := uc.Execute(context.Background(), req, 1)
+	srcs, err := uc.Execute(context.Background(), req, 1)
 
 	// Assert
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "source with items must be of type folder")
+	assert.NoError(t, err)
+	assert.Equal(t, srcs[0].Type, models.SourceTypeFolder)
 }
 
 func TestNewUploadRequestUC_Execute_ChildInheritsConfigHash_UsesParentHash(t *testing.T) {
