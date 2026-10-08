@@ -14,6 +14,7 @@ import (
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/infra/queue"
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/infra/repositories"
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/infra/sockethub"
+	forwaredevents "github.com/ismelen/inkomi/back/transaction-manager/internal/usecases/forwardevents"
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/usecases/newupload"
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/usecases/uploaddone"
 )
@@ -57,6 +58,9 @@ func main() {
 	uploadDoneUC := uploaddone.NewUploadDoneUC(sourceRepo, cloudStorage, queue)
 	uploadsHandler := handlers.NewUploadsHandler(newUploadRequestUC, uploadDoneUC)
 	routes.SetupUploadRoutes(api, uploadsHandler)
+
+	forwardEventsUc := forwaredevents.NewForwardEventsUC(sockethub, queue, sourceRepo)
+	go forwardEventsUc.Execute()
 
 	log.Println("Starting at port 3000")
 	if err := http.ListenAndServe(":3000", api); err != nil {

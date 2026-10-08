@@ -35,11 +35,26 @@ func (u *UploadDoneUC) Execute(ctx context.Context, userId int, sourceId string)
 		return err
 	}
 
+	if ok := u.cloudStorage.Check(src.Id, filepath.Ext(src.Filename)); !ok {
+		return fmt.Errorf("source doesn't exists")
+	}
+
 	bytes, err := json.Marshal(src)
 	if err != nil {
 		return err
 	}
 
+	subject := u.getSubject(src)
+
+	err = u.queue.Publish(ctx, subject, bytes)
+	if err != nil {
+		return err
+	}
+
+	return u.sourceRepo.UpdateStatus(ctx, sourceId, userId, models.SourceStatusQueued, nil)
+}
+
+func (u *UploadDoneUC) getSubject(src *models.CompactSoruce) string {
 	subject := "job."
 	if src.Type == models.SourceTypeLibrary {
 		subject += "init.library"
@@ -55,16 +70,7 @@ func (u *UploadDoneUC) Execute(ctx context.Context, userId int, sourceId string)
 		subject += "init.manga"
 	}
 
-	err = u.queue.Publish(ctx, subject, bytes)
-	if err != nil {
-		return err
-	}
-
-	if ok := u.cloudStorage.Check(src.Id, filepath.Ext(src.Filename)); !ok {
-		return fmt.Errorf("source doesn't exists")
-	}
-
-	return u.sourceRepo.UpdateStatus(ctx, sourceId, userId, models.SourceStatusQueued, nil)
+	return subject
 }
 
 func (u *UploadDoneUC) isKepub(filename string) bool {

@@ -7,7 +7,8 @@ import (
 )
 
 type MockQueue struct {
-	PublishFn func(ctx context.Context, subject string, payload []byte) error
+	PublishFn   func(ctx context.Context, subject string, payload []byte) error
+	SubscribeFn func(subject string, handler ports.EventHandler) error
 }
 
 func (m *MockQueue) Publish(ctx context.Context, subject string, payload []byte) error {
@@ -17,7 +18,10 @@ func (m *MockQueue) Publish(ctx context.Context, subject string, payload []byte)
 	return nil
 }
 
-func (m *MockQueue) Subscribe(ctx context.Context, subject string, handler ports.EventHandler) error {
+func (m *MockQueue) Subscribe(subject string, handler ports.EventHandler) error {
+	if m.SubscribeFn != nil {
+		return m.SubscribeFn(subject, handler)
+	}
 	return nil
 }
 

@@ -12,6 +12,7 @@ const (
 	SourceStatusKepubifying   SourceStatus = "kepubifying"
 	SourceStatusSent          SourceStatus = "sent"
 	SourceStatusFailed        SourceStatus = "failed"
+	SourceStatusDone          SourceStatus = "done"
 )
 
 type ReadingDirection string

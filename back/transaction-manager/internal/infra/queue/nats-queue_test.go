@@ -47,7 +47,7 @@ func TestNatsQueue_PublishAndSubscribe_ValidMessage_HandlesEvent(t *testing.T) {
 	received := make(chan string, 1)
 
 	// Act
-	err = q.Subscribe(context.Background(), subject, func(ctx context.Context, data []byte) error {
+	err = q.Subscribe(subject, func(ctx context.Context, subject string, data []byte) error {
 		received <- string(data)
 		return nil
 	})

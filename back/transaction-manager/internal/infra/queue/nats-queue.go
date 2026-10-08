@@ -64,10 +64,10 @@ func (n *NatsQueue) Publish(ctx context.Context, subject string, payload []byte)
 	return nil
 }
 
-func (n *NatsQueue) Subscribe(ctx context.Context, subject string, handler ports.EventHandler) error {
+func (n *NatsQueue) Subscribe(subject string, handler ports.EventHandler) error {
 	sub, err := n.nc.Subscribe(subject, func(msg *nats.Msg) {
 		hCtx := context.Background()
-		_ = handler(hCtx, msg.Data)
+		_ = handler(hCtx, msg.Subject, msg.Data)
 	})
 
 	if err != nil {
