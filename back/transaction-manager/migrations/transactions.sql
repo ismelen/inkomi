@@ -18,10 +18,12 @@ CREATE TABLE IF NOT EXISTS sources (
 			'pending_upload',
 			'queued',
 			'processing',
+			'waiting_join',
 			'joining',
 			'kepubifying',
 			'sent',
-			'failed'
+			'failed',
+			'done'
 		)),
 
 	error TEXT,

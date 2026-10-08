@@ -51,7 +51,7 @@ func (u *UploadDoneUC) Execute(ctx context.Context, userId int, sourceId string)
 		return err
 	}
 
-	return u.sourceRepo.UpdateStatus(ctx, sourceId, userId, models.SourceStatusQueued, nil)
+	return u.sourceRepo.UpdateStatus(ctx, sourceId, userId, models.SourceStatusQueued)
 }
 
 func (u *UploadDoneUC) getSubject(src *models.CompactSoruce) string {

@@ -19,6 +19,142 @@ func NewSQLiteSourceRepository(db *sql.DB) ports.SourceRepository {
 	return &SQLiteSourceRepository{db: db}
 }
 
+func (r *SQLiteSourceRepository) SetError(ctx context.Context, id string, userId int, errMsg string) error {
+	query := `
+		UPDATE sources SET
+			error = ?,
+			status = ?,
+			upldatedAt = CURRENT_TIMESTAMP
+		WHERE id = ? AND userId = ?
+	`
+	_, err := r.db.Query(query, errMsg, models.SourceStatusFailed, id, userId)
+	return err
+}
+
+func (r *SQLiteSourceRepository) CheckFolderIsWaitingJoin(ctx context.Context, folderId string, userId int) (*models.FolderWithItems, bool, error) {
+	// itemsQuery := `
+	// 	SELECT id, filename, size, status
+	// 	FROM sources
+	// 	WHERE folderId = ? AND userId = ?
+	// `
+	// rows, err := datasources.GetDB(ctx, r.db).QueryContext(ctx, itemsQuery, folderId, userId)
+	// if err != nil {
+	// 	return nil, false, err
+	// }
+	// defer rows.Close()
+
+	// var items []models.SourceItem
+	// hasItems := false
+
+	// for rows.Next() {
+	// 	hasItems = true
+	// 	var item models.SourceItem
+	// 	var status string
+	// 	if err := rows.Scan(&item.Id, &item.Filename, &item.Size, &status); err != nil {
+	// 		return nil, false, err
+	// 	}
+	// 	if status != string(models.SourceStatusWaitingJoin) {
+	// 		return nil, false, nil
+	// 	}
+	// 	items = append(items, item)
+	// }
+
+	// if err := rows.Err(); err != nil {
+	// 	return nil, false, err
+	// }
+
+	// if !hasItems {
+	// 	return nil, false, nil
+	// }
+
+	// folderQuery := `
+	// 	SELECT
+	// 		s.id, s.userId, s.filename, s.title, s.shouldJoin,
+	// 		s.readingDirection, s.folderId, s.kepubify, c.data
+	// 	FROM sources as s
+	// 	LEFT JOIN configs as c ON c.hash = s.configHash
+	// 	WHERE s.id = ? AND s.userId = ?
+	// `
+	// row := datasources.GetDB(ctx, r.db).QueryRowContext(ctx, folderQuery, folderId, userId)
+
+	// var folder models.CompactSoruce
+	// var configData sql.NullString
+	// err = row.Scan(
+	// 	&folder.Id,
+	// 	&folder.UserId,
+	// 	&folder.Filename,
+	// 	&folder.Title,
+	// 	&folder.ShouldJoin,
+	// 	&folder.ReadingDirection,
+	// 	&folder.FolderId,
+	// 	&folder.Kepubify,
+	// 	&configData,
+	// )
+	// if err != nil {
+	// 	if errors.Is(err, sql.ErrNoRows) {
+	// 		return nil, false, nil
+	// 	}
+	// 	return nil, false, err
+	// }
+
+	// if configData.Valid {
+	// 	folder.Config = &models.Config{Data: configData.String}
+	// }
+
+	// return &models.FolderWithItems{
+	// 	Folder: folder,
+	// 	Items:  items,
+	// }, true, nil
+}
+
+func (r *SQLiteSourceRepository) CheckSiblingsInWaitingJoin(ctx context.Context, id string, userId string) (*models.CompactSoruce, bool, error) {
+	query := `
+		SELECT 
+			p.id, p.userId, p.filename, p.title, p.shouldJoin, 
+			p.readingDirection, p.folderId, p.kepubify, c.data
+		FROM sources as s
+		INNER JOIN sources as p ON s.folderId = p.id AND s.userId = p.userId
+		LEFT JOIN configs as c ON c.hash = p.configHash
+		WHERE s.id = ? AND s.userId = ?
+		  AND NOT EXISTS (
+			  SELECT 1 
+			  FROM sources as sib 
+			  WHERE sib.folderId = s.folderId 
+			    AND sib.userId = s.userId 
+			    AND sib.id != s.id 
+			    AND sib.status != 'waiting_join'
+		  )
+	`
+	row := datasources.GetDB(ctx, r.db).QueryRowContext(ctx, query, id, userId)
+
+	var source models.CompactSoruce
+	var configData sql.NullString
+	err := row.Scan(
+		&source.Id,
+		&source.UserId,
+		&source.Filename,
+		&source.Title,
+		&source.ShouldJoin,
+		&source.ReadingDirection,
+		&source.FolderId,
+		&source.Kepubify,
+		&configData,
+	)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, false, nil
+		}
+		return nil, false, err
+	}
+
+	if configData.Valid {
+		source.Config = &models.Config{Data: configData.String}
+	}
+
+	return &source, true, nil
+}
+
 func (r *SQLiteSourceRepository) Create(ctx context.Context, source *models.Source) (string, error) {
 	source.Id = uuid.New().String()
 
@@ -84,60 +220,15 @@ func (r *SQLiteSourceRepository) GetByIdAndUserIdCompact(ctx context.Context, id
 	return &source, nil
 }
 
-func (r *SQLiteSourceRepository) GetByIDAndUserID(ctx context.Context, id string, userID int) (*models.Source, error) {
-	query := `
-		SELECT 
-			s.id, s.userId, s.size, s.filename, s.title, s.status, s.error, 
-			s.createdAt, s.updatedAt, s.completedAt, s.shouldJoin, 
-			s.readingDirection, s.folderId, s.configHash
-		FROM sources as s
-		INNER JOIN configs as c ON c.hash = s.configHash
-		WHERE id = ? AND userId = ?
-	`
-	row := datasources.GetDB(ctx, r.db).QueryRowContext(ctx, query, id, userID)
-
-	var source models.Source
-	err := row.Scan(
-		&source.Id,
-		&source.UserId,
-		&source.Size,
-		&source.Filename,
-		&source.Title,
-		&source.Status,
-		&source.Error,
-		&source.CreatedAt,
-		&source.UpdatedAt,
-		&source.CompletedAt,
-		&source.ShouldJoin,
-		&source.ReadingDirection,
-		&source.FolderId,
-		&source.ConfigHash,
-		&source.MangaConfig.Hash,
-		&source.MangaConfig.Data,
-		&source.MangaConfig.CreatedAt,
-		&source.MangaConfig.LastUsed,
-	)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil // Or domain specific error
-		}
-		return nil, err
-	}
-
-	return &source, nil
-}
-
-func (r *SQLiteSourceRepository) UpdateStatus(ctx context.Context, id string, userId int, status models.SourceStatus, errMsg *string) error {
+func (r *SQLiteSourceRepository) UpdateStatus(ctx context.Context, id string, userId int, status models.SourceStatus) error {
 	query := `
 		UPDATE sources SET
 			status = ?,
-			error = ?,
 			updatedAt = CURRENT_TIMESTAMP
 		WHERE id = ? AND userId = ?
 	`
 	_, err := datasources.GetDB(ctx, r.db).ExecContext(ctx, query,
 		status,
-		errMsg,
 		id,
 		userId,
 	)

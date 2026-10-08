@@ -1,4 +1,4 @@
-package forwaredevents_test
+package forwardevents_test
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// We need to define stepMsgDTO here because it's not exported from forwaredevents package,
+// We need to define stepMsgDTO here because it's not exported from forwardevents package,
 // but we need it to serialize valid JSON payloads for tests.
 type stepMsgDTO struct {
 	Id         string `json:"id"`
@@ -38,9 +38,8 @@ func TestForwardEventsUC_Execute_SuccessfullyProcessesEventAndUpdatesStatus(t *t
 	var updatedStatus models.SourceStatus
 	var updatedErrStr *string
 	mockRepo := &mocks.MockSourceRepository{
-		UpdateStatusFn: func(ctx context.Context, id string, userId int, status models.SourceStatus, errMsg *string) error {
+		UpdateStatusFn: func(ctx context.Context, id string, userId int, status models.SourceStatus) error {
 			updatedStatus = status
-			updatedErrStr = errMsg
 			return nil
 		},
 	}
@@ -53,7 +52,7 @@ func TestForwardEventsUC_Execute_SuccessfullyProcessesEventAndUpdatesStatus(t *t
 		},
 	}
 
-	uc := forwaredevents.NewForwardEventsUC(mockHub, mockQueue, mockRepo)
+	uc := forwardevents.NewForwardEventsUC(mockHub, mockQueue, mockRepo)
 
 	stepMsg := stepMsgDTO{
 		Id:     "step-123",
@@ -91,9 +90,8 @@ func TestForwardEventsUC_Execute_ProcessesEventWithErrorMessage(t *testing.T) {
 	var updatedStatus models.SourceStatus
 	var updatedErrStr *string
 	mockRepo := &mocks.MockSourceRepository{
-		UpdateStatusFn: func(ctx context.Context, id string, userId int, status models.SourceStatus, errMsg *string) error {
+		UpdateStatusFn: func(ctx context.Context, id string, userId int, status models.SourceStatus) error {
 			updatedStatus = status
-			updatedErrStr = errMsg
 			return nil
 		},
 	}
@@ -106,7 +104,7 @@ func TestForwardEventsUC_Execute_ProcessesEventWithErrorMessage(t *testing.T) {
 		},
 	}
 
-	uc := forwaredevents.NewForwardEventsUC(mockHub, mockQueue, mockRepo)
+	uc := forwardevents.NewForwardEventsUC(mockHub, mockQueue, mockRepo)
 
 	stepMsg := stepMsgDTO{
 		Id:     "step-123",
@@ -144,7 +142,7 @@ func TestForwardEventsUC_Execute_InvalidJsonPayload_ReturnsError(t *testing.T) {
 		},
 	}
 
-	uc := forwaredevents.NewForwardEventsUC(
+	uc := forwardevents.NewForwardEventsUC(
 		&mocks.MockSocketHub{},
 		mockQueue,
 		&mocks.MockSourceRepository{},
@@ -171,7 +169,7 @@ func TestForwardEventsUC_Execute_RepoUpdateStatusReturnsError_ReturnsError(t *te
 
 	repoErr := errors.New("db error")
 	mockRepo := &mocks.MockSourceRepository{
-		UpdateStatusFn: func(ctx context.Context, id string, userId int, status models.SourceStatus, errMsg *string) error {
+		UpdateStatusFn: func(ctx context.Context, id string, userId int, status models.SourceStatus) error {
 			return repoErr
 		},
 	}
@@ -183,7 +181,7 @@ func TestForwardEventsUC_Execute_RepoUpdateStatusReturnsError_ReturnsError(t *te
 		},
 	}
 
-	uc := forwaredevents.NewForwardEventsUC(mockHub, mockQueue, mockRepo)
+	uc := forwardevents.NewForwardEventsUC(mockHub, mockQueue, mockRepo)
 
 	stepMsg := stepMsgDTO{
 		Id:     "step-123",

@@ -2,16 +2,14 @@ package repositories_test
 
 import (
 	"context"
-	
+
 	"testing"
 
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/domain/models"
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/infra/repositories"
-	_ "modernc.org/sqlite"
 	"github.com/stretchr/testify/assert"
+	_ "modernc.org/sqlite"
 )
-
-
 
 func TestSQLiteSourceRepository_Create_ValidSource_ReturnsId(t *testing.T) {
 	// Arrange
@@ -50,19 +48,16 @@ func TestSQLiteSourceRepository_UpdateStatus_ExistingSource_UpdatesStatus(t *tes
 	source := &models.Source{UserId: 1, Filename: "test.zip"}
 	id, _ := repo.Create(context.Background(), source)
 
-	errStr := "some error"
-
 	// Act
-	err := repo.UpdateStatus(context.Background(), id, 1, models.SourceStatusFailed, &errStr)
+	err := repo.UpdateStatus(context.Background(), id, 1, models.SourceStatusFailed)
 
 	// Assert
 	assert.NoError(t, err)
 
-	var status, queryErr string
-	err = db.QueryRow("SELECT status, error FROM sources WHERE id = ?", id).Scan(&status, &queryErr)
+	var status string
+	err = db.QueryRow("SELECT status, error FROM sources WHERE id = ?", id).Scan(&status)
 	assert.NoError(t, err)
 	assert.Equal(t, string(models.SourceStatusFailed), status)
-	assert.Equal(t, "some error", queryErr)
 }
 
 func TestSQLiteSourceRepository_Delete_ExistingSource_DeletesRecord(t *testing.T) {

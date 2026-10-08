@@ -58,7 +58,7 @@ func TestUploadDoneUC_Execute_PublishesCorrectSubject(t *testing.T) {
 						Kepubify: tc.kepubify,
 					}, nil
 				},
-				UpdateStatusFn: func(ctx context.Context, id string, userId int, status models.SourceStatus, errMsg *string) error {
+				UpdateStatusFn: func(ctx context.Context, id string, userId int, status models.SourceStatus) error {
 					assert.Equal(t, models.SourceStatusQueued, status)
 					return nil
 				},
@@ -120,7 +120,7 @@ func TestUploadDoneUC_Execute_SourceNotInCloud_ReturnsError(t *testing.T) {
 		GetByIdAndUserIdCompactFn: func(ctx context.Context, id string, userID int) (*models.CompactSoruce, error) {
 			return &models.CompactSoruce{Id: "source-1", Type: models.SourceTypeFile, Filename: "chapter.zip"}, nil
 		},
-		UpdateStatusFn: func(ctx context.Context, id string, userId int, status models.SourceStatus, errMsg *string) error {
+		UpdateStatusFn: func(ctx context.Context, id string, userId int, status models.SourceStatus) error {
 			return nil
 		},
 	}
