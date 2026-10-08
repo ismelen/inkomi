@@ -24,11 +24,10 @@ func (r *SQLiteSourceRepository) Create(ctx context.Context, source *models.Sour
 
 	query := `
 		INSERT INTO sources (
-			id, userId, size, filename, title,  shouldJoin, 
+			id, userId, size, filename, title, kepubify, type, shouldJoin, 
 			readingDirection, folderId, configHash
 		) VALUES (
-			?, ?, ?, ?, ?, ?, ?, 
-			?, ?, ?, ?, 
+			?, ?, ?, ?, ?, ?, ?, ?, 
 			?, ?, ?
 		)
 	`
@@ -38,6 +37,8 @@ func (r *SQLiteSourceRepository) Create(ctx context.Context, source *models.Sour
 		source.Size,
 		source.Filename,
 		source.Title,
+		source.Kepubify,
+		source.Type,
 		source.ShouldJoin,
 		source.ReadingDirection,
 		source.FolderId,

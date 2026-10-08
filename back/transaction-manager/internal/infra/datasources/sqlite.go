@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 )
 
 type SQLiteDatasource struct {
@@ -20,7 +20,7 @@ func NewSQLiteDatasource(dbPath, schemaPath string) (*SQLiteDatasource, error) {
 		dbPath = "transactions.db"
 	}
 
-	db, err := sql.Open("sqlite3", dbPath)
+	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
@@ -84,4 +84,3 @@ func GetDB(ctx context.Context, defaultDB *sql.DB) DBTX {
 	}
 	return defaultDB
 }
-

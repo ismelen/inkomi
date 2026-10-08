@@ -7,13 +7,13 @@ import (
 	"testing"
 
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/infra/datasources"
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestSQLiteDatasource_ExecuteTx_Success_CommitsTransaction(t *testing.T) {
 	// Arrange
-	db, err := sql.Open("sqlite3", ":memory:")
+	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
 		t.Fatalf("failed to open test db: %v", err)
 	}
@@ -44,7 +44,7 @@ func TestSQLiteDatasource_ExecuteTx_Success_CommitsTransaction(t *testing.T) {
 
 func TestSQLiteDatasource_ExecuteTx_Error_RollsBackTransaction(t *testing.T) {
 	// Arrange
-	db, err := sql.Open("sqlite3", ":memory:")
+	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
 		t.Fatalf("failed to open test db: %v", err)
 	}

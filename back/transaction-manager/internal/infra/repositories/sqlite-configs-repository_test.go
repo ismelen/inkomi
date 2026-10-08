@@ -8,7 +8,7 @@ import (
 
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/domain/models"
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/infra/repositories"
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 	"github.com/stretchr/testify/assert"
 )
 
