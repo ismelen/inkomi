@@ -1,4 +1,4 @@
-package usecases_test
+package mocks
 
 import (
 	"context"
@@ -20,4 +20,3 @@ func (m *MockConfigRepository) Create(ctx context.Context, config *models.Config
 func (m *MockConfigRepository) GetByHash(ctx context.Context, hash string) (*models.Config, error) {
 	return nil, nil
 }
-

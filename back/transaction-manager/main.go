@@ -14,7 +14,8 @@ import (
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/infra/queue"
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/infra/repositories"
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/infra/sockethub"
-	"github.com/ismelen/inkomi/back/transaction-manager/internal/usecases"
+	"github.com/ismelen/inkomi/back/transaction-manager/internal/usecases/newupload"
+	"github.com/ismelen/inkomi/back/transaction-manager/internal/usecases/uploaddone"
 )
 
 func main() {
@@ -52,8 +53,8 @@ func main() {
 		log.Fatal(err)
 	}
 
-	newUploadRequestUC := usecases.NewNewUploadRequestUC(db, sourceRepo, configRepo, cloudStorage)
-	uploadDoneUC := usecases.NewUploadDoneUC(sourceRepo, cloudStorage, queue)
+	newUploadRequestUC := newupload.NewNewUploadRequestUC(db, sourceRepo, configRepo, cloudStorage)
+	uploadDoneUC := uploaddone.NewUploadDoneUC(sourceRepo, cloudStorage, queue)
 	uploadsHandler := handlers.NewUploadsHandler(newUploadRequestUC, uploadDoneUC)
 	routes.SetupUploadRoutes(api, uploadsHandler)
 

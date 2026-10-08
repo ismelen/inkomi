@@ -8,17 +8,18 @@ import (
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/infra/api/dtos"
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/infra/api/middlewares"
 	requtil "github.com/ismelen/inkomi/back/transaction-manager/internal/infra/api/requtils"
-	"github.com/ismelen/inkomi/back/transaction-manager/internal/usecases"
+	"github.com/ismelen/inkomi/back/transaction-manager/internal/usecases/newupload"
+	"github.com/ismelen/inkomi/back/transaction-manager/internal/usecases/uploaddone"
 )
 
 type UploadsHandler struct {
-	newUploadUC  *usecases.NewUploadRequestUC
-	uploadDoneUC *usecases.UploadDoneUC
+	newUploadUC  *newupload.NewUploadRequestUC
+	uploadDoneUC *uploaddone.UploadDoneUC
 }
 
 func NewUploadsHandler(
-	newUploadUC *usecases.NewUploadRequestUC,
-	uploadDone *usecases.UploadDoneUC,
+	newUploadUC *newupload.NewUploadRequestUC,
+	uploadDone *uploaddone.UploadDoneUC,
 ) *UploadsHandler {
 	return &UploadsHandler{
 		newUploadUC,

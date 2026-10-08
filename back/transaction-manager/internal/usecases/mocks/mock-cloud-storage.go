@@ -1,4 +1,4 @@
-package usecases_test
+package mocks
 
 type MockCloudStorage struct {
 	GetUrlFn func(id string, ext string) (string, error)

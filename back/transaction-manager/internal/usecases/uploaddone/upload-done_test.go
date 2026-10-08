@@ -1,4 +1,4 @@
-package usecases_test
+package uploaddone_test
 
 import (
 	"context"
@@ -6,22 +6,23 @@ import (
 	"testing"
 
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/domain/models"
-	"github.com/ismelen/inkomi/back/transaction-manager/internal/usecases"
+	"github.com/ismelen/inkomi/back/transaction-manager/internal/usecases/mocks"
+	"github.com/ismelen/inkomi/back/transaction-manager/internal/usecases/uploaddone"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestUploadDoneUC_Execute_SourceNotFound_ReturnsError(t *testing.T) {
 	// Arrange
-	mockRepo := &MockSourceRepository{
+	mockRepo := &mocks.MockSourceRepository{
 		GetByIdAndUserIdCompactFn: func(ctx context.Context, id string, userID int) (*models.CompactSoruce, error) {
 			return nil, errors.New("not found")
 		},
 	}
-	mockQueue := &MockQueue{}
-	mockCloudStorage := &MockCloudStorage{
+	mockQueue := &mocks.MockQueue{}
+	mockCloudStorage := &mocks.MockCloudStorage{
 		CheckFn: func(id, ext string) bool { return true },
 	}
-	uc := usecases.NewUploadDoneUC(mockRepo, mockCloudStorage, mockQueue)
+	uc := uploaddone.NewUploadDoneUC(mockRepo, mockCloudStorage, mockQueue)
 
 	// Act
 	err := uc.Execute(context.Background(), 1, "source-1")
@@ -48,7 +49,7 @@ func TestUploadDoneUC_Execute_PublishesCorrectSubject(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Arrange
-			mockRepo := &MockSourceRepository{
+			mockRepo := &mocks.MockSourceRepository{
 				GetByIdAndUserIdCompactFn: func(ctx context.Context, id string, userID int) (*models.CompactSoruce, error) {
 					return &models.CompactSoruce{
 						Id:       "source-1",
@@ -64,18 +65,18 @@ func TestUploadDoneUC_Execute_PublishesCorrectSubject(t *testing.T) {
 			}
 
 			publishedSubject := ""
-			mockQueue := &MockQueue{
+			mockQueue := &mocks.MockQueue{
 				PublishFn: func(ctx context.Context, subject string, payload []byte) error {
 					publishedSubject = subject
 					return nil
 				},
 			}
 
-			mockCloudStorage := &MockCloudStorage{
+			mockCloudStorage := &mocks.MockCloudStorage{
 				CheckFn: func(id, ext string) bool { return true },
 			}
 
-			uc := usecases.NewUploadDoneUC(mockRepo, mockCloudStorage, mockQueue)
+			uc := uploaddone.NewUploadDoneUC(mockRepo, mockCloudStorage, mockQueue)
 
 			// Act
 			err := uc.Execute(context.Background(), 1, "source-1")
@@ -89,22 +90,22 @@ func TestUploadDoneUC_Execute_PublishesCorrectSubject(t *testing.T) {
 
 func TestUploadDoneUC_Execute_QueueError_ReturnsError(t *testing.T) {
 	// Arrange
-	mockRepo := &MockSourceRepository{
+	mockRepo := &mocks.MockSourceRepository{
 		GetByIdAndUserIdCompactFn: func(ctx context.Context, id string, userID int) (*models.CompactSoruce, error) {
 			return &models.CompactSoruce{Id: "source-1", Type: models.SourceTypeFile, Filename: "chapter.zip"}, nil
 		},
 	}
 
-	mockQueue := &MockQueue{
+	mockQueue := &mocks.MockQueue{
 		PublishFn: func(ctx context.Context, subject string, payload []byte) error {
 			return errors.New("queue error")
 		},
 	}
 
-	mockCloudStorage := &MockCloudStorage{
+	mockCloudStorage := &mocks.MockCloudStorage{
 		CheckFn: func(id, ext string) bool { return true },
 	}
-	uc := usecases.NewUploadDoneUC(mockRepo, mockCloudStorage, mockQueue)
+	uc := uploaddone.NewUploadDoneUC(mockRepo, mockCloudStorage, mockQueue)
 
 	// Act
 	err := uc.Execute(context.Background(), 1, "source-1")
@@ -115,7 +116,7 @@ func TestUploadDoneUC_Execute_QueueError_ReturnsError(t *testing.T) {
 
 func TestUploadDoneUC_Execute_SourceNotInCloud_ReturnsError(t *testing.T) {
 	// Arrange
-	mockRepo := &MockSourceRepository{
+	mockRepo := &mocks.MockSourceRepository{
 		GetByIdAndUserIdCompactFn: func(ctx context.Context, id string, userID int) (*models.CompactSoruce, error) {
 			return &models.CompactSoruce{Id: "source-1", Type: models.SourceTypeFile, Filename: "chapter.zip"}, nil
 		},
@@ -124,17 +125,17 @@ func TestUploadDoneUC_Execute_SourceNotInCloud_ReturnsError(t *testing.T) {
 		},
 	}
 
-	mockQueue := &MockQueue{
+	mockQueue := &mocks.MockQueue{
 		PublishFn: func(ctx context.Context, subject string, payload []byte) error {
 			return nil
 		},
 	}
 
-	mockCloudStorage := &MockCloudStorage{
+	mockCloudStorage := &mocks.MockCloudStorage{
 		CheckFn: func(id, ext string) bool { return false }, // Simulates source not found in cloud
 	}
 
-	uc := usecases.NewUploadDoneUC(mockRepo, mockCloudStorage, mockQueue)
+	uc := uploaddone.NewUploadDoneUC(mockRepo, mockCloudStorage, mockQueue)
 
 	// Act
 	err := uc.Execute(context.Background(), 1, "source-1")

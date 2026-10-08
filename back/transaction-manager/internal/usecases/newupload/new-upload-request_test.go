@@ -1,4 +1,4 @@
-package usecases_test
+package newupload_test
 
 import (
 	"context"
@@ -6,17 +6,18 @@ import (
 
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/domain/models"
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/infra/api/dtos"
-	"github.com/ismelen/inkomi/back/transaction-manager/internal/usecases"
+	"github.com/ismelen/inkomi/back/transaction-manager/internal/usecases/mocks"
+	"github.com/ismelen/inkomi/back/transaction-manager/internal/usecases/newupload"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestNewUploadRequestUC_Execute_InvalidEreaderKey_ReturnsError(t *testing.T) {
 	// Arrange
-	uc := usecases.NewNewUploadRequestUC(
-		&MockTxManager{},
-		&MockSourceRepository{},
-		&MockConfigRepository{},
-		&MockCloudStorage{},
+	uc := newupload.NewNewUploadRequestUC(
+		&mocks.MockTxManager{},
+		&mocks.MockSourceRepository{},
+		&mocks.MockConfigRepository{},
+		&mocks.MockCloudStorage{},
 	)
 
 	req := dtos.UploadRequestDTO{
@@ -32,16 +33,16 @@ func TestNewUploadRequestUC_Execute_InvalidEreaderKey_ReturnsError(t *testing.T)
 
 func TestNewUploadRequestUC_Execute_ValidRequest_ReturnsSources(t *testing.T) {
 	// Arrange
-	txManager := &MockTxManager{}
-	sourceRepo := &MockSourceRepository{}
-	configRepo := &MockConfigRepository{}
-	cloudStorage := &MockCloudStorage{
+	txManager := &mocks.MockTxManager{}
+	sourceRepo := &mocks.MockSourceRepository{}
+	configRepo := &mocks.MockConfigRepository{}
+	cloudStorage := &mocks.MockCloudStorage{
 		GetUrlFn: func(id string, ext string) (string, error) {
 			return "http://example.com/" + id + ext, nil
 		},
 	}
 
-	uc := usecases.NewNewUploadRequestUC(
+	uc := newupload.NewNewUploadRequestUC(
 		txManager,
 		sourceRepo,
 		configRepo,
@@ -72,18 +73,18 @@ func TestNewUploadRequestUC_Execute_ValidRequest_ReturnsSources(t *testing.T) {
 
 func TestNewUploadRequestUC_Execute_WithConfigs_SavesConfigsAndSources(t *testing.T) {
 	// Arrange
-	txManager := &MockTxManager{}
+	txManager := &mocks.MockTxManager{}
 	configHashCreated := ""
-	configRepo := &MockConfigRepository{
+	configRepo := &mocks.MockConfigRepository{
 		CreateFn: func(ctx context.Context, config *models.Config) (string, error) {
 			configHashCreated = config.Hash
 			return config.Hash, nil
 		},
 	}
-	sourceRepo := &MockSourceRepository{}
-	cloudStorage := &MockCloudStorage{}
+	sourceRepo := &mocks.MockSourceRepository{}
+	cloudStorage := &mocks.MockCloudStorage{}
 
-	uc := usecases.NewNewUploadRequestUC(
+	uc := newupload.NewNewUploadRequestUC(
 		txManager,
 		sourceRepo,
 		configRepo,
@@ -120,11 +121,11 @@ func TestNewUploadRequestUC_Execute_WithConfigs_SavesConfigsAndSources(t *testin
 
 func TestNewUploadRequestUC_Execute_SourceWithItemsNotFolder_SetsFolderAsType(t *testing.T) {
 	// Arrange
-	uc := usecases.NewNewUploadRequestUC(
-		&MockTxManager{},
-		&MockSourceRepository{},
-		&MockConfigRepository{},
-		&MockCloudStorage{},
+	uc := newupload.NewNewUploadRequestUC(
+		&mocks.MockTxManager{},
+		&mocks.MockSourceRepository{},
+		&mocks.MockConfigRepository{},
+		&mocks.MockCloudStorage{},
 	)
 
 	req := dtos.UploadRequestDTO{
@@ -151,15 +152,15 @@ func TestNewUploadRequestUC_Execute_SourceWithItemsNotFolder_SetsFolderAsType(t 
 
 func TestNewUploadRequestUC_Execute_ChildInheritsConfigHash_UsesParentHash(t *testing.T) {
 	// Arrange
-	txManager := &MockTxManager{}
-	configRepo := &MockConfigRepository{
+	txManager := &mocks.MockTxManager{}
+	configRepo := &mocks.MockConfigRepository{
 		CreateFn: func(ctx context.Context, config *models.Config) (string, error) {
 			return config.Hash, nil
 		},
 	}
 
 	var capturedChild *models.Source
-	sourceRepo := &MockSourceRepository{
+	sourceRepo := &mocks.MockSourceRepository{
 		CreateFn: func(ctx context.Context, source *models.Source) (string, error) {
 			if source.FolderId != nil {
 				capturedChild = source
@@ -167,9 +168,9 @@ func TestNewUploadRequestUC_Execute_ChildInheritsConfigHash_UsesParentHash(t *te
 			return "some-id", nil
 		},
 	}
-	cloudStorage := &MockCloudStorage{}
+	cloudStorage := &mocks.MockCloudStorage{}
 
-	uc := usecases.NewNewUploadRequestUC(
+	uc := newupload.NewNewUploadRequestUC(
 		txManager,
 		sourceRepo,
 		configRepo,
@@ -209,11 +210,11 @@ func TestNewUploadRequestUC_Execute_ChildInheritsConfigHash_UsesParentHash(t *te
 
 func TestNewUploadRequestUC_Execute_ChildInheritsParentAttributes_MatchesParent(t *testing.T) {
 	// Arrange
-	txManager := &MockTxManager{}
-	configRepo := &MockConfigRepository{}
+	txManager := &mocks.MockTxManager{}
+	configRepo := &mocks.MockConfigRepository{}
 
 	var capturedChild *models.Source
-	sourceRepo := &MockSourceRepository{
+	sourceRepo := &mocks.MockSourceRepository{
 		CreateFn: func(ctx context.Context, source *models.Source) (string, error) {
 			if source.FolderId != nil {
 				capturedChild = source
@@ -221,9 +222,9 @@ func TestNewUploadRequestUC_Execute_ChildInheritsParentAttributes_MatchesParent(
 			return "parent-id", nil
 		},
 	}
-	cloudStorage := &MockCloudStorage{}
+	cloudStorage := &mocks.MockCloudStorage{}
 
-	uc := usecases.NewNewUploadRequestUC(
+	uc := newupload.NewNewUploadRequestUC(
 		txManager,
 		sourceRepo,
 		configRepo,
@@ -262,11 +263,11 @@ func TestNewUploadRequestUC_Execute_ChildInheritsParentAttributes_MatchesParent(
 
 func TestNewUploadRequestUC_Execute_FolderAndLibrary_EmptyUrl(t *testing.T) {
 	// Arrange
-	uc := usecases.NewNewUploadRequestUC(
-		&MockTxManager{},
-		&MockSourceRepository{},
-		&MockConfigRepository{},
-		&MockCloudStorage{
+	uc := newupload.NewNewUploadRequestUC(
+		&mocks.MockTxManager{},
+		&mocks.MockSourceRepository{},
+		&mocks.MockConfigRepository{},
+		&mocks.MockCloudStorage{
 			GetUrlFn: func(id string, ext string) (string, error) {
 				return "should-not-be-called", nil
 			},
