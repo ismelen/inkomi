@@ -26,8 +26,8 @@ func NewForwardEventsUC(
 	}
 }
 
-func (f *ForwardEventsUC) Execute() {
-	f.queue.Subscribe("job.step.>", func(ctx context.Context, subject string, payload []byte) error {
+func (f *ForwardEventsUC) Execute() error {
+	return f.queue.Subscribe("job.step.>", func(ctx context.Context, subject string, payload []byte) error {
 		var step stepMsgDTO
 		if err := json.Unmarshal(payload, &step); err != nil {
 			return err

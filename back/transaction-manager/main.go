@@ -60,7 +60,9 @@ func main() {
 	routes.SetupUploadRoutes(api, uploadsHandler)
 
 	forwardEventsUc := forwaredevents.NewForwardEventsUC(sockethub, queue, sourceRepo)
-	go forwardEventsUc.Execute()
+	if err := forwardEventsUc.Execute(); err != nil {
+		log.Fatal(err)
+	}
 
 	log.Println("Starting at port 3000")
 	if err := http.ListenAndServe(":3000", api); err != nil {
