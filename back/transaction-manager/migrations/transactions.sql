@@ -1,61 +1,51 @@
-CREATE TABLE IF NOT EXISTS sources (
+CREATE TABLE IF NOT EXISTS source (
 	id TEXT NOT NULL,
-	userId INTEGER NOT NULL,
+	userId TEXT NOT NULL,
 
-	size INTEGER,
-	filename TEXT NOT NULL,
 	title TEXT NOT NULL,
-	kepubify BOOLEAN NOT NULL FALSE,
+	filename TEXT NOT NULL,
+	kepubify BOOLEAN NOT NULL DEFAULT FALSE,
+	toCLoud BOOLEAN NOT NULL DEFAULT FALSE,
+	
+	configKey TEXT,
 
-	type TEXT NOT NULL CHECK (type IN (
-		'file',
-		'folder',
-		'library'
-	))
+	isRtl BOOLEAN NOT NULL DEFAULT FALSE,
+	join BOOLEAN NOT NULL DEFAULT FALSE,
 
-	status TEXT NOT NULL DEFAULT 'pending_upload'
-		CHECK (status IN (
-			'pending_upload',
-			'queued',
-			'processing',
-			'waiting_join',
-			'joining',
-			'kepubifying',
-			'sent',
-			'failed',
-			'done'
-		)),
-
-	error TEXT,
-
+	status TEXT NOT NULL DEFAULT 'pending_upload',
+	size INTEGER,
+	isFile BOOLEAN NOT NULL DEFAULT TRUE,
 	createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	completedAt DATETIME,
 
-	shouldJoin BOOLEAN NOT NULL DEFAULT FALSE,
-	readingDirection TEXT NOT NULL DEFAULT 'ltr'
-    CHECK (readingDirection IN ('ltr', 'rtl'))
-
-	folderId TEXT,
-
-	configHash TEXT,
+	parentId TEXT,
 
 	PRIMARY KEY (id, userId),
-
-	FOREIGN KEY (folderId, userId)
-		REFERENCES sources(id, userId)
+	FOREIGN KEY (parentId, userId) 
+		REFERENCES source(id, userId)
 		ON UPDATE CASCADE
 		ON DELETE CASCADE,
-
-	FOREIGN KEY (configHash)
-		REFERENCES configs(hash)
+	FOREIGN KEY (configKey)
+		REFERENCES config(hash)
 		ON UPDATE NO ACTION
-		ON DELETE NO ACTION
+		ON DELETE NO ACTION,
 );
 
-CREATE TABLE IF NOT EXISTS configs (
+CREATE TABLE IF NOT EXISTS config (
 	hash TEXT PRIMARY KEY,
 	data TEXT NOT NULL,
+
 	createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-	lastUsed DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	lastUsed DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+);
+
+CREATE TABLE IF NOT EXISTS result (
+	id TEXT NOT NULL,
+	sourceId TEXT NOT NULL,
+
+	filename TEXT NOT NULL,
+	size INTEGER NOT NULL,
+
+	PRIMARY KEY (id, sourceId)
 );
