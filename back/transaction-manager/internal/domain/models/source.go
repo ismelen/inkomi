@@ -8,7 +8,6 @@ const (
 	SourceStatusPendingUpload SourceStatus = "pending_upload"
 	SourceStatusQueued        SourceStatus = "queued"
 	SourceStatusProcessing    SourceStatus = "processing"
-	SourceStatusWaitingJoin   SourceStatus = "waiting_join"
 	SourceStatusJoining       SourceStatus = "joining"
 	SourceStatusKepubifying   SourceStatus = "kepubifying"
 	SourceStatusSent          SourceStatus = "sent"
