@@ -9,6 +9,7 @@ type NoItemsSourceDTO struct {
 	Filename         string                  `json:"filename"`
 	ConfigKey        *string                 `json:"config_hash,omitempty"`
 	ReadingDirection models.ReadingDirection `json:"reading_direction"`
+	ToCloud          bool                    `json:"to_cloud"`
 	Kepubify         bool                    `json:"_"`
 	Url              string                  `json:"url"`
 	Id               string                  `json:"id"`

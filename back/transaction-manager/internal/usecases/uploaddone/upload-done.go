@@ -3,9 +3,7 @@ package uploaddone
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"path/filepath"
-	"strings"
 
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/domain/models"
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/domain/ports"
@@ -23,60 +21,70 @@ func NewUploadDoneUC(
 	queue ports.Queue,
 ) *UploadDoneUC {
 	return &UploadDoneUC{
-		sourceRepo,
-		cloudStorage,
-		queue,
+		sourceRepo:   sourceRepo,
+		cloudStorage: cloudStorage,
+		queue:        queue,
 	}
 }
 
-func (u *UploadDoneUC) Execute(ctx context.Context, userId int, sourceId string) error {
-	src, err := u.sourceRepo.GetByIdAndUserIdCompact(ctx, sourceId, userId)
+func (u *UploadDoneUC) Execute(ctx context.Context, userID int, sourceID string) error {
+	src, err := u.sourceRepo.GetDetailByIDAndUserID(ctx, sourceID, userID)
 	if err != nil {
 		return err
 	}
 
-	if ok := u.cloudStorage.Check(src.Id, filepath.Ext(src.Filename)); !ok {
-		return fmt.Errorf("source doesn't exists")
+	if !src.IsLibrary() && !u.cloudStorage.Check(src.ID, filepath.Ext(src.Filename)) {
+		return models.ErrSourceNotUploaded
 	}
 
-	bytes, err := json.Marshal(src)
+	subject, msg := u.buildJob(src)
+	bytes, err := json.Marshal(msg)
 	if err != nil {
 		return err
 	}
 
-	subject := u.getSubject(src)
-
-	err = u.queue.Publish(ctx, subject, bytes)
-	if err != nil {
+	if err := u.queue.Publish(ctx, subject, bytes); err != nil {
 		return err
 	}
 
-	return u.sourceRepo.UpdateStatus(ctx, sourceId, userId, models.SourceStatusQueued, nil)
+	return u.sourceRepo.UpdateStatus(ctx, sourceID, userID, models.SourceStatusQueued)
 }
 
-func (u *UploadDoneUC) getSubject(src *models.CompactSoruce) string {
-	subject := "job."
-	if src.Type == models.SourceTypeLibrary {
-		subject += "init.library"
-	} else if u.isKepub(src.Filename) {
-		subject += "step.done"
-	} else if u.isEpub(src.Filename) {
-		if src.Kepubify {
-			subject += "step.kepub"
-		} else {
-			subject += "step.done"
+// buildJob picks the worker the source goes to and builds the message it expects:
+// the base fields, plus manga settings for the manga worker and the parent folder
+// when the source has to be joined.
+func (u *UploadDoneUC) buildJob(src *models.SourceDetail) (string, models.JobMsg) {
+	msg := models.JobMsg{
+		ID:       src.ID,
+		UserID:   src.UserID,
+		Filename: src.Filename,
+		Title:    src.Title,
+		Kepubify: src.Kepubify,
+		ToCloud:  src.ToCloud,
+	}
+
+	if src.Parent != nil && src.Parent.Join {
+		msg.Parent = &models.JobParent{
+			ID:    src.Parent.ID,
+			Title: src.Parent.Title,
+			RTL:   src.Parent.IsRTL,
 		}
-	} else {
-		subject += "init.manga"
 	}
 
-	return subject
-}
-
-func (u *UploadDoneUC) isKepub(filename string) bool {
-	return strings.Contains(filename, ".kepub")
-}
-
-func (u *UploadDoneUC) isEpub(filename string) bool {
-	return filepath.Ext(filename) == ".epub"
+	switch {
+	case src.IsLibrary():
+		return models.SubjectJobLibrary, msg
+	case !src.IsEpub():
+		msg.MangaJob = &models.MangaJob{RTL: src.IsRTL}
+		if src.Config != nil {
+			msg.MangaCfg = json.RawMessage(src.Config.Data)
+		}
+		return models.SubjectJobManga, msg
+	case msg.Parent != nil:
+		return models.SubjectJobWaitJoin, msg
+	case src.Kepubify && !src.IsKepub():
+		return models.SubjectJobKepub, msg
+	default:
+		return models.SubjectJobDone, msg
+	}
 }

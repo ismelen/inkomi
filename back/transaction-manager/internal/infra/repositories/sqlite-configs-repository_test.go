@@ -2,17 +2,15 @@ package repositories_test
 
 import (
 	"context"
-	
+
 	"testing"
 	"time"
 
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/domain/models"
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/infra/repositories"
-	_ "modernc.org/sqlite"
 	"github.com/stretchr/testify/assert"
+	_ "modernc.org/sqlite"
 )
-
-
 
 func TestSQLiteConfigRepository_Create_NewConfig_ReturnsHash(t *testing.T) {
 	// Arrange
@@ -28,13 +26,13 @@ func TestSQLiteConfigRepository_Create_NewConfig_ReturnsHash(t *testing.T) {
 
 	// Act
 	hash, err := repo.Create(context.Background(), config)
-	
+
 	// Assert
 	assert.NoError(t, err)
 	assert.Equal(t, "test-hash", hash)
 
 	var data string
-	err = db.QueryRow("SELECT data FROM configs WHERE hash = ?", hash).Scan(&data)
+	err = db.QueryRow("SELECT data FROM config WHERE hash = ?", hash).Scan(&data)
 	assert.NoError(t, err)
 	assert.Equal(t, `{"key": "value"}`, data)
 }
@@ -55,18 +53,18 @@ func TestSQLiteConfigRepository_Create_ExistingConfig_UpdatesLastUsed(t *testing
 	assert.NoError(t, err)
 
 	var lastUsed1 string
-	db.QueryRow("SELECT lastUsed FROM configs WHERE hash = ?", config.Hash).Scan(&lastUsed1)
+	db.QueryRow("SELECT lastUsed FROM config WHERE hash = ?", config.Hash).Scan(&lastUsed1)
 
 	time.Sleep(1 * time.Second)
 
 	// Act
 	_, err = repo.Create(context.Background(), config)
-	
+
 	// Assert
 	assert.NoError(t, err)
 
 	var lastUsed2 string
-	db.QueryRow("SELECT lastUsed FROM configs WHERE hash = ?", config.Hash).Scan(&lastUsed2)
+	db.QueryRow("SELECT lastUsed FROM config WHERE hash = ?", config.Hash).Scan(&lastUsed2)
 
 	assert.NotEqual(t, lastUsed1, lastUsed2, "expected lastUsed to be updated")
 }
@@ -86,7 +84,7 @@ func TestSQLiteConfigRepository_GetByHash_ExistingConfig_ReturnsConfig(t *testin
 
 	// Act
 	res, err := repo.GetByHash(context.Background(), "get-hash")
-	
+
 	// Assert
 	assert.NoError(t, err)
 	assert.NotNil(t, res)
@@ -105,7 +103,7 @@ func TestSQLiteConfigRepository_GetByHash_NotExistingConfig_ReturnsNil(t *testin
 
 	// Act
 	res, err := repo.GetByHash(context.Background(), "non-existent")
-	
+
 	// Assert
 	assert.NoError(t, err)
 	assert.Nil(t, res)

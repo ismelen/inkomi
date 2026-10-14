@@ -40,13 +40,11 @@ func (f *ForwardEventsUC) Execute() error {
 			"status": status,
 		}
 
-		var errorStr *string
 		if step.Error != "" {
-			errorStr = &step.Error
 			msg["error"] = step.Error
 		}
 
-		if err := f.sourceRepo.UpdateStatus(ctx, step.Id, step.UserId, status, errorStr); err != nil {
+		if err := f.sourceRepo.UpdateStatus(ctx, step.Id, step.UserId, status); err != nil {
 			return err
 		}
 
@@ -58,9 +56,11 @@ func (f *ForwardEventsUC) getStatus(key string) models.SourceStatus {
 	switch key {
 	case "start":
 		return models.SourceStatusProcessing
-	case "epub.kepub":
+	case "kepub", "epub.kepub":
 		return models.SourceStatusKepubifying
-	case "epub.join":
+	case "waitjoin":
+		return models.SourceStatusWaitingJoin
+	case "join", "epub.join":
 		return models.SourceStatusJoining
 	case "done":
 		return models.SourceStatusDone

@@ -36,11 +36,9 @@ func TestForwardEventsUC_Execute_SuccessfullyProcessesEventAndUpdatesStatus(t *t
 	}
 
 	var updatedStatus models.SourceStatus
-	var updatedErrStr *string
 	mockRepo := &mocks.MockSourceRepository{
-		UpdateStatusFn: func(ctx context.Context, id string, userId int, status models.SourceStatus, errMsg *string) error {
+		UpdateStatusFn: func(ctx context.Context, id string, userId int, status models.SourceStatus) error {
 			updatedStatus = status
-			updatedErrStr = errMsg
 			return nil
 		},
 	}
@@ -69,7 +67,6 @@ func TestForwardEventsUC_Execute_SuccessfullyProcessesEventAndUpdatesStatus(t *t
 	assert.NotNil(t, capturedHandler, "Expected queue.Subscribe to be called with a handler")
 	assert.NoError(t, err)
 	assert.Equal(t, models.SourceStatusKepubifying, updatedStatus)
-	assert.Nil(t, updatedErrStr)
 
 	expectedMsg := map[string]any{
 		"id":     "step-123",
@@ -89,11 +86,9 @@ func TestForwardEventsUC_Execute_ProcessesEventWithErrorMessage(t *testing.T) {
 	}
 
 	var updatedStatus models.SourceStatus
-	var updatedErrStr *string
 	mockRepo := &mocks.MockSourceRepository{
-		UpdateStatusFn: func(ctx context.Context, id string, userId int, status models.SourceStatus, errMsg *string) error {
+		UpdateStatusFn: func(ctx context.Context, id string, userId int, status models.SourceStatus) error {
 			updatedStatus = status
-			updatedErrStr = errMsg
 			return nil
 		},
 	}
@@ -123,8 +118,6 @@ func TestForwardEventsUC_Execute_ProcessesEventWithErrorMessage(t *testing.T) {
 	assert.NotNil(t, capturedHandler)
 	assert.NoError(t, err)
 	assert.Equal(t, models.SourceStatusFailed, updatedStatus)
-	assert.NotNil(t, updatedErrStr)
-	assert.Equal(t, "something went wrong", *updatedErrStr)
 
 	expectedMsg := map[string]any{
 		"id":     "step-123",
@@ -171,7 +164,7 @@ func TestForwardEventsUC_Execute_RepoUpdateStatusReturnsError_ReturnsError(t *te
 
 	repoErr := errors.New("db error")
 	mockRepo := &mocks.MockSourceRepository{
-		UpdateStatusFn: func(ctx context.Context, id string, userId int, status models.SourceStatus, errMsg *string) error {
+		UpdateStatusFn: func(ctx context.Context, id string, userId int, status models.SourceStatus) error {
 			return repoErr
 		},
 	}

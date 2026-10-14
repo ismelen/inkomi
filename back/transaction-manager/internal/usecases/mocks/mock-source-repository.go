@@ -7,9 +7,11 @@ import (
 )
 
 type MockSourceRepository struct {
-	CreateFn                  func(ctx context.Context, source *models.Source) (string, error)
-	GetByIdAndUserIdCompactFn func(ctx context.Context, id string, userID int) (*models.CompactSoruce, error)
-	UpdateStatusFn            func(ctx context.Context, id string, userId int, status models.SourceStatus, errMsg *string) error
+	CreateFn                 func(ctx context.Context, source *models.Source) (string, error)
+	GetByIDAndUserIDFn       func(ctx context.Context, id string, userID int) (*models.Source, error)
+	GetDetailByIDAndUserIDFn func(ctx context.Context, id string, userID int) (*models.SourceDetail, error)
+	UpdateStatusFn           func(ctx context.Context, id string, userID int, status models.SourceStatus) error
+	DeleteFn                 func(ctx context.Context, id string, userID int) error
 }
 
 func (m *MockSourceRepository) Create(ctx context.Context, source *models.Source) (string, error) {
@@ -20,24 +22,29 @@ func (m *MockSourceRepository) Create(ctx context.Context, source *models.Source
 }
 
 func (m *MockSourceRepository) GetByIDAndUserID(ctx context.Context, id string, userID int) (*models.Source, error) {
-	return nil, nil
-}
-
-func (m *MockSourceRepository) GetByIdAndUserIdCompact(ctx context.Context, id string, userID int) (*models.CompactSoruce, error) {
-	if m.GetByIdAndUserIdCompactFn != nil {
-		return m.GetByIdAndUserIdCompactFn(ctx, id, userID)
+	if m.GetByIDAndUserIDFn != nil {
+		return m.GetByIDAndUserIDFn(ctx, id, userID)
 	}
-	return nil, nil
+	return nil, models.ErrSourceNotFound
 }
 
-func (m *MockSourceRepository) UpdateStatus(ctx context.Context, id string, userId int, status models.SourceStatus, errMsg *string) error {
+func (m *MockSourceRepository) GetDetailByIDAndUserID(ctx context.Context, id string, userID int) (*models.SourceDetail, error) {
+	if m.GetDetailByIDAndUserIDFn != nil {
+		return m.GetDetailByIDAndUserIDFn(ctx, id, userID)
+	}
+	return nil, models.ErrSourceNotFound
+}
+
+func (m *MockSourceRepository) UpdateStatus(ctx context.Context, id string, userID int, status models.SourceStatus) error {
 	if m.UpdateStatusFn != nil {
-		return m.UpdateStatusFn(ctx, id, userId, status, errMsg)
+		return m.UpdateStatusFn(ctx, id, userID, status)
 	}
 	return nil
 }
 
 func (m *MockSourceRepository) Delete(ctx context.Context, id string, userID int) error {
+	if m.DeleteFn != nil {
+		return m.DeleteFn(ctx, id, userID)
+	}
 	return nil
 }
-

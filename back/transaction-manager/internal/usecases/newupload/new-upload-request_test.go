@@ -162,7 +162,7 @@ func TestNewUploadRequestUC_Execute_ChildInheritsConfigHash_UsesParentHash(t *te
 	var capturedChild *models.Source
 	sourceRepo := &mocks.MockSourceRepository{
 		CreateFn: func(ctx context.Context, source *models.Source) (string, error) {
-			if source.FolderId != nil {
+			if source.ParentID != nil {
 				capturedChild = source
 			}
 			return "some-id", nil
@@ -205,7 +205,7 @@ func TestNewUploadRequestUC_Execute_ChildInheritsConfigHash_UsesParentHash(t *te
 	// Assert
 	assert.NoError(t, err)
 	assert.NotNil(t, capturedChild)
-	assert.NotNil(t, capturedChild.ConfigHash)
+	assert.NotNil(t, capturedChild.ConfigKey)
 }
 
 func TestNewUploadRequestUC_Execute_ChildInheritsParentAttributes_MatchesParent(t *testing.T) {
@@ -216,7 +216,7 @@ func TestNewUploadRequestUC_Execute_ChildInheritsParentAttributes_MatchesParent(
 	var capturedChild *models.Source
 	sourceRepo := &mocks.MockSourceRepository{
 		CreateFn: func(ctx context.Context, source *models.Source) (string, error) {
-			if source.FolderId != nil {
+			if source.ParentID != nil {
 				capturedChild = source
 			}
 			return "parent-id", nil
@@ -255,9 +255,9 @@ func TestNewUploadRequestUC_Execute_ChildInheritsParentAttributes_MatchesParent(
 	// Assert
 	assert.NoError(t, err)
 	assert.NotNil(t, capturedChild)
-	assert.Equal(t, "parent-id", *capturedChild.FolderId)
-	assert.True(t, capturedChild.ShouldJoin)
-	assert.Equal(t, models.ReadingDirectionRTL, capturedChild.ReadingDirection)
+	assert.Equal(t, "parent-id", *capturedChild.ParentID)
+	assert.True(t, capturedChild.Join)
+	assert.True(t, capturedChild.IsRTL)
 	assert.True(t, capturedChild.Kepubify)
 }
 

@@ -35,7 +35,7 @@ func main() {
 	wsHandler := handlers.NewWSHandler(sockethub)
 	routes.SetupWsRoutes(api, wsHandler)
 
-	db, err := datasources.NewSQLiteDatasource("transactions.db", "./migrations/trasnactions.sql")
+	db, err := datasources.NewSQLiteDatasource("transactions.db", "./migrations/transactions.sql")
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -57,16 +57,19 @@ func (n *NewUploadRequestUC) Execute(ctx context.Context, data dtos.UploadReques
 		return nil, err
 	}
 	err = n.txManager.ExecuteTx(operation.ctx, func(txCtx context.Context) error {
-		for i, topSrc := range data.Sources {
+		for i := range data.Sources {
+			topSrc := &data.Sources[i]
 			if len(topSrc.Items) > 0 && topSrc.Type != models.SourceTypeFolder {
 				topSrc.Type = models.SourceTypeFolder
 			}
-			n.saveSource(operation, &topSrc.NoItemsSourceDTO, &topSrc)
-			data.Sources[i] = topSrc
+			if err := n.saveSource(txCtx, operation, &topSrc.NoItemsSourceDTO, topSrc.ShouldJoin, nil); err != nil {
+				return err
+			}
 
-			for j, childSrc := range topSrc.Items {
-				n.saveSource(operation, &childSrc, &topSrc)
-				data.Sources[i].Items[j] = childSrc
+			for j := range topSrc.Items {
+				if err := n.saveSource(txCtx, operation, &topSrc.Items[j], topSrc.ShouldJoin, topSrc); err != nil {
+					return err
+				}
 			}
 		}
 		return nil
@@ -75,13 +78,12 @@ func (n *NewUploadRequestUC) Execute(ctx context.Context, data dtos.UploadReques
 	return data.Sources, err
 }
 
-func (n *NewUploadRequestUC) saveSource(op *uploadOperation, src *dtos.NoItemsSourceDTO, parent *dtos.SourceDTO) error {
+func (n *NewUploadRequestUC) saveSource(ctx context.Context, op *uploadOperation, src *dtos.NoItemsSourceDTO, join bool, parent *dtos.SourceDTO) error {
 	if src.Type == models.SourceTypeFolder {
 		src.Size = new(int64)
 	}
 
-	shouldJoin := false
-	var folderId, configHash *string
+	var parentID, configHash *string
 
 	if src.ConfigKey != nil {
 		if config, ok := op.data.Configs[*src.ConfigKey]; ok {
@@ -92,9 +94,9 @@ func (n *NewUploadRequestUC) saveSource(op *uploadOperation, src *dtos.NoItemsSo
 
 	if parent != nil {
 		src.Kepubify = parent.Kepubify
-		shouldJoin = parent.ShouldJoin
 		src.ReadingDirection = parent.ReadingDirection
-		folderId = &parent.Id
+		src.ToCloud = parent.ToCloud
+		parentID = new(parent.Id)
 
 		if configHash == nil && parent.ConfigKey != nil {
 			if config, ok := op.data.Configs[*parent.ConfigKey]; ok {
@@ -112,17 +114,18 @@ func (n *NewUploadRequestUC) saveSource(op *uploadOperation, src *dtos.NoItemsSo
 		src.Kepubify = ereader.IsKepub
 	}
 
-	id, err := n.sourceRepo.Create(op.ctx, &models.Source{
-		UserId:           op.userId,
-		Size:             src.Size,
-		Filename:         src.Filename,
-		Title:            src.Title,
-		Kepubify:         src.Kepubify,
-		Type:             src.Type,
-		ShouldJoin:       shouldJoin,
-		ReadingDirection: src.ReadingDirection,
-		FolderId:         folderId,
-		ConfigHash:       configHash,
+	id, err := n.sourceRepo.Create(ctx, &models.Source{
+		UserID:    op.userId,
+		Title:     src.Title,
+		Filename:  src.Filename,
+		Kepubify:  src.Kepubify,
+		ToCloud:   src.ToCloud,
+		ConfigKey: configHash,
+		IsRTL:     src.ReadingDirection == models.ReadingDirectionRTL,
+		Join:      join,
+		Size:      src.Size,
+		IsFile:    src.Type != models.SourceTypeFolder,
+		ParentID:  parentID,
 	})
 	if err != nil {
 		return err

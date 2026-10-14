@@ -20,7 +20,7 @@ func NewSQLiteConfigRepository(db *sql.DB) ports.ConfigRepository {
 
 func (r *SQLiteConfigRepository) Create(ctx context.Context, config *models.Config) (string, error) {
 	query := `
-		INSERT INTO configs (hash, data)
+		INSERT INTO config (hash, data)
 		VALUES (?, ?)
 		ON CONFLICT(hash) DO UPDATE SET
 			lastUsed = CURRENT_TIMESTAMP
@@ -35,7 +35,7 @@ func (r *SQLiteConfigRepository) Create(ctx context.Context, config *models.Conf
 func (r *SQLiteConfigRepository) GetByHash(ctx context.Context, hash string) (*models.Config, error) {
 	query := `
 		SELECT hash, data, createdAt, lastUsed
-		FROM configs
+		FROM config
 		WHERE hash = ?
 	`
 	row := datasources.GetDB(ctx, r.db).QueryRowContext(ctx, query, hash)
