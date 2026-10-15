@@ -25,4 +25,5 @@ type Parent struct {
 	Id    string `json:"parentId"`
 	Title string `json:"title"`
 	Rtl   bool   `json:"rtl"`
+	Total int    `json:"total"`
 }
