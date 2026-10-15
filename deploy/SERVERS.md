@@ -9,13 +9,40 @@ Un único clúster **k3s** con dos nodos (y los que se añadan después):
 | Nodo | Rol k3s | Etiqueta | Qué corre | Entrada desde internet |
 |---|---|---|---|---|
 | Oracle (≈2 vCPU / 2 GB) | server (control plane) | `inkomi.io/capacity=low` | NATS, Redis, auth-service, library-service, transaction-manager, push-service | IP pública → Caddy (HTTPS) |
-| Móvil (ARM64, ≥4 GB) | agent | `inkomi.io/capacity=high` | manga-worker, epub-worker | Cloudflare Tunnel → Caddy |
+| Móvil (ARM64, ≥4 GB) | agent | `inkomi.io/capacity=high` | manga-worker, epub-worker | ninguna (opcional: Cloudflare Tunnel, ver §8) |
 
 - `manga-worker` y `epub-worker` **solo** se programan en nodos `high` (`nodeSelector`). El resto *prefiere* nodos `low`, así que los nodos grandes quedan libres para procesar imágenes.
 - Los nodos se ven entre sí por **Tailscale** (el móvil está detrás del NAT de casa). Flannel va sobre la interfaz `tailscale0`.
 - Entrada HTTP: el Caddy de cada nodo → Traefik de k3s (NodePort `30080`) → servicios por ruta (`deploy/k8s/ingress.yaml`). Cualquier nodo sirve todas las rutas.
 - Las imágenes son multi-arch (amd64 + arm64) y se descargan de `ghcr.io`, así que da igual la arquitectura de Oracle y de los nodos futuros.
 - La pipeline entra **solo en Oracle** (SSH 2222, usuario `deployer`, sin sudo) y usa `kubectl`.
+
+## Scripts de preparación
+
+Automatizan las secciones 2 a 8 y 10 de esta guía. Son idempotentes: si se vuelven a ejecutar, solo aplican lo que falta. Se ejecutan como root **después del Ansible**.
+
+```bash
+# 1. Oracle (server)
+scp -P 2222 -r deploy <admin>@<ip-oracle>:~/
+ssh -p 2222 <admin>@<ip-oracle>
+sudo TS_AUTHKEY=tskey-auth-... DOMAIN=api.tudominio.com bash ~/deploy/servers/setup-oracle.sh
+#    → imprime la IP de Tailscale de Oracle y el token para unir nodos
+
+# 2. Móvil (agent) y nodos futuros
+scp -P 2222 -r deploy <admin>@<ip-movil>:~/
+ssh -p 2222 <admin>@<ip-movil>
+sudo TS_AUTHKEY=tskey-auth-... K3S_URL=https://<ip-tailscale-oracle>:6443 K3S_TOKEN=<token>      bash ~/deploy/servers/setup-mobile.sh
+#    otro nodo pequeño: añade NODE_CAPACITY=low
+```
+
+| Script | Qué hace |
+|---|---|
+| `setup-oracle.sh` | paquetes, quita los REJECT de OCI, swap, Tailscale, reglas UFW, k3s server con etiqueta `low`, carpetas de `.env` de `deployer`, copia diaria de las SQLite (`/var/backups/inkomi`, 14 días) y Caddy con HTTPS para `DOMAIN` |
+| `setup-mobile.sh` | paquetes, comprobaciones (arquitectura, disco, cgroups), desactiva la suspensión, Tailscale, reglas UFW, k3s agent con etiqueta `high` y, opcionalmente, Cloudflare Tunnel y su Caddy (`CF_TUNNEL_TOKEN`, `TUNNEL_HOSTNAME`) |
+
+Lo que sigue siendo manual: el cambio del Ansible (§1), la *Security List* de OCI, desactivar la expiración de clave en Tailscale, rellenar los `.env` (§6) y los secrets de GitHub (§9).
+
+Las auth keys de Tailscale se crean en <https://login.tailscale.com/admin/settings/keys>. Usa una *reusable* si vas a añadir varios nodos. Tailscale SSH queda activado (`tailscale ssh <usuario>@<nodo>`), así que puedes administrar el móvil desde fuera de casa sin túnel.
 
 ---
 
@@ -60,7 +87,7 @@ Cambios necesarios antes de aplicarlo a estas máquinas:
 
 ```bash
 curl -fsSL https://tailscale.com/install.sh | sh
-sudo tailscale up --ssh=false
+sudo tailscale up --ssh          # Tailscale SSH: administrar el nodo sin abrir puertos
 tailscale ip -4      # anota la IP de cada nodo (100.x.y.z)
 ```
 
@@ -180,18 +207,33 @@ http://app.tudominio.com {
 
 Caddy sustituye el `X-Forwarded-For` de clientes no confiables por la IP real y Traefik lo conserva (`forwardedHeaders.insecure`), así que el límite por IP no se puede falsear.
 
-## 8. Cloudflare Tunnel (móvil)
+## 8. Cloudflare Tunnel (móvil): opcional
 
-Sigue `utils/cloudflare-tunnel/cloudflare_android_server_guide.md` con binario **arm64**, ajustando el SSH al puerto del Ansible:
+**Para la app no hace falta.** Oracle es la entrada pública y, como los dos nodos están en el mismo clúster, una petición a `https://api.tudominio.com/preview` entra por Oracle y Traefik la manda al manga-worker del móvil por Tailscale. Para administrar el móvil tampoco: usa Tailscale SSH.
 
-```yaml
-ingress:
-  - hostname: app.tudominio.com
-    service: http://localhost:80
-  - hostname: ssh-movil.tudominio.com
-    service: ssh://localhost:2222
-  - service: http_status:404
+Un túnel en el móvil solo aporta una **segunda entrada pública** (otro hostname apuntando a la misma API). Como el control plane, NATS y las bases de datos están en Oracle, no da alta disponibilidad: si Oracle cae, la app cae igual.
+
+Si aun así lo quieres, usa un **túnel con nombre gestionado desde el panel** (requiere un dominio en Cloudflare):
+
+1. Cloudflare Zero Trust → *Networks* → *Tunnels* → *Create a tunnel* (cloudflared). Copia el token.
+2. *Public hostname*: `movil.tudominio.com` → servicio `HTTP` → `localhost:80` (el Caddy del móvil).
+3. En el móvil: `sudo CF_TUNNEL_TOKEN=... TUNNEL_HOSTNAME=movil.tudominio.com K3S_URL=... K3S_TOKEN=... bash ~/deploy/servers/setup-mobile.sh`. Instala `cloudflared` como servicio y configura Caddy para leer la IP real del cliente (`Cf-Connecting-Ip`), que necesita el límite por IP de `/preview`.
+
+### ¿Y TryCloudflare (`cloudflared tunnel --url ...`)?
+
+Sirve para **probar un rato**, no para dejarlo puesto:
+
+- La URL (`*.trycloudflare.com`) es aleatoria y **cambia cada vez que se reinicia** `cloudflared` (corte de luz, reinicio del móvil…). La app tendría que cambiar de URL.
+- No tiene garantía de disponibilidad, tiene límite de peticiones concurrentes y Cloudflare lo reserva para pruebas y desarrollo.
+- Solo expone un servicio por proceso y no se puede proteger con Cloudflare Access.
+
+Para echar un vistazo rápido a la previsualización desde el ereader sin dominio:
+
+```bash
+cloudflared tunnel --url http://localhost:80   # imprime https://<palabras>.trycloudflare.com
 ```
+
+Con un Caddy que acepte cualquier host (`:80 { reverse_proxy <gateway>:30080 }`) bastaría con abrir `https://<palabras>.trycloudflare.com/preview`.
 
 ## 9. GitHub
 
