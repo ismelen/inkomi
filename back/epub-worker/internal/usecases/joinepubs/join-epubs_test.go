@@ -314,3 +314,63 @@ func TestJoinEpubsUC_Execute_StoreError_ReturnsError(t *testing.T) {
 	// Assert
 	assert.ErrorIs(t, err, storeErr)
 }
+
+func TestJoinEpubsUC_Execute_CompleteGroup_DeletesMergedSources(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name        string
+		failedBlock string
+		expected    []string
+	}{
+		{"All merged", "", []string{"1/1.epub", "2/2.epub", "3/3.epub"}},
+		{"First block fails", "Manga Ch.[1 - 2]", []string{"3/3.epub"}},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			// Arrange
+			children := []jobs.Msg{child("1", 0, false), child("2", 1, false), child("3", 2, false)}
+			f := newFixture(children)
+			f.merger = &mocks.MockEpubMerger{MergeFn: func(outputPath string, meta models.EpubMeta, books []models.EpubBook) error {
+				if meta.Title == tc.failedBlock {
+					return errors.New("corrupt epub")
+				}
+				return (&mocks.MockEpubMerger{}).Merge(outputPath, meta, books)
+			}}
+			var deleted []string
+			f.cloud.DeleteFn = func(ctx context.Context, id, filename string) error {
+				deleted = append(deleted, id+"/"+filename)
+				return nil
+			}
+
+			// Act
+			err := f.handle(t, payloadOf(t, children[0]))
+
+			// Assert
+			require.NoError(t, err)
+			assert.Equal(t, tc.expected, deleted)
+		})
+	}
+}
+
+func TestJoinEpubsUC_Execute_DeleteFails_StillSucceeds(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	children := []jobs.Msg{child("1", 0, false)}
+	f := newFixture(children)
+	f.cloud.DeleteFn = func(ctx context.Context, id, filename string) error {
+		return errors.New("r2 down")
+	}
+
+	// Act
+	err := f.handle(t, payloadOf(t, children[0]))
+
+	// Assert
+	require.NoError(t, err)
+	assert.True(t, f.cleared)
+	assert.False(t, f.released)
+}

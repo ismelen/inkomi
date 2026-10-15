@@ -49,6 +49,7 @@ internal/shared/            utilidades sin lógica de negocio
 - Las dependencias son campos privados con tipo de puerto. `ctx` siempre es el primer parámetro.
 - Nada de `http.Request`, SQL ni SDKs. Un UC puede recibir otro UC por constructor.
 - Flujo común con un paso variable: Template Method por embedding (`BaseTransactionUC` + `processor`).
+- El archivo que contiene el método `Execute` y la declaración del struct de UC debe llamarse `<action>-uc.go` y el test `<action>-uc_test.go`
 
 ## HTTP (`chi`)
 

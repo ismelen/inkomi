@@ -7,9 +7,11 @@ import (
 	"github.com/ismelen/inkomi/back/epub-worker/internal/config"
 	"github.com/ismelen/inkomi/back/epub-worker/internal/infra/cloud"
 	"github.com/ismelen/inkomi/back/epub-worker/internal/infra/epub"
+	"github.com/ismelen/inkomi/back/epub-worker/internal/infra/kepub"
 	"github.com/ismelen/inkomi/back/epub-worker/internal/infra/queue"
 	"github.com/ismelen/inkomi/back/epub-worker/internal/infra/store"
 	"github.com/ismelen/inkomi/back/epub-worker/internal/usecases/joinepubs"
+	"github.com/ismelen/inkomi/back/epub-worker/internal/usecases/kepubify"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -37,6 +39,11 @@ func main() {
 	joinStore := store.NewRedisJoinStore(redisClient, config.Env.JoinTTL, config.Env.JoinLockTTL)
 	joinEpubsUC := joinepubs.NewJoinEpubsUC(queue, joinStore, cloudStorage, epub.NewEpubMerger(), config.Env.JoinMaxBlockSize)
 	if err := joinEpubsUC.Execute(); err != nil {
+		log.Fatal(err)
+	}
+
+	kepubifyUC := kepubify.NewKepubifyUC(queue, cloudStorage, kepub.NewKepubifyKepubifier())
+	if err := kepubifyUC.Execute(); err != nil {
 		log.Fatal(err)
 	}
 

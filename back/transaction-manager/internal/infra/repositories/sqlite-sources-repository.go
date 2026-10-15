@@ -138,6 +138,18 @@ func (r *SQLiteSourceRepository) UpdateStatus(ctx context.Context, id string, us
 	return err
 }
 
+func (r *SQLiteSourceRepository) UpdateFile(ctx context.Context, id string, userId int, filename string, size int64) error {
+	query := `
+		UPDATE source SET
+			filename = COALESCE(NULLIF(?, ''), filename),
+			size = COALESCE(NULLIF(?, 0), size),
+			updatedAt = CURRENT_TIMESTAMP
+		WHERE id = ? AND userId = ?
+	`
+	_, err := datasources.GetDB(ctx, r.db).ExecContext(ctx, query, filename, size, id, userId)
+	return err
+}
+
 func (r *SQLiteSourceRepository) UpdateErrorMsg(ctx context.Context, id string, userId int, errorMsg string) error {
 	query := `
 		UPDATE source SET
@@ -161,7 +173,7 @@ func (r *SQLiteSourceRepository) UpsertResult(ctx context.Context, result *model
 			CASE WHEN ? IN ('done', 'sent', 'failed') THEN CURRENT_TIMESTAMP END
 		)
 		ON CONFLICT (id, userId) DO UPDATE SET
-			filename = excluded.filename,
+			filename = COALESCE(NULLIF(excluded.filename, ''), source.filename),
 			status = excluded.status,
 			errorMsg = excluded.errorMsg,
 			size = COALESCE(excluded.size, source.size),

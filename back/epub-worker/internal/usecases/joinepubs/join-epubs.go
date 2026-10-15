@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"slices"
@@ -16,6 +16,7 @@ import (
 	"github.com/ismelen/inkomi/back/epub-worker/internal/domain/models"
 	"github.com/ismelen/inkomi/back/epub-worker/internal/domain/ports"
 	"github.com/ismelen/inkomi/back/epub-worker/internal/shared/fsutil"
+	"github.com/ismelen/inkomi/back/epub-worker/internal/usecases/cloudfile"
 )
 
 var errMissingParent = errors.New("join job without parent or total")
@@ -72,30 +73,48 @@ func (j *JoinEpubsUC) handle(ctx context.Context, payload []byte) error {
 		return nil
 	}
 
-	if err := j.join(ctx, msg.Parent, msgs); err != nil {
+	merged, err := j.join(ctx, msg.Parent, msgs)
+	if err != nil {
 		if releaseErr := j.joinStore.Release(ctx, msg.Parent.Id); releaseErr != nil {
 			return errors.Join(err, releaseErr)
 		}
 		return err
 	}
 
-	return j.joinStore.Clear(ctx, msg.Parent.Id)
+	if err := j.joinStore.Clear(ctx, msg.Parent.Id); err != nil {
+		return err
+	}
+
+	// The results are already published: retrying because a source couldn't be deleted
+	// would fail on the sources that were, so cleanup failures are only logged.
+	if err := j.deleteSources(ctx, merged); err != nil {
+		log.Printf("join %s: delete merged sources: %v", msg.Parent.Id, err)
+	}
+	return nil
 }
 
-func (j *JoinEpubsUC) join(ctx context.Context, parent *jobs.Parent, msgs []jobs.Msg) error {
+// join merges the group and publishes its results. It returns the children whose block
+// was merged, so their source files can be deleted.
+func (j *JoinEpubsUC) join(ctx context.Context, parent *jobs.Parent, msgs []jobs.Msg) ([]jobs.Msg, error) {
 	items, err := j.orderedItems(ctx, msgs)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	blocks := SplitBlocks(items, j.maxBlockSize)
 	publications := make([]publication, 0, len(blocks)+len(msgs))
+	var merged []jobs.Msg
 	for i, block := range blocks {
 		result, err := j.processBlock(ctx, parent, block, i, len(blocks))
 		if err != nil {
-			return err
+			return nil, err
 		}
 		publications = append(publications, result)
+		if result.subject != jobs.SubjectFailed {
+			for _, item := range block {
+				merged = append(merged, item.Msg)
+			}
+		}
 	}
 
 	for _, child := range items {
@@ -107,10 +126,20 @@ func (j *JoinEpubsUC) join(ctx context.Context, parent *jobs.Parent, msgs []jobs
 
 	for _, p := range publications {
 		if err := j.queue.Publish(ctx, string(p.subject), p.msg); err != nil {
-			return err
+			return nil, err
 		}
 	}
-	return nil
+	return merged, nil
+}
+
+func (j *JoinEpubsUC) deleteSources(ctx context.Context, msgs []jobs.Msg) error {
+	var errs []error
+	for _, msg := range msgs {
+		if err := j.cloudStorage.Delete(ctx, msg.Id, msg.Filename); err != nil {
+			errs = append(errs, fmt.Errorf("delete %s/%s: %w", msg.Id, msg.Filename, err))
+		}
+	}
+	return errors.Join(errs...)
 }
 
 func (j *JoinEpubsUC) orderedItems(ctx context.Context, msgs []jobs.Msg) ([]models.JoinItem, error) {
@@ -171,7 +200,7 @@ func (j *JoinEpubsUC) processBlock(ctx context.Context, parent *jobs.Parent, blo
 		return publication{subject: jobs.SubjectFailed, msg: result}, nil
 	}
 
-	result.Size, err = j.upload(ctx, result.Id, filename, outputPath)
+	result.Size, err = cloudfile.Upload(ctx, j.cloudStorage, result.Id, filename, outputPath)
 	if err != nil {
 		return publication{}, err
 	}
@@ -189,47 +218,11 @@ func (j *JoinEpubsUC) download(ctx context.Context, dir string, block []models.J
 			Path:  filepath.Join(dir, fmt.Sprintf("%04d.epub", i)),
 			Title: cmp.Or(item.Msg.Title, strings.TrimSuffix(item.Msg.Filename, filepath.Ext(item.Msg.Filename))),
 		}
-		if err := j.downloadFile(ctx, item.Msg, books[i].Path); err != nil {
+		if err := cloudfile.Download(ctx, j.cloudStorage, item.Msg.Id, item.Msg.Filename, books[i].Path); err != nil {
 			return nil, err
 		}
 	}
 	return books, nil
-}
-
-func (j *JoinEpubsUC) downloadFile(ctx context.Context, msg jobs.Msg, path string) error {
-	reader, err := j.cloudStorage.Download(ctx, msg.Id, msg.Filename)
-	if err != nil {
-		return fmt.Errorf("download %s/%s: %w", msg.Id, msg.Filename, err)
-	}
-	defer reader.Close()
-
-	file, err := os.Create(path)
-	if err != nil {
-		return fmt.Errorf("create %s: %w", path, err)
-	}
-
-	if _, err := io.Copy(file, reader); err != nil {
-		return errors.Join(fmt.Errorf("write %s: %w", path, err), file.Close())
-	}
-	return file.Close()
-}
-
-func (j *JoinEpubsUC) upload(ctx context.Context, id, filename, path string) (int64, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return 0, fmt.Errorf("open %s: %w", path, err)
-	}
-	defer file.Close()
-
-	info, err := file.Stat()
-	if err != nil {
-		return 0, fmt.Errorf("stat %s: %w", path, err)
-	}
-
-	if err := j.cloudStorage.Upload(ctx, id, filename, file); err != nil {
-		return 0, fmt.Errorf("upload %s/%s: %w", id, filename, err)
-	}
-	return info.Size(), nil
 }
 
 // fail reports an unprocessable job; returning the publish result acks the message so it isn't retried.

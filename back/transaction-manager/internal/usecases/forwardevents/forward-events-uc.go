@@ -45,6 +45,18 @@ func (f *ForwardEventsUC) Execute() error {
 			"status": status,
 		}
 
+		if job.Filename != "" || job.Size > 0 {
+			if err := f.sourceRepo.UpdateFile(ctx, job.Id, job.UserId, job.Filename, job.Size); err != nil {
+				return err
+			}
+			if job.Filename != "" {
+				msg["filename"] = job.Filename
+			}
+			if job.Size > 0 {
+				msg["size"] = job.Size
+			}
+		}
+
 		var err error
 		if status == models.SourceStatusFailed && job.ErrorMsg != "" {
 			err = f.sourceRepo.UpdateErrorMsg(ctx, job.Id, job.UserId, job.ErrorMsg)

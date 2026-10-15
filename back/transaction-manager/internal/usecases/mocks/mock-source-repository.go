@@ -11,6 +11,7 @@ type MockSourceRepository struct {
 	GetByIdAndUserIdFn               func(ctx context.Context, id string, userId int) (*models.Source, error)
 	GetDetailByIdAndUserIdFn         func(ctx context.Context, id string, userId int) (*models.SourceDetail, error)
 	UpdateStatusFn                   func(ctx context.Context, id string, userId int, status models.SourceStatus) error
+	UpdateFileFn                     func(ctx context.Context, id string, userId int, filename string, size int64) error
 	UpdateErrorMsgFn                 func(ctx context.Context, id string, userId int, errorMsg string) error
 	UpsertResultFn                   func(ctx context.Context, result *models.Source) error
 	ListResultsByParentIdAndUserIdFn func(ctx context.Context, parentId string, userId int) ([]models.Source, error)
@@ -41,6 +42,13 @@ func (m *MockSourceRepository) GetDetailByIdAndUserId(ctx context.Context, id st
 func (m *MockSourceRepository) UpdateStatus(ctx context.Context, id string, userId int, status models.SourceStatus) error {
 	if m.UpdateStatusFn != nil {
 		return m.UpdateStatusFn(ctx, id, userId, status)
+	}
+	return nil
+}
+
+func (m *MockSourceRepository) UpdateFile(ctx context.Context, id string, userId int, filename string, size int64) error {
+	if m.UpdateFileFn != nil {
+		return m.UpdateFileFn(ctx, id, userId, filename, size)
 	}
 	return nil
 }

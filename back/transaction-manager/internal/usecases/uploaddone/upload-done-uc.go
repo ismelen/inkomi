@@ -60,6 +60,9 @@ func (u *UploadDoneUC) buildJob(src *models.SourceDetail) (jobs.Subject, jobs.Ms
 		Kepubify: src.Kepubify,
 		ToCloud:  src.ToCloud,
 	}
+	if src.Size != nil {
+		msg.Size = *src.Size
+	}
 
 	if src.Parent != nil && src.Parent.Join {
 		msg.Parent = &jobs.Parent{

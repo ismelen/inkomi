@@ -136,6 +136,7 @@ func TestUploadDoneUC_Execute_Epub_PublishesBaseMessage(t *testing.T) {
 		"title":    "Title",
 		"kepubify": true,
 		"toCloud":  true,
+		"size":     float64(100),
 	}, msg)
 }
 

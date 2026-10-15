@@ -13,6 +13,8 @@ type SourceRepository interface {
 	GetByIdAndUserId(ctx context.Context, id string, userId int) (*models.Source, error)
 	GetDetailByIdAndUserId(ctx context.Context, id string, userId int) (*models.SourceDetail, error)
 	UpdateStatus(ctx context.Context, id string, userId int, status models.SourceStatus) error
+	// UpdateFile stores the current filename and size of the source; empty values keep the stored ones.
+	UpdateFile(ctx context.Context, id string, userId int, filename string, size int64) error
 	// UpdateErrorMsg stores errorMsg and marks the source as failed.
 	UpdateErrorMsg(ctx context.Context, id string, userId int, errorMsg string) error
 	// UpsertResult creates the join result with its own id or updates its status, size and timestamps.
