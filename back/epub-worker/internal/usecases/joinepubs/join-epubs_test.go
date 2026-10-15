@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/ismelen/inkomi/back/contracts/jobs"
+	"github.com/ismelen/inkomi/back/epub-worker/internal/domain/models"
 	"github.com/ismelen/inkomi/back/epub-worker/internal/domain/ports"
 	"github.com/ismelen/inkomi/back/epub-worker/internal/usecases/joinepubs"
 	"github.com/ismelen/inkomi/back/epub-worker/internal/usecases/mocks"
@@ -95,7 +96,7 @@ func child(id string, index int, kepubify bool) jobs.Msg {
 		Title:    "Ch. " + id,
 		Filename: id + ".epub",
 		Kepubify: kepubify,
-		Parent:   &jobs.Parent{Id: "parent-1", Title: "Manga", Total: 3, Index: index},
+		Parent:   &jobs.Parent{Id: "parent-1", Title: "Manga", Rtl: true, Total: 3, Index: index},
 	}
 }
 
@@ -180,13 +181,19 @@ func TestJoinEpubsUC_Execute_CompleteGroup_PublishesResultsInOrder(t *testing.T)
 			// Arrange
 			children := []jobs.Msg{child("3", 2, tc.kepubify), child("1", 0, tc.kepubify), child("2", 1, tc.kepubify)}
 			f := newFixture(children)
-			var merged [][]string
+			var merged []models.EpubMeta
+			var mergedTitles [][]string
 			f.cloud.DownloadFn = func(ctx context.Context, id, filename string) (io.ReadCloser, error) {
 				return io.NopCloser(strings.NewReader(id)), nil
 			}
-			f.merger = &mocks.MockEpubMerger{MergeFn: func(paths []string, title, author, outputPath string) error {
-				merged = append(merged, append([]string{title}, paths...))
-				return (&mocks.MockEpubMerger{}).Merge(paths, title, author, outputPath)
+			f.merger = &mocks.MockEpubMerger{MergeFn: func(outputPath string, meta models.EpubMeta, books []models.EpubBook) error {
+				merged = append(merged, meta)
+				var titles []string
+				for _, b := range books {
+					titles = append(titles, b.Title)
+				}
+				mergedTitles = append(mergedTitles, titles)
+				return (&mocks.MockEpubMerger{}).Merge(outputPath, meta, books)
 			}}
 			uploaded := map[string]string{}
 			f.cloud.UploadFn = func(ctx context.Context, id, filename string, body io.Reader) error {
@@ -203,9 +210,9 @@ func TestJoinEpubsUC_Execute_CompleteGroup_PublishesResultsInOrder(t *testing.T)
 			assert.False(t, f.released)
 
 			require.Len(t, merged, 2)
-			assert.Equal(t, "Manga Ch.[1 - 2]", merged[0][0])
-			assert.Len(t, merged[0], 3)
-			assert.Equal(t, "Manga Ch.3", merged[1][0])
+			assert.Equal(t, models.EpubMeta{Title: "Manga Ch.[1 - 2]", RTL: true}, merged[0])
+			assert.Equal(t, models.EpubMeta{Title: "Manga Ch.3", RTL: true}, merged[1])
+			assert.Equal(t, [][]string{{"Ch. 1", "Ch. 2"}, {"Ch. 3"}}, mergedTitles)
 
 			results := f.bySubject(tc.expectedSubject)
 			require.Len(t, results, 2)
@@ -229,11 +236,11 @@ func TestJoinEpubsUC_Execute_MergeFails_PublishesFailedResultAndContinues(t *tes
 	// Arrange
 	children := []jobs.Msg{child("1", 0, false), child("2", 1, false), child("3", 2, false)}
 	f := newFixture(children)
-	f.merger = &mocks.MockEpubMerger{MergeFn: func(paths []string, title, author, outputPath string) error {
-		if title == "Manga Ch.[1 - 2]" {
+	f.merger = &mocks.MockEpubMerger{MergeFn: func(outputPath string, meta models.EpubMeta, books []models.EpubBook) error {
+		if meta.Title == "Manga Ch.[1 - 2]" {
 			return errors.New("corrupt epub")
 		}
-		return (&mocks.MockEpubMerger{}).Merge(paths, title, author, outputPath)
+		return (&mocks.MockEpubMerger{}).Merge(outputPath, meta, books)
 	}}
 
 	// Act

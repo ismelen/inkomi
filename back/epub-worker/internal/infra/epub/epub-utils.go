@@ -3,38 +3,45 @@ package epub
 import (
 	"bytes"
 	"encoding/xml"
+	"errors"
+	"io"
+	"slices"
 	"strings"
 )
 
 func xmlEscape(s string) string {
 	var buf bytes.Buffer
+	// writing to a bytes.Buffer never fails
 	_ = xml.EscapeText(&buf, []byte(s))
 	return buf.String()
 }
 
-func sanitizeID(id string) string {
+func sanitizeId(id string) string {
 	if id == "" {
 		return "item"
 	}
-	var b strings.Builder
-	for _, r := range id {
+	return strings.Map(func(r rune) rune {
 		switch {
 		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '-', r == '_', r == '.':
-			b.WriteRune(r)
+			return r
 		default:
-			b.WriteRune('_')
+			return '_'
 		}
-	}
-	return b.String()
+	}, id)
+}
+
+func hasToken(s, token string) bool {
+	return slices.Contains(strings.Fields(s), token)
 }
 
 func removeToken(s, token string) string {
-	fields := strings.Fields(s)
-	out := fields[:0]
-	for _, f := range fields {
-		if f != token {
-			out = append(out, f)
-		}
-	}
-	return strings.Join(out, " ")
+	return strings.Join(slices.DeleteFunc(strings.Fields(s), func(f string) bool { return f == token }), " ")
+}
+
+func addToken(s, token string) string {
+	return strings.TrimSpace(s + " " + token)
+}
+
+func errorAndClose(err error, c io.Closer) error {
+	return errors.Join(err, c.Close())
 }

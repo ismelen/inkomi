@@ -1,6 +1,7 @@
 package joinepubs
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/ismelen/inkomi/back/contracts/jobs"
 	"github.com/ismelen/inkomi/back/epub-worker/internal/domain/models"
@@ -157,13 +159,14 @@ func (j *JoinEpubsUC) processBlock(ctx context.Context, parent *jobs.Parent, blo
 		_ = os.RemoveAll(dir)
 	}()
 
-	paths, err := j.download(ctx, dir, block)
+	books, err := j.download(ctx, dir, block)
 	if err != nil {
 		return publication{}, err
 	}
 
 	outputPath := filepath.Join(dir, filename)
-	if err := j.merger.Merge(paths, title, "", outputPath); err != nil {
+	meta := models.EpubMeta{Title: title, RTL: parent.Rtl}
+	if err := j.merger.Merge(outputPath, meta, books); err != nil {
 		result.ErrorMsg = fmt.Sprintf("merge %s: %v", title, err)
 		return publication{subject: jobs.SubjectFailed, msg: result}, nil
 	}
@@ -179,15 +182,18 @@ func (j *JoinEpubsUC) processBlock(ctx context.Context, parent *jobs.Parent, blo
 	return publication{subject: jobs.SubjectDone, msg: result}, nil
 }
 
-func (j *JoinEpubsUC) download(ctx context.Context, dir string, block []models.JoinItem) ([]string, error) {
-	paths := make([]string, len(block))
+func (j *JoinEpubsUC) download(ctx context.Context, dir string, block []models.JoinItem) ([]models.EpubBook, error) {
+	books := make([]models.EpubBook, len(block))
 	for i, item := range block {
-		paths[i] = filepath.Join(dir, fmt.Sprintf("%04d.epub", i))
-		if err := j.downloadFile(ctx, item.Msg, paths[i]); err != nil {
+		books[i] = models.EpubBook{
+			Path:  filepath.Join(dir, fmt.Sprintf("%04d.epub", i)),
+			Title: cmp.Or(item.Msg.Title, strings.TrimSuffix(item.Msg.Filename, filepath.Ext(item.Msg.Filename))),
+		}
+		if err := j.downloadFile(ctx, item.Msg, books[i].Path); err != nil {
 			return nil, err
 		}
 	}
-	return paths, nil
+	return books, nil
 }
 
 func (j *JoinEpubsUC) downloadFile(ctx context.Context, msg jobs.Msg, path string) error {
