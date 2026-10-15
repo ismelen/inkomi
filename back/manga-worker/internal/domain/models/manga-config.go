@@ -74,6 +74,14 @@ func NewMangaConfig(raw json.RawMessage) (MangaConfig, error) {
 	return cfg, nil
 }
 
+// FitsPreview reports ErrPreviewTooLarge when the target size exceeds PreviewMaxSize.
+func (c *MangaConfig) FitsPreview() error {
+	if c.TargetWidth > PreviewMaxSize || c.TargetHeight > PreviewMaxSize {
+		return fmt.Errorf("%w: max %dx%d", ErrPreviewTooLarge, PreviewMaxSize, PreviewMaxSize)
+	}
+	return nil
+}
+
 func (c *MangaConfig) CropEnabled() bool {
 	return c.CropTolerance >= 0
 }

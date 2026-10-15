@@ -20,4 +20,6 @@ RUN apk add --no-cache ca-certificates tzdata vips
 WORKDIR /app
 COPY --from=builder /manga-worker .
 
+EXPOSE 3003
+
 ENTRYPOINT ["/app/manga-worker"]

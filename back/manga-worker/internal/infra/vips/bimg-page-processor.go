@@ -30,11 +30,26 @@ type BimgPageProcessor struct {
 func NewBimgPageProcessor(ctx context.Context, workers int) *BimgPageProcessor {
 	// pages are processed once, so libvips' operation cache only wastes memory
 	bimg.VipsCacheSetMax(0)
-	return &BimgPageProcessor{pool: NewWorkerPool(ctx, workers, processPage)}
+	return &BimgPageProcessor{pool: NewWorkerPool(ctx, workers)}
 }
 
 func (b *BimgPageProcessor) Process(ctx context.Context, data []byte, cfg models.MangaConfig, rtl bool) ([]models.ProcessedPage, error) {
-	return b.pool.Submit(ctx, data, cfg, rtl)
+	var pages []models.ProcessedPage
+	var err error
+	if poolErr := b.pool.Do(ctx, func() { pages, err = processPage(data, cfg, rtl) }); poolErr != nil {
+		return nil, poolErr
+	}
+	return pages, err
+}
+
+// ProcessSingle processes data as a single page, without splitting or rotating spreads.
+func (b *BimgPageProcessor) ProcessSingle(ctx context.Context, data []byte, cfg models.MangaConfig) (models.ProcessedPage, error) {
+	var page models.ProcessedPage
+	var err error
+	if poolErr := b.pool.Do(ctx, func() { page, err = processPart(pagePart{data: data, split: models.SplitNone}, cfg) }); poolErr != nil {
+		return models.ProcessedPage{}, poolErr
+	}
+	return page, err
 }
 
 type pagePart struct {

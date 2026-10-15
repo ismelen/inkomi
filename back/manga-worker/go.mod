@@ -4,6 +4,7 @@ go 1.26.2
 
 require (
 	github.com/facette/natsort v0.0.0-20181210072756-2cd4dd1e2dcb
+	github.com/go-chi/chi/v5 v5.3.0
 	github.com/google/uuid v1.6.0
 	github.com/h2non/bimg v1.1.9
 	github.com/ismelen/inkomi/back/common v0.0.0
@@ -11,6 +12,7 @@ require (
 	github.com/pdfcpu/pdfcpu v0.15.0
 	github.com/stretchr/testify v1.12.1
 	golang.org/x/sync v0.23.0
+	golang.org/x/time v0.16.0
 )
 
 require (

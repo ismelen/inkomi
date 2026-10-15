@@ -1,68 +1,58 @@
 package vips
 
-import (
-	"context"
+import "context"
 
-	"github.com/ismelen/inkomi/back/manga-worker/internal/domain/models"
-)
-
-type pageFunc func(data []byte, cfg models.MangaConfig, rtl bool) ([]models.ProcessedPage, error)
-
-type poolJob struct {
-	ctx    context.Context
-	data   []byte
-	cfg    models.MangaConfig
-	rtl    bool
-	result chan<- poolResult
-}
-
-type poolResult struct {
-	pages []models.ProcessedPage
-	err   error
-}
-
-// WorkerPool bounds how many pages are processed at once across every running job, since each
-// one holds several decoded copies of a page in memory.
+// WorkerPool bounds how many pages are processed at once across every running job and preview,
+// since each one holds several decoded copies of a page in memory.
 type WorkerPool struct {
-	jobs chan poolJob
+	tasks chan func()
 }
 
-func NewWorkerPool(ctx context.Context, workers int, process pageFunc) *WorkerPool {
-	p := &WorkerPool{jobs: make(chan poolJob, workers*2)}
+func NewWorkerPool(ctx context.Context, workers int) *WorkerPool {
+	p := &WorkerPool{tasks: make(chan func(), workers*2)}
 	for range workers {
-		go p.run(ctx, process)
+		go p.run(ctx)
 	}
 	return p
 }
 
-func (p *WorkerPool) run(ctx context.Context, process pageFunc) {
+func (p *WorkerPool) run(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case job := <-p.jobs:
-			if err := job.ctx.Err(); err != nil {
-				job.result <- poolResult{err: err}
-				continue
-			}
-			pages, err := process(job.data, job.cfg, job.rtl)
-			job.result <- poolResult{pages: pages, err: err}
+		case task := <-p.tasks:
+			task()
 		}
 	}
 }
 
-func (p *WorkerPool) Submit(ctx context.Context, data []byte, cfg models.MangaConfig, rtl bool) ([]models.ProcessedPage, error) {
-	result := make(chan poolResult, 1)
-	select {
-	case p.jobs <- poolJob{ctx: ctx, data: data, cfg: cfg, rtl: rtl, result: result}:
-	case <-ctx.Done():
-		return nil, ctx.Err()
+// Do runs task on a worker and waits for it. When ctx is done first it returns ctx.Err() and
+// task, if already queued, still runs but its result is discarded.
+func (p *WorkerPool) Do(ctx context.Context, task func()) error {
+	done := make(chan struct{})
+	ran := false
+	wrapped := func() {
+		defer close(done)
+		if ctx.Err() == nil {
+			task()
+			ran = true
+		}
 	}
 
 	select {
-	case res := <-result:
-		return res.pages, res.err
+	case p.tasks <- wrapped:
 	case <-ctx.Done():
-		return nil, ctx.Err()
+		return ctx.Err()
+	}
+
+	select {
+	case <-done:
+		if ran {
+			return nil
+		}
+		return ctx.Err()
+	case <-ctx.Done():
+		return ctx.Err()
 	}
 }

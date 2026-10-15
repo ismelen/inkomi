@@ -124,6 +124,23 @@ func TestBimgPageProcessor_Process_SpreadWithRotate_ReturnsOneRotatedPage(t *tes
 	assert.Greater(t, pages[0].Height, pages[0].Width)
 }
 
+func TestBimgPageProcessor_ProcessSingle_Spread_NeverSplits(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	cfg := models.DefaultMangaConfig()
+	cfg.RotateDoublePage = true
+	cfg.TargetWidth, cfg.TargetHeight = 300, 400
+
+	// Act
+	page, err := newProcessor(t).ProcessSingle(context.Background(), pagePNG(t, 1200, 800, color.Black, color.White), cfg)
+
+	// Assert
+	require.NoError(t, err)
+	assert.Equal(t, models.SplitNone, page.Split)
+	assert.Greater(t, page.Width, page.Height)
+}
+
 func TestBimgPageProcessor_Process_Palette8bit_ReturnsPNG(t *testing.T) {
 	t.Parallel()
 
