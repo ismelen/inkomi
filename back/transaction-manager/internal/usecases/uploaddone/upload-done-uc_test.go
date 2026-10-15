@@ -36,7 +36,7 @@ func repoReturning(detail *models.SourceDetail) *mocks.MockSourceRepository {
 
 func cloudWithFile(found bool) *mocks.MockCloudStorage {
 	return &mocks.MockCloudStorage{
-		CheckFn: func(id, ext string) bool { return found },
+		CheckFn: func(id, filename string) bool { return found },
 	}
 }
 

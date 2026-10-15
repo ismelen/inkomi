@@ -16,16 +16,16 @@ func TestCloudflareR2Storage_New_ValidConfig_ReturnsInstance(t *testing.T) {
 	assert.NotNil(t, storage)
 }
 
-func TestCloudflareR2Storage_GetUrl_ValidIdAndExt_ReturnsPresignedUrl(t *testing.T) {
+func TestCloudflareR2Storage_GetUrl_ValidIdAndFilename_ReturnsPresignedUrl(t *testing.T) {
 	// Arrange
 	storage, err := cloud.NewCloudflareR2Storage("test-account", "test-key", "test-secret", "test-bucket")
 	assert.NoError(t, err)
 
 	id := "document-123"
-	ext := ".epub"
+	filename := "book.epub"
 
 	// Act
-	url, err := storage.GetUrl(id, ext)
+	url, err := storage.GetUrl(id, filename)
 	
 	// Assert
 	assert.NoError(t, err)
@@ -34,7 +34,7 @@ func TestCloudflareR2Storage_GetUrl_ValidIdAndExt_ReturnsPresignedUrl(t *testing
 	expectedEndpointFragment := "test-account.r2.cloudflarestorage.com"
 	assert.Contains(t, url, expectedEndpointFragment)
 
-	expectedPathFragment := "test-bucket.test-account.r2.cloudflarestorage.com/document-123.epub"
+	expectedPathFragment := "test-bucket.test-account.r2.cloudflarestorage.com/document-123/book.epub"
 	assert.Contains(t, url, expectedPathFragment)
 	assert.Contains(t, url, "X-Amz-Signature=")
 }
@@ -45,10 +45,10 @@ func TestCloudflareR2Storage_Check_InvalidCredentials_ReturnsFalse(t *testing.T)
 	assert.NoError(t, err)
 
 	id := "document-123"
-	ext := ".epub"
+	filename := "book.epub"
 
 	// Act
-	exists := storage.Check(id, ext)
+	exists := storage.Check(id, filename)
 
 	// Assert
 	// Since credentials and account are fake, it should fail to do HeadObject and return false

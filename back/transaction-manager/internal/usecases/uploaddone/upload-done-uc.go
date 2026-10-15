@@ -3,7 +3,6 @@ package uploaddone
 import (
 	"context"
 	"encoding/json"
-	"path/filepath"
 
 	"github.com/ismelen/inkomi/back/common/jobs"
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/domain/models"
@@ -34,7 +33,7 @@ func (u *UploadDoneUC) Execute(ctx context.Context, userId int, sourceId string)
 		return err
 	}
 
-	if !src.IsLibrary() && !u.cloudStorage.Check(src.Id, filepath.Ext(src.Filename)) {
+	if !src.IsLibrary() && !u.cloudStorage.Check(src.Id, src.Filename) {
 		return models.ErrSourceNotUploaded
 	}
 

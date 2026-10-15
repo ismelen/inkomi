@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"path/filepath"
 
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/domain/models"
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/domain/ports"
@@ -134,7 +133,7 @@ func (n *NewUploadRequestUC) saveSource(ctx context.Context, op *uploadOperation
 
 	src.Id = id
 	if src.Type == models.SourceTypeFile {
-		src.Url, err = n.cloudStorage.GetUrl(src.Id, filepath.Ext(src.Filename))
+		src.Url, err = n.cloudStorage.GetUrl(src.Id, src.Filename)
 	}
 
 	return err

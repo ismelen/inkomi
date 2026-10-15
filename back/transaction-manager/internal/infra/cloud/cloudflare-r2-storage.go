@@ -39,8 +39,8 @@ func NewCloudflareR2Storage(accountId, accessKeyId, secretAccessKey, bucketName 
 	}, nil
 }
 
-func (c *CloudflareR2Storage) GetUrl(id string, ext string) (string, error) {
-	key := id + ext
+func (c *CloudflareR2Storage) GetUrl(id string, filename string) (string, error) {
+	key := id + "/" + filename
 	request, err := c.presignClient.PresignPutObject(context.TODO(), &s3.PutObjectInput{
 		Bucket: aws.String(c.bucketName),
 		Key:    aws.String(key),
@@ -54,8 +54,8 @@ func (c *CloudflareR2Storage) GetUrl(id string, ext string) (string, error) {
 	return request.URL, nil
 }
 
-func (c *CloudflareR2Storage) Check(id string, ext string) bool {
-	key := id + ext
+func (c *CloudflareR2Storage) Check(id string, filename string) bool {
+	key := id + "/" + filename
 	_, err := c.client.HeadObject(context.TODO(), &s3.HeadObjectInput{
 		Bucket: aws.String(c.bucketName),
 		Key:    aws.String(key),

@@ -13,6 +13,8 @@ type AppConfig struct {
 	R2SecretAccessKey string
 	R2BucketName      string
 	NATSUrl           string
+	DBPath            string
+	SchemaPath        string
 }
 
 var Env AppConfig
@@ -26,5 +28,14 @@ func Load() {
 		R2SecretAccessKey: os.Getenv("R2_SECRET_ACCESS_KEY"),
 		R2BucketName:      os.Getenv("R2_BUCKET_NAME"),
 		NATSUrl:           os.Getenv("NATS_URL"),
+		DBPath:            stringOr(os.Getenv("DB_PATH"), "transactions.db"),
+		SchemaPath:        stringOr(os.Getenv("SCHEMA_PATH"), "./migrations/transactions.sql"),
 	}
+}
+
+func stringOr(value, fallback string) string {
+	if value == "" {
+		return fallback
+	}
+	return value
 }

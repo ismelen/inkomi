@@ -37,8 +37,8 @@ func TestNewUploadRequestUC_Execute_ValidRequest_ReturnsSources(t *testing.T) {
 	sourceRepo := &mocks.MockSourceRepository{}
 	configRepo := &mocks.MockConfigRepository{}
 	cloudStorage := &mocks.MockCloudStorage{
-		GetUrlFn: func(id string, ext string) (string, error) {
-			return "http://example.com/" + id + ext, nil
+		GetUrlFn: func(id string, filename string) (string, error) {
+			return "http://example.com/" + id + "/" + filename, nil
 		},
 	}
 
@@ -68,7 +68,7 @@ func TestNewUploadRequestUC_Execute_ValidRequest_ReturnsSources(t *testing.T) {
 	// Assert
 	assert.NoError(t, err)
 	assert.Len(t, sources, 1)
-	assert.Equal(t, "http://example.com/.zip", sources[0].Url) // Id is empty because mock returns empty
+	assert.Equal(t, "http://example.com//test1.zip", sources[0].Url) // Id is empty because mock returns empty
 }
 
 func TestNewUploadRequestUC_Execute_WithConfigs_SavesConfigsAndSources(t *testing.T) {
@@ -268,7 +268,7 @@ func TestNewUploadRequestUC_Execute_FolderAndLibrary_EmptyUrl(t *testing.T) {
 		&mocks.MockSourceRepository{},
 		&mocks.MockConfigRepository{},
 		&mocks.MockCloudStorage{
-			GetUrlFn: func(id string, ext string) (string, error) {
+			GetUrlFn: func(id string, filename string) (string, error) {
 				return "should-not-be-called", nil
 			},
 		},
