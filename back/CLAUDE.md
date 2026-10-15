@@ -27,7 +27,7 @@ internal/shared/            utilidades sin lógica de negocio
 - Handlers: `<Recurso>Handler.Handle<Acción>`. Rutas: `Setup<Recurso>Routes`. DTOs: `<X>Request` / `<X>Response`.
 - Puertos sin prefijo `I` (`CloudStorage`, `Queue`). Implementaciones: `<Tecnología><Puerto>` (`NatsQueue`, `SQLiteSourceRepository`). Mocks: `Mock<Puerto>`.
 - Errores `Err<Causa>`; enums `<Tipo><Valor>`; constantes en camelCase/PascalCase, nunca `UPPER_SNAKE`.
-- Acrónimos en mayúsculas en el código nuevo (`UserID`, `MD5`, `URL`). Receptor de 1–2 letras, siempre puntero y el mismo en todo el tipo.
+- Acrónimos en mayúsculas en el código nuevo (`MD5`, `URL`), salvo `Id`: siempre `Id` / `xId` (`UserId`, `ParentId`, `GetByIdAndUserId`), nunca `ID`. Receptor de 1–2 letras, siempre puntero y el mismo en todo el tipo.
 - Inglés en código, comentarios y mensajes de error. Revisa las erratas en nombres de paquetes y tipos.
 
 ## Dominio
