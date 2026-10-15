@@ -11,6 +11,8 @@ func StatusFromSubject(s jobs.Subject) SourceStatus {
 		return SourceStatusProcessing
 	case jobs.SubjectJoin:
 		return SourceStatusJoining
+	case jobs.SubjectJoined:
+		return SourceStatusJoined
 	case jobs.SubjectKepub:
 		return SourceStatusKepubifying
 	case jobs.SubjectDone:

@@ -67,6 +67,7 @@ func (u *UploadDoneUC) buildJob(src *models.SourceDetail) (jobs.Subject, jobs.Ms
 			Title: src.Parent.Title,
 			Rtl:   src.Parent.IsRTL,
 			Total: src.Parent.ChildCount,
+			Index: src.Position,
 		}
 	}
 

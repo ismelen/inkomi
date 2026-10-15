@@ -8,6 +8,7 @@ const (
 	SubjectLibrary Subject = "job.init.library"
 	SubjectStart   Subject = "job.step.start"
 	SubjectJoin    Subject = "job.step.join"
+	SubjectJoined  Subject = "job.step.joined"
 	SubjectKepub   Subject = "job.step.kepub"
 	SubjectDone    Subject = "job.step.done"
 	SubjectSent    Subject = "job.step.sent"

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/ismelen/inkomi/back/epub-worker/internal/domain/ports"
 	"github.com/nats-io/nats.go"
@@ -12,12 +13,14 @@ import (
 )
 
 type NatsQueue struct {
-	nc   *nats.Conn
-	js   jetstream.JetStream
-	subs []jetstream.ConsumeContext
+	nc      *nats.Conn
+	js      jetstream.JetStream
+	subs    []jetstream.ConsumeContext
+	ackWait time.Duration
 }
 
-func NewNatsQueue(url string) (*NatsQueue, error) {
+// NewNatsQueue connects to NATS; ackWait is how long a handler may run before the message is redelivered.
+func NewNatsQueue(url string, ackWait time.Duration) (*NatsQueue, error) {
 	nc, err := nats.Connect(url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to nats: %w", err)
@@ -29,8 +32,9 @@ func NewNatsQueue(url string) (*NatsQueue, error) {
 	}
 
 	return &NatsQueue{
-		nc: nc,
-		js: js,
+		nc:      nc,
+		js:      js,
+		ackWait: ackWait,
 	}, nil
 }
 
@@ -80,7 +84,11 @@ func (n *NatsQueue) Subscribe(subject string, handler ports.EventHandler) error 
 	streamName = strings.ReplaceAll(streamName, "*", "all")
 	streamName = strings.ReplaceAll(streamName, ">", "all")
 
-	consumer, err := n.js.CreateOrUpdateConsumer(ctx, streamName, jetstream.ConsumerConfig{})
+	consumer, err := n.js.CreateOrUpdateConsumer(ctx, streamName, jetstream.ConsumerConfig{
+		Durable:   streamName,
+		AckPolicy: jetstream.AckExplicitPolicy,
+		AckWait:   n.ackWait,
+	})
 	if err != nil {
 		return fmt.Errorf("failed to create consumer for %s: %w", subject, err)
 	}

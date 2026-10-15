@@ -24,7 +24,7 @@ func TestNatsQueue_NewNatsQueue_InvalidURL_ReturnsError(t *testing.T) {
 	url := "invalid-url://localhost:99999"
 
 	// Act
-	q, err := queue.NewNatsQueue(url)
+	q, err := queue.NewNatsQueue(url, time.Minute)
 
 	// Assert
 	assert.Error(t, err)
@@ -38,7 +38,7 @@ func TestNatsQueue_PublishAndSubscribe_ValidMessage_HandlesEvent(t *testing.T) {
 	defer s.Shutdown()
 
 	// Conectamos nuestra cola al servidor en memoria
-	q, err := queue.NewNatsQueue(s.ClientURL())
+	q, err := queue.NewNatsQueue(s.ClientURL(), time.Minute)
 	assert.NoError(t, err)
 	defer q.Close()
 

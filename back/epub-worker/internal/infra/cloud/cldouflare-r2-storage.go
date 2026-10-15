@@ -62,6 +62,18 @@ func (s *CloudflareR2Storage) Download(ctx context.Context, id string, filename 
 	return out.Body, nil
 }
 
+func (s *CloudflareR2Storage) Size(ctx context.Context, id string, filename string) (int64, error) {
+	key := fmt.Sprintf("%s/%s", id, filename)
+	out, err := s.client.HeadObject(ctx, &s3.HeadObjectInput{
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return 0, err
+	}
+	return aws.ToInt64(out.ContentLength), nil
+}
+
 func (s *CloudflareR2Storage) Delete(ctx context.Context, id string, filename string) error {
 	key := fmt.Sprintf("%s/%s", id, filename)
 	_, err := s.client.DeleteObject(ctx, &s3.DeleteObjectInput{

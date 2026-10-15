@@ -15,5 +15,8 @@ type SourceRepository interface {
 	UpdateStatus(ctx context.Context, id string, userId int, status models.SourceStatus) error
 	// UpdateErrorMsg stores errorMsg and marks the source as failed.
 	UpdateErrorMsg(ctx context.Context, id string, userId int, errorMsg string) error
+	// UpsertResult creates the join result with its own id or updates its status, size and timestamps.
+	UpsertResult(ctx context.Context, result *models.Source) error
+	ListResultsByParentIdAndUserId(ctx context.Context, parentId string, userId int) ([]models.Source, error)
 	Delete(ctx context.Context, id string, userId int) error
 }

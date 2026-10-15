@@ -13,6 +13,7 @@ const (
 	SourceStatusQueued        SourceStatus = "queued"
 	SourceStatusProcessing    SourceStatus = "processing"
 	SourceStatusJoining       SourceStatus = "joining"
+	SourceStatusJoined        SourceStatus = "joined"
 	SourceStatusKepubifying   SourceStatus = "kepubifying"
 	SourceStatusSent          SourceStatus = "sent"
 	SourceStatusFailed        SourceStatus = "failed"
@@ -55,12 +56,24 @@ type Source struct {
 	UpdatedAt   time.Time    `json:"updatedAt"`
 	CompletedAt *time.Time   `json:"completedAt"`
 	ParentId    *string      `json:"parentId"`
+	Position    int          `json:"position"`
+	IsResult    bool         `json:"isResult"`
 }
 
 // IsLibrary reports whether the source is a library download: a file that is
 // not uploaded by the client, so its size is unknown.
 func (s *Source) IsLibrary() bool {
 	return s.IsFile && (s.Size == nil || *s.Size == 0)
+}
+
+// IsFinished reports whether the source reached a terminal status.
+func (s *Source) IsFinished() bool {
+	switch s.Status {
+	case SourceStatusDone, SourceStatusSent, SourceStatusFailed:
+		return true
+	default:
+		return false
+	}
 }
 
 func (s *Source) IsEpub() bool {

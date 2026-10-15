@@ -7,12 +7,14 @@ import (
 )
 
 type MockSourceRepository struct {
-	CreateFn                 func(ctx context.Context, source *models.Source) (string, error)
-	GetByIdAndUserIdFn       func(ctx context.Context, id string, userId int) (*models.Source, error)
-	GetDetailByIdAndUserIdFn func(ctx context.Context, id string, userId int) (*models.SourceDetail, error)
-	UpdateStatusFn           func(ctx context.Context, id string, userId int, status models.SourceStatus) error
-	UpdateErrorMsgFn         func(ctx context.Context, id string, userId int, errorMsg string) error
-	DeleteFn                 func(ctx context.Context, id string, userId int) error
+	CreateFn                         func(ctx context.Context, source *models.Source) (string, error)
+	GetByIdAndUserIdFn               func(ctx context.Context, id string, userId int) (*models.Source, error)
+	GetDetailByIdAndUserIdFn         func(ctx context.Context, id string, userId int) (*models.SourceDetail, error)
+	UpdateStatusFn                   func(ctx context.Context, id string, userId int, status models.SourceStatus) error
+	UpdateErrorMsgFn                 func(ctx context.Context, id string, userId int, errorMsg string) error
+	UpsertResultFn                   func(ctx context.Context, result *models.Source) error
+	ListResultsByParentIdAndUserIdFn func(ctx context.Context, parentId string, userId int) ([]models.Source, error)
+	DeleteFn                         func(ctx context.Context, id string, userId int) error
 }
 
 func (m *MockSourceRepository) Create(ctx context.Context, source *models.Source) (string, error) {
@@ -48,6 +50,20 @@ func (m *MockSourceRepository) UpdateErrorMsg(ctx context.Context, id string, us
 		return m.UpdateErrorMsgFn(ctx, id, userId, errorMsg)
 	}
 	return nil
+}
+
+func (m *MockSourceRepository) UpsertResult(ctx context.Context, result *models.Source) error {
+	if m.UpsertResultFn != nil {
+		return m.UpsertResultFn(ctx, result)
+	}
+	return nil
+}
+
+func (m *MockSourceRepository) ListResultsByParentIdAndUserId(ctx context.Context, parentId string, userId int) ([]models.Source, error) {
+	if m.ListResultsByParentIdAndUserIdFn != nil {
+		return m.ListResultsByParentIdAndUserIdFn(ctx, parentId, userId)
+	}
+	return nil, nil
 }
 
 func (m *MockSourceRepository) Delete(ctx context.Context, id string, userId int) error {

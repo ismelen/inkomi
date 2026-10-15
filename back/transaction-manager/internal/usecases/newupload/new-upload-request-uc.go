@@ -62,12 +62,12 @@ func (n *NewUploadRequestUC) Execute(ctx context.Context, data dtos.UploadReques
 			if len(topSrc.Items) > 0 && topSrc.Type != models.SourceTypeFolder {
 				topSrc.Type = models.SourceTypeFolder
 			}
-			if err := n.saveSource(txCtx, operation, &topSrc.NoItemsSourceDTO, topSrc.ShouldJoin, nil); err != nil {
+			if err := n.saveSource(txCtx, operation, &topSrc.NoItemsSourceDTO, topSrc.ShouldJoin, nil, 0); err != nil {
 				return err
 			}
 
 			for j := range topSrc.Items {
-				if err := n.saveSource(txCtx, operation, &topSrc.Items[j], topSrc.ShouldJoin, topSrc); err != nil {
+				if err := n.saveSource(txCtx, operation, &topSrc.Items[j], topSrc.ShouldJoin, topSrc, j); err != nil {
 					return err
 				}
 			}
@@ -78,7 +78,7 @@ func (n *NewUploadRequestUC) Execute(ctx context.Context, data dtos.UploadReques
 	return data.Sources, err
 }
 
-func (n *NewUploadRequestUC) saveSource(ctx context.Context, op *uploadOperation, src *dtos.NoItemsSourceDTO, join bool, parent *dtos.SourceDTO) error {
+func (n *NewUploadRequestUC) saveSource(ctx context.Context, op *uploadOperation, src *dtos.NoItemsSourceDTO, join bool, parent *dtos.SourceDTO, position int) error {
 	if src.Type == models.SourceTypeFolder {
 		src.Size = new(int64)
 	}
@@ -126,6 +126,7 @@ func (n *NewUploadRequestUC) saveSource(ctx context.Context, op *uploadOperation
 		Size:      src.Size,
 		IsFile:    src.Type != models.SourceTypeFolder,
 		ParentId:  parentId,
+		Position:  position,
 	})
 	if err != nil {
 		return err
