@@ -1,0 +1,178 @@
+name: Deploy backend (k3s)
+
+# Manual only. Deploys the backend microservices (back/*, except back/api) to the k3s cluster:
+#   1. unit tests of the chosen services (go vet + go test -race)
+#   2. multi-arch images (amd64 + arm64, nodes of both kinds can join) pushed to ghcr.io
+#   3. on the k3s server: preview samples to R2, e2e/integration tests in a sandbox namespace of
+#      the real cluster and, only if they pass, the production rollout (deploy/scripts/deploy.sh)
+#
+# Secrets: ORACLE_HOST, ORACLE_USERNAME, ORACLE_PRIVATE_KEY, ORACLE_SSH_PORT (2222 with the Ansible
+#          config) and GHCR_PULL_TOKEN (PAT with read:packages so the nodes can pull the images).
+# The env of each service lives on the k3s server at ~/inkomi/back/<service>/.env (see the
+# .env.example of each service and deploy/SERVERS.md).
+
+on:
+  workflow_dispatch:
+    inputs:
+      services:
+        description: 'all, or a comma-separated list: auth-service,library-service,transaction-manager,manga-worker,epub-worker,push-service. The first deploy must be all.'
+        required: true
+        default: all
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: k3s-deploy
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.plan.outputs.services }}
+      tests: ${{ steps.plan.outputs.tests }}
+      images: ${{ steps.plan.outputs.images }}
+      tag: ${{ steps.plan.outputs.tag }}
+      registry: ${{ steps.plan.outputs.registry }}
+    steps:
+      - id: plan
+        env:
+          INPUT: ${{ inputs.services }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          all="auth-service library-service transaction-manager manga-worker epub-worker push-service"
+          if [[ "$INPUT" == "all" ]]; then
+            selected="$all"
+          else
+            selected=""
+            for svc in ${INPUT//,/ }; do
+              [[ " $all " == *" $svc "* ]] || { echo "unknown service: $svc" >&2; exit 1; }
+              selected+="$svc "
+            done
+          fi
+          [[ -n "${selected// /}" ]] || { echo "no service selected" >&2; exit 1; }
+
+          json() { printf '%s\n' $1 | jq -R . | jq -sc .; }
+          {
+            echo "services=$([[ "$INPUT" == "all" ]] && echo all || echo "$selected" | xargs | tr ' ' ',')"
+            echo "tests=$(json "$selected e2e")"
+            echo "images=$(json "$selected e2e")"
+            echo "tag=${GITHUB_SHA:0:12}"
+            echo "registry=ghcr.io/${OWNER,,}"
+          } | tee -a "$GITHUB_OUTPUT"
+
+  unit-tests:
+    needs: plan
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        module: ${{ fromJSON(needs.plan.outputs.tests) }}
+    defaults:
+      run:
+        working-directory: back/${{ matrix.module }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: back/${{ matrix.module }}/go.mod
+          cache-dependency-path: back/${{ matrix.module }}/go.sum
+
+      - name: Install libvips
+        if: matrix.module == 'manga-worker'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libvips-dev
+
+      - name: Vet and test
+        if: matrix.module != 'e2e'
+        run: |
+          go vet ./...
+          go test -race ./...
+
+      - name: Vet and compile the e2e tests
+        if: matrix.module == 'e2e'
+        run: |
+          go vet -tags e2e ./...
+          go test -tags e2e -c -o /dev/null .
+
+  images:
+    needs: [plan, unit-tests]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        image: ${{ fromJSON(needs.plan.outputs.images) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # only manga-worker (cgo + libvips) builds under emulation; the rest cross-compile
+      - uses: docker/setup-qemu-action@v3
+        if: matrix.image == 'manga-worker'
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: back
+          file: back/${{ matrix.image }}/Dockerfile
+          target: runtime
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ needs.plan.outputs.registry }}/inkomi-${{ matrix.image }}:${{ needs.plan.outputs.tag }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+
+  deploy:
+    needs: [plan, images]
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Clean the deploy files on the server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          port: ${{ secrets.ORACLE_SSH_PORT || '2222' }}
+          username: ${{ secrets.ORACLE_USERNAME }}
+          key: ${{ secrets.ORACLE_PRIVATE_KEY }}
+          script: |
+            rm -rf ~/inkomi-k3s/src
+            mkdir -p ~/inkomi-k3s/src
+
+      - name: Copy the deploy files
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          port: ${{ secrets.ORACLE_SSH_PORT || '2222' }}
+          username: ${{ secrets.ORACLE_USERNAME }}
+          key: ${{ secrets.ORACLE_PRIVATE_KEY }}
+          source: "deploy"
+          target: "~/inkomi-k3s/src"
+
+      - name: Sandbox tests and deploy
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          GHCR_USER: ${{ github.repository_owner }}
+          GHCR_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          port: ${{ secrets.ORACLE_SSH_PORT || '2222' }}
+          username: ${{ secrets.ORACLE_USERNAME }}
+          key: ${{ secrets.ORACLE_PRIVATE_KEY }}
+          command_timeout: 60m
+          envs: GHCR_USER,GHCR_TOKEN
+          script: |
+            bash ~/inkomi-k3s/src/deploy/scripts/deploy.sh \
+              --tag "${{ needs.plan.outputs.tag }}" \
+              --services "${{ needs.plan.outputs.services }}" \
+              --registry "${{ needs.plan.outputs.registry }}" \
+              --run "${{ github.run_id }}-${{ github.run_attempt }}"

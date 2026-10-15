@@ -1,11 +1,7 @@
 name: Deploy Backend (Docker)
 
+# Manual only: never on push
 on:
-  push:
-    branches:
-      - master
-    paths:
-      - 'back/api/**'
   workflow_dispatch:
 
 jobs:

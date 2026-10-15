@@ -1,0 +1,18 @@
+# Public routes of the production namespace, served by Traefik (NodePort 30080) behind the Caddy
+# of every node. No host rule: Caddy decides which hostnames reach the cluster.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: inkomi
+  namespace: ${NAMESPACE}
+spec:
+  ingressClassName: traefik
+  rules:
+    - http:
+        paths:
+          - { path: /auth, pathType: Prefix, backend: { service: { name: auth-service, port: { number: 3100 } } } }
+          - { path: /users, pathType: Prefix, backend: { service: { name: auth-service, port: { number: 3100 } } } }
+          - { path: /books, pathType: Prefix, backend: { service: { name: library-service, port: { number: 3001 } } } }
+          - { path: /uploads, pathType: Prefix, backend: { service: { name: transaction-manager, port: { number: 3000 } } } }
+          - { path: /ws, pathType: Prefix, backend: { service: { name: transaction-manager, port: { number: 3000 } } } }
+          - { path: /preview, pathType: Prefix, backend: { service: { name: manga-worker, port: { number: 3003 } } } }

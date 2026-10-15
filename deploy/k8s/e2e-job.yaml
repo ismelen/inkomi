@@ -1,0 +1,30 @@
+# End-to-end and integration tests, run in the sandbox namespace against the new images.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: e2e
+  namespace: ${NAMESPACE}
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 900
+  template:
+    spec:
+      restartPolicy: Never
+      imagePullSecrets:
+        - name: ghcr
+      containers:
+        - name: e2e
+          image: ${REGISTRY}/inkomi-e2e:${TAG_E2E}
+          imagePullPolicy: IfNotPresent
+          env:
+            - { name: AUTH_URL, value: "http://auth-service:3100" }
+            - { name: LIBRARY_URL, value: "http://library-service:3001" }
+            - { name: TM_URL, value: "http://transaction-manager:3000" }
+            - { name: PREVIEW_URL, value: "http://manga-worker:3003" }
+          volumeMounts:
+            # R2 credentials to check and clean up what the test stores
+            - { name: env, mountPath: /app/.env, subPath: .env, readOnly: true }
+      volumes:
+        - name: env
+          secret:
+            secretName: manga-worker-env

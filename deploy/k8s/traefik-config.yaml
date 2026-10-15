@@ -1,0 +1,21 @@
+# k3s' bundled Traefik behind each node's Caddy (deploy/SERVERS.md):
+#   - NodePort 30080 instead of a LoadBalancer: Caddy already owns ports 80/443 on the hosts
+#     (k3s runs with --disable servicelb and the NodePorts only listen on the docker bridges).
+#   - forwardedHeaders.insecure: the only way in is Caddy, which sets X-Forwarded-For to the real
+#     client ip, so Traefik must keep it instead of replacing it with Caddy's address.
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: traefik
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    service:
+      type: NodePort
+    ports:
+      web:
+        nodePort: 30080
+        forwardedHeaders:
+          insecure: true
+      websecure:
+        nodePort: 30443
