@@ -102,8 +102,8 @@ Workers: los UCs exponen `Execute(ctx, msg jobs.Msg, delivery jobrun.Delivery) e
 
 - Cada servicio tiene su `Dockerfile` (contexto `back/`, multi-arch amd64/arm64) con las etapas `test` (vet + tests) y `runtime` (alpine, usuario sin root, `/app/.env` montado desde el Secret `<svc>-env`), y su `.env.example` con todas las variables. Una variable nueva va también al `.env.example`.
 - Manifiestos en `deploy/k8s/` (renderizados con envsubst por `deploy/scripts/deploy.sh`); pipeline manual en `.github/workflows/backend-k3s.yml`; preparación de los nodos en `deploy/SERVERS.md`.
-- Los nodos llevan la etiqueta `inkomi.io/capacity` (`high`/`low`): los servicios que procesan imágenes van con `nodeSelector` a `high`; el resto prefiere `low`.
-- Un servicio nuevo: añadirlo a `ALL_SERVICES` en `deploy/scripts/deploy.sh`, a la lista del job `plan` del workflow, a `deploy/k8s/inkomi.yaml` (y a `ingress.yaml` si es público).
+- Los nodos llevan la etiqueta `inkomi.io/capacity` (`high`/`low`): los servicios que procesan imágenes prefieren `high` y el resto `low` (siempre `preferredDuringScheduling`, nunca obligatorio, para que se coloquen donde quepan).
+- Un servicio nuevo: añadirlo a `ALL_SERVICES` en `deploy/scripts/deploy.sh`, a la lista del job `plan` del workflow, un fichero `deploy/k8s/app/<servicio>.yaml` (y una ruta en `ingress.yaml` si es público).
 - Las direcciones dentro del clúster (NATS, Redis, auth-service interno, rutas de BD) se fijan como `env` en el manifiesto; godotenv no sobrescribe el entorno, así que mandan sobre el `.env`.
 - Los tests e2e/integración viven en `back/e2e` (build tag `e2e`) y se ejecutan como Job en un namespace sandbox del clúster antes de tocar producción.
 

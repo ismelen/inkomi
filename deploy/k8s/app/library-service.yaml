@@ -1,0 +1,59 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: library-service
+  namespace: ${NAMESPACE}
+spec:
+  selector:
+    app: library-service
+  ports:
+    - name: http
+      port: 3001
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: library-service
+  namespace: ${NAMESPACE}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: library-service
+  template:
+    metadata:
+      labels:
+        app: library-service
+    spec:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - { key: inkomi.io/capacity, operator: In, values: [low] }
+      imagePullSecrets:
+        - name: ghcr
+      containers:
+        - name: library-service
+          image: ${REGISTRY}/inkomi-library-service:${TAG_LIBRARY_SERVICE}
+          imagePullPolicy: IfNotPresent
+          env:
+            - { name: PORT, value: "3001" }
+            - { name: NATS_URL, value: "nats://nats:4222" }
+          ports:
+            - containerPort: 3001
+          readinessProbe:
+            tcpSocket: { port: 3001 }
+          livenessProbe:
+            tcpSocket: { port: 3001 }
+            initialDelaySeconds: 10
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { memory: 512Mi }
+          volumeMounts:
+            - { name: env, mountPath: /app/.env, subPath: .env, readOnly: true }
+      volumes:
+        - name: env
+          secret:
+            secretName: library-service-env

@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: push-service
+  namespace: ${NAMESPACE}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: push-service
+  template:
+    metadata:
+      labels:
+        app: push-service
+    spec:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - { key: inkomi.io/capacity, operator: In, values: [low] }
+      imagePullSecrets:
+        - name: ghcr
+      containers:
+        - name: push-service
+          image: ${REGISTRY}/inkomi-push-service:${TAG_PUSH_SERVICE}
+          imagePullPolicy: IfNotPresent
+          env:
+            - { name: NATS_URL, value: "nats://nats:4222" }
+            - { name: AUTH_SERVICE_URL, value: "http://auth-service:3101" }
+            - { name: FIREBASE_CREDENTIALS_FILE, value: /app/firebase.json }
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { memory: 512Mi }
+          volumeMounts:
+            - { name: env, mountPath: /app/.env, subPath: .env, readOnly: true }
+            - { name: env, mountPath: /app/firebase.json, subPath: firebase.json, readOnly: true }
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: env
+          secret:
+            secretName: push-service-env
+        - name: tmp
+          emptyDir:
+            sizeLimit: 4Gi

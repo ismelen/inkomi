@@ -1,0 +1,22 @@
+# Inkomi backend on k3s: one file per component in deploy/k8s/app/, applied together (in name
+# order, so this namespace goes first) by deploy/scripts/deploy.sh after rendering them with envsubst:
+#   ${NAMESPACE}       inkomi (production) or inkomi-sandbox-<run> (pipeline sandbox)
+#   ${REGISTRY}        ghcr.io/<owner>, where the pipeline pushes the multi-arch images
+#   ${TAG_<SERVICE>}   image tag of each service
+#
+# Scheduling by node capacity (label inkomi.io/capacity, see deploy/SERVERS.md):
+#   high  manga-worker and epub-worker prefer it (image processing, several GB of RAM); without a
+#         free high node they run wherever they fit
+#   low   everything else prefers it, so the big nodes stay free for the workers
+# Both are preferences, never requirements: a cluster with a single node of any kind works.
+# Adding a node is labelling it; more high nodes allow more manga/epub-worker replicas.
+#
+# Each service reads its own .env (Secret <service>-env, created from ~/inkomi/back/<service>/.env on
+# the server) mounted at /app/.env. The in-cluster addresses are set as env vars in each file, which take
+# precedence over the .env (godotenv never overrides the environment).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ${NAMESPACE}
+  labels:
+    app.kubernetes.io/part-of: inkomi

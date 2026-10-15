@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: epub-worker
+  namespace: ${NAMESPACE}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: epub-worker
+  template:
+    metadata:
+      labels:
+        app: epub-worker
+    spec:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - { key: inkomi.io/capacity, operator: In, values: [high] }
+      imagePullSecrets:
+        - name: ghcr
+      containers:
+        - name: epub-worker
+          image: ${REGISTRY}/inkomi-epub-worker:${TAG_EPUB_WORKER}
+          imagePullPolicy: IfNotPresent
+          env:
+            - { name: NATS_URL, value: "nats://nats:4222" }
+            - { name: REDIS_URL, value: "redis://redis:6379/0" }
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { memory: 1Gi }
+          volumeMounts:
+            - { name: env, mountPath: /app/.env, subPath: .env, readOnly: true }
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: env
+          secret:
+            secretName: epub-worker-env
+        - name: tmp
+          emptyDir:
+            sizeLimit: 4Gi

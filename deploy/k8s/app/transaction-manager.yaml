@@ -1,0 +1,80 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: transaction-manager-data
+  namespace: ${NAMESPACE}
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: transaction-manager
+  namespace: ${NAMESPACE}
+spec:
+  selector:
+    app: transaction-manager
+  ports:
+    - name: http
+      port: 3000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: transaction-manager
+  namespace: ${NAMESPACE}
+spec:
+  replicas: 1
+  # SQLite and the websocket hub live in the pod: one at a time
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: transaction-manager
+  template:
+    metadata:
+      labels:
+        app: transaction-manager
+    spec:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - { key: inkomi.io/capacity, operator: In, values: [low] }
+      imagePullSecrets:
+        - name: ghcr
+      securityContext:
+        fsGroup: 10001
+      containers:
+        - name: transaction-manager
+          image: ${REGISTRY}/inkomi-transaction-manager:${TAG_TRANSACTION_MANAGER}
+          imagePullPolicy: IfNotPresent
+          env:
+            - { name: NATS_URL, value: "nats://nats:4222" }
+            - { name: DB_PATH, value: /data/transactions.db }
+            - { name: SCHEMA_PATH, value: /app/migrations/transactions.sql }
+          ports:
+            - containerPort: 3000
+          readinessProbe:
+            tcpSocket: { port: 3000 }
+          livenessProbe:
+            tcpSocket: { port: 3000 }
+            initialDelaySeconds: 10
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { memory: 512Mi }
+          volumeMounts:
+            - { name: env, mountPath: /app/.env, subPath: .env, readOnly: true }
+            - { name: data, mountPath: /data }
+      volumes:
+        - name: env
+          secret:
+            secretName: transaction-manager-env
+        - name: data
+          persistentVolumeClaim:
+            claimName: transaction-manager-data

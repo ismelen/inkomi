@@ -51,8 +51,7 @@ check_cluster() {
   command -v envsubst >/dev/null || { echo "envsubst not found: sudo apt-get install -y gettext-base" >&2; exit 1; }
   kubectl get nodes -L inkomi.io/capacity
   if [[ -z "$(kubectl get nodes -l inkomi.io/capacity=high -o name)" ]]; then
-    echo "no node labelled inkomi.io/capacity=high: manga-worker and epub-worker couldn't be scheduled" >&2
-    exit 1
+    warn "no node labelled inkomi.io/capacity=high: manga-worker and epub-worker run wherever they fit"
   fi
   kubectl apply -f "$ROOT/deploy/k8s/traefik-config.yaml"
 }
@@ -64,6 +63,17 @@ render() {
   local file="$1" vars='$NAMESPACE $REGISTRY $TAG_E2E'
   for svc in "${ALL_SERVICES[@]}"; do vars+=" \$$(tag_var "$svc")"; done
   NAMESPACE="$2" envsubst "$vars" < "$file"
+}
+
+# render_app <namespace> prints every manifest of deploy/k8s/app (one per component) as a
+# single stream; the files are named so the namespace comes first.
+render_app() {
+  local first=true
+  for file in "$ROOT"/deploy/k8s/app/*.yaml; do
+    [[ "$first" == true ]] || echo '---'
+    first=false
+    render "$file" "$1"
+  done
 }
 
 current_tag() {
@@ -176,7 +186,7 @@ cleanup_sandbox() { kubectl delete namespace "$SANDBOX_NS" --wait=false --ignore
 trap cleanup_sandbox EXIT
 
 prepare_namespace "$SANDBOX_NS"
-render "$ROOT/deploy/k8s/inkomi.yaml" "$SANDBOX_NS" | kubectl apply -f -
+render_app "$SANDBOX_NS" | kubectl apply -f -
 if ! wait_rollouts "$SANDBOX_NS"; then
   dump_state "$SANDBOX_NS"
   echo "sandbox rollout failed: production is untouched" >&2
@@ -193,7 +203,7 @@ cleanup_sandbox
 trap - EXIT
 
 log "Production ($PROD_NS): ${DEPLOYED[*]}"
-render "$ROOT/deploy/k8s/inkomi.yaml" "$PROD_NS" | kubectl apply -f -
+render_app "$PROD_NS" | kubectl apply -f -
 render "$ROOT/deploy/k8s/ingress.yaml" "$PROD_NS" | kubectl apply -f -
 
 if ! wait_rollouts "$PROD_NS"; then

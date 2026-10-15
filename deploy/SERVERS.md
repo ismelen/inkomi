@@ -11,7 +11,7 @@ Un único clúster **k3s** con dos nodos (y los que se añadan después):
 | Oracle (≈2 vCPU / 2 GB) | server (control plane) | `inkomi.io/capacity=low` | NATS, Redis, auth-service, library-service, transaction-manager, push-service | IP pública → Caddy (HTTPS) |
 | Móvil (ARM64, ≥4 GB) | agent | `inkomi.io/capacity=high` | manga-worker, epub-worker | ninguna (opcional: Cloudflare Tunnel, ver §8) |
 
-- `manga-worker` y `epub-worker` **solo** se programan en nodos `high` (`nodeSelector`). El resto *prefiere* nodos `low`, así que los nodos grandes quedan libres para procesar imágenes.
+- `manga-worker` y `epub-worker` *prefieren* nodos `high`. Si no hay ninguno (o no tienen hueco), se colocan donde quepan, aunque sea en un `low`. El resto *prefiere* nodos `low`, así que los nodos grandes quedan libres para procesar imágenes. Son preferencias, no requisitos: el clúster funciona aunque solo haya un nodo.
 - Los nodos se ven entre sí por **Tailscale** (el móvil está detrás del NAT de casa). Flannel va sobre la interfaz `tailscale0`.
 - Entrada HTTP: el Caddy de cada nodo → Traefik de k3s (NodePort `30080`) → servicios por ruta (`deploy/k8s/ingress.yaml`). Cualquier nodo sirve todas las rutas.
 - Las imágenes son multi-arch (amd64 + arm64) y se descargan de `ghcr.io`, así que da igual la arquitectura de Oracle y de los nodos futuros.
@@ -141,7 +141,7 @@ kubectl get nodes -L inkomi.io/capacity -o wide
 kubectl label node <nodo> inkomi.io/capacity=high --overwrite
 ```
 
-Con más nodos `high` puedes subir `replicas` de `manga-worker` y `epub-worker` en `deploy/k8s/inkomi.yaml`: los consumidores de NATS reparten los trabajos.
+Con más nodos `high` puedes subir `replicas` de `manga-worker` y `epub-worker` en `deploy/k8s/app/manga-worker.yaml` y `epub-worker.yaml`: los consumidores de NATS reparten los trabajos.
 
 ## 6. Variables de entorno (en Oracle)
 
@@ -166,7 +166,7 @@ Claves que tienen que cuadrar entre servicios:
 - `JWT_PUBLIC_KEY` es la misma en auth-service, library-service y transaction-manager, y es la pareja de `JWT_PRIVATE_KEY` de auth-service.
 - La pública de `SERVICE_PRIVATE_KEY` (push-service) va en `SERVICE_PUBLIC_KEYS` de auth-service con la clave `"push-service"`.
 - `TOKEN_ENCRYPTION_KEY` (auth-service): no la cambies después, o los tokens de Dropbox guardados quedan ilegibles.
-- Las direcciones internas (NATS, Redis, auth-service, rutas de BD, puertos) las fija `deploy/k8s/inkomi.yaml` y mandan sobre el `.env`.
+- Las direcciones internas (NATS, Redis, auth-service, rutas de BD, puertos) las fija el manifiesto de cada servicio en `deploy/k8s/app/` y mandan sobre el `.env`.
 
 Si cambias un `.env` sin desplegar código, reinicia el servicio para que lo lea:
 
