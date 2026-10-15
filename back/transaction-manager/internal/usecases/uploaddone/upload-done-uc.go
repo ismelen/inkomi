@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"path/filepath"
 
+	"github.com/ismelen/inkomi/back/contracts/jobs"
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/domain/models"
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/domain/ports"
 )
@@ -27,13 +28,13 @@ func NewUploadDoneUC(
 	}
 }
 
-func (u *UploadDoneUC) Execute(ctx context.Context, userID int, sourceID string) error {
-	src, err := u.sourceRepo.GetDetailByIDAndUserID(ctx, sourceID, userID)
+func (u *UploadDoneUC) Execute(ctx context.Context, userId int, sourceId string) error {
+	src, err := u.sourceRepo.GetDetailByIdAndUserId(ctx, sourceId, userId)
 	if err != nil {
 		return err
 	}
 
-	if !src.IsLibrary() && !u.cloudStorage.Check(src.ID, filepath.Ext(src.Filename)) {
+	if !src.IsLibrary() && !u.cloudStorage.Check(src.Id, filepath.Ext(src.Filename)) {
 		return models.ErrSourceNotUploaded
 	}
 
@@ -47,16 +48,13 @@ func (u *UploadDoneUC) Execute(ctx context.Context, userID int, sourceID string)
 		return err
 	}
 
-	return u.sourceRepo.UpdateStatus(ctx, sourceID, userID, models.SourceStatusQueued)
+	return u.sourceRepo.UpdateStatus(ctx, sourceId, userId, models.SourceStatusQueued)
 }
 
-// buildJob picks the worker the source goes to and builds the message it expects:
-// the base fields, plus manga settings for the manga worker and the parent folder
-// when the source has to be joined.
-func (u *UploadDoneUC) buildJob(src *models.SourceDetail) (string, models.JobMsg) {
-	msg := models.JobMsg{
-		ID:       src.ID,
-		UserID:   src.UserID,
+func (u *UploadDoneUC) buildJob(src *models.SourceDetail) (jobs.Subject, jobs.Msg) {
+	msg := jobs.Msg{
+		Id:       src.Id,
+		UserId:   src.UserId,
 		Filename: src.Filename,
 		Title:    src.Title,
 		Kepubify: src.Kepubify,
@@ -64,27 +62,27 @@ func (u *UploadDoneUC) buildJob(src *models.SourceDetail) (string, models.JobMsg
 	}
 
 	if src.Parent != nil && src.Parent.Join {
-		msg.Parent = &models.JobParent{
-			ID:    src.Parent.ID,
+		msg.Parent = &jobs.Parent{
+			Id:    src.Parent.Id,
 			Title: src.Parent.Title,
-			RTL:   src.Parent.IsRTL,
+			Rtl:   src.Parent.IsRTL,
 		}
 	}
 
 	switch {
 	case src.IsLibrary():
-		return models.SubjectJobLibrary, msg
+		return jobs.SubjectLibrary, msg
 	case !src.IsEpub():
-		msg.MangaJob = &models.MangaJob{RTL: src.IsRTL}
+		msg.Manga = &jobs.Manga{Rtl: src.IsRTL}
 		if src.Config != nil {
 			msg.MangaCfg = json.RawMessage(src.Config.Data)
 		}
-		return models.SubjectJobManga, msg
+		return jobs.SubjectManga, msg
 	case msg.Parent != nil:
-		return models.SubjectJobWaitJoin, msg
+		return jobs.SubjectJoin, msg
 	case src.Kepubify && !src.IsKepub():
-		return models.SubjectJobKepub, msg
+		return jobs.SubjectKepub, msg
 	default:
-		return models.SubjectJobDone, msg
+		return jobs.SubjectDone, msg
 	}
 }

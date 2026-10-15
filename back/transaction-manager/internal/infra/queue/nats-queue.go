@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/ismelen/inkomi/back/contracts/jobs"
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/domain/ports"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
@@ -33,8 +34,8 @@ func NewNatsQueue(url string) (*NatsQueue, error) {
 	}, nil
 }
 
-func (n *NatsQueue) ensureStream(ctx context.Context, subject string) error {
-	streamName := strings.ReplaceAll(subject, ".", "_")
+func (n *NatsQueue) ensureStream(ctx context.Context, subject jobs.Subject) error {
+	streamName := strings.ReplaceAll(string(subject), ".", "_")
 	streamName = strings.ReplaceAll(streamName, "*", "all")
 	streamName = strings.ReplaceAll(streamName, ">", "all")
 
@@ -42,7 +43,7 @@ func (n *NatsQueue) ensureStream(ctx context.Context, subject string) error {
 	if err != nil {
 		_, err = n.js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{
 			Name:     streamName,
-			Subjects: []string{subject},
+			Subjects: []string{string(subject)},
 		})
 		if err != nil {
 			return fmt.Errorf("failed to create stream for subject %s: %w", subject, err)
@@ -51,12 +52,12 @@ func (n *NatsQueue) ensureStream(ctx context.Context, subject string) error {
 	return nil
 }
 
-func (n *NatsQueue) Publish(ctx context.Context, subject string, payload []byte) error {
+func (n *NatsQueue) Publish(ctx context.Context, subject jobs.Subject, payload []byte) error {
 	if err := n.ensureStream(ctx, subject); err != nil {
 		return err
 	}
 
-	_, err := n.js.Publish(ctx, subject, payload)
+	_, err := n.js.Publish(ctx, string(subject), payload)
 	if err != nil {
 		return fmt.Errorf("failed to publish message to %s: %w", subject, err)
 	}
@@ -64,8 +65,8 @@ func (n *NatsQueue) Publish(ctx context.Context, subject string, payload []byte)
 	return nil
 }
 
-func (n *NatsQueue) Subscribe(subject string, handler ports.EventHandler) error {
-	sub, err := n.nc.Subscribe(subject, func(msg *nats.Msg) {
+func (n *NatsQueue) Subscribe(subject jobs.Subject, handler ports.EventHandler) error {
+	sub, err := n.nc.Subscribe(string(subject), func(msg *nats.Msg) {
 		hCtx := context.Background()
 		_ = handler(hCtx, msg.Subject, msg.Data)
 	})

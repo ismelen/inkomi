@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ismelen/inkomi/back/contracts/jobs"
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/infra/queue"
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats-server/v2/test"
@@ -42,7 +43,7 @@ func TestNatsQueue_PublishAndSubscribe_ValidMessage_HandlesEvent(t *testing.T) {
 	assert.NoError(t, err)
 	defer q.Close()
 
-	subject := "test.event.subject"
+	var subject jobs.Subject = "test.event.subject"
 	payload := []byte("hello world")
 	received := make(chan string, 1)
 

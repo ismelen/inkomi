@@ -68,7 +68,7 @@ func TestNewUploadRequestUC_Execute_ValidRequest_ReturnsSources(t *testing.T) {
 	// Assert
 	assert.NoError(t, err)
 	assert.Len(t, sources, 1)
-	assert.Equal(t, "http://example.com/.zip", sources[0].Url) // ID is empty because mock returns empty
+	assert.Equal(t, "http://example.com/.zip", sources[0].Url) // Id is empty because mock returns empty
 }
 
 func TestNewUploadRequestUC_Execute_WithConfigs_SavesConfigsAndSources(t *testing.T) {
@@ -162,7 +162,7 @@ func TestNewUploadRequestUC_Execute_ChildInheritsConfigHash_UsesParentHash(t *te
 	var capturedChild *models.Source
 	sourceRepo := &mocks.MockSourceRepository{
 		CreateFn: func(ctx context.Context, source *models.Source) (string, error) {
-			if source.ParentID != nil {
+			if source.ParentId != nil {
 				capturedChild = source
 			}
 			return "some-id", nil
@@ -216,7 +216,7 @@ func TestNewUploadRequestUC_Execute_ChildInheritsParentAttributes_MatchesParent(
 	var capturedChild *models.Source
 	sourceRepo := &mocks.MockSourceRepository{
 		CreateFn: func(ctx context.Context, source *models.Source) (string, error) {
-			if source.ParentID != nil {
+			if source.ParentId != nil {
 				capturedChild = source
 			}
 			return "parent-id", nil
@@ -255,7 +255,7 @@ func TestNewUploadRequestUC_Execute_ChildInheritsParentAttributes_MatchesParent(
 	// Assert
 	assert.NoError(t, err)
 	assert.NotNil(t, capturedChild)
-	assert.Equal(t, "parent-id", *capturedChild.ParentID)
+	assert.Equal(t, "parent-id", *capturedChild.ParentId)
 	assert.True(t, capturedChild.Join)
 	assert.True(t, capturedChild.IsRTL)
 	assert.True(t, capturedChild.Kepubify)

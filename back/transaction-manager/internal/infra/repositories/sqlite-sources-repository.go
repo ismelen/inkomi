@@ -13,7 +13,7 @@ import (
 
 const sourceColumns = `
 	s.id, s.userId, s.title, s.filename, s.kepubify, s.toCloud, s.configKey,
-	s.isRtl, s."join", s.status, s.size, s.isFile,
+	s.isRtl, s."join", s.status, s.errorMsg, s.size, s.isFile,
 	s.createdAt, s.updatedAt, s.completedAt, s.parentId`
 
 type SQLiteSourceRepository struct {
@@ -25,7 +25,7 @@ func NewSQLiteSourceRepository(db *sql.DB) ports.SourceRepository {
 }
 
 func (r *SQLiteSourceRepository) Create(ctx context.Context, source *models.Source) (string, error) {
-	source.ID = uuid.New().String()
+	source.Id = uuid.New().String()
 
 	query := `
 		INSERT INTO source (
@@ -37,8 +37,8 @@ func (r *SQLiteSourceRepository) Create(ctx context.Context, source *models.Sour
 		)
 	`
 	_, err := datasources.GetDB(ctx, r.db).ExecContext(ctx, query,
-		source.ID,
-		source.UserID,
+		source.Id,
+		source.UserId,
 		source.Title,
 		source.Filename,
 		source.Kepubify,
@@ -48,21 +48,21 @@ func (r *SQLiteSourceRepository) Create(ctx context.Context, source *models.Sour
 		source.Join,
 		source.Size,
 		source.IsFile,
-		source.ParentID,
+		source.ParentId,
 	)
 	if err != nil {
 		return "", err
 	}
 
-	return source.ID, nil
+	return source.Id, nil
 }
 
-func (r *SQLiteSourceRepository) GetByIDAndUserID(ctx context.Context, id string, userID int) (*models.Source, error) {
+func (r *SQLiteSourceRepository) GetByIdAndUserId(ctx context.Context, id string, userId int) (*models.Source, error) {
 	query := `SELECT ` + sourceColumns + `
 		FROM source AS s
 		WHERE s.id = ? AND s.userId = ?
 	`
-	row := datasources.GetDB(ctx, r.db).QueryRowContext(ctx, query, id, userID)
+	row := datasources.GetDB(ctx, r.db).QueryRowContext(ctx, query, id, userId)
 
 	var source models.Source
 	if err := row.Scan(sourceFields(&source)...); err != nil {
@@ -75,7 +75,7 @@ func (r *SQLiteSourceRepository) GetByIDAndUserID(ctx context.Context, id string
 	return &source, nil
 }
 
-func (r *SQLiteSourceRepository) GetDetailByIDAndUserID(ctx context.Context, id string, userID int) (*models.SourceDetail, error) {
+func (r *SQLiteSourceRepository) GetDetailByIdAndUserId(ctx context.Context, id string, userId int) (*models.SourceDetail, error) {
 	query := `SELECT ` + sourceColumns + `,
 			c.hash, c.data, c.createdAt, c.lastUsed,
 			p.id, p.title, p.isRtl, p."join"
@@ -84,16 +84,16 @@ func (r *SQLiteSourceRepository) GetDetailByIDAndUserID(ctx context.Context, id 
 		LEFT JOIN source AS p ON p.id = s.parentId AND p.userId = s.userId
 		WHERE s.id = ? AND s.userId = ?
 	`
-	row := datasources.GetDB(ctx, r.db).QueryRowContext(ctx, query, id, userID)
+	row := datasources.GetDB(ctx, r.db).QueryRowContext(ctx, query, id, userId)
 
 	var detail models.SourceDetail
-	var cfgHash, cfgData, parentID, parentTitle sql.NullString
+	var cfgHash, cfgData, parentId, parentTitle sql.NullString
 	var cfgCreatedAt, cfgLastUsed sql.NullTime
 	var parentIsRTL, parentJoin sql.NullBool
 
 	fields := append(sourceFields(&detail.Source),
 		&cfgHash, &cfgData, &cfgCreatedAt, &cfgLastUsed,
-		&parentID, &parentTitle, &parentIsRTL, &parentJoin,
+		&parentId, &parentTitle, &parentIsRTL, &parentJoin,
 	)
 	if err := row.Scan(fields...); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -111,9 +111,9 @@ func (r *SQLiteSourceRepository) GetDetailByIDAndUserID(ctx context.Context, id 
 		}
 	}
 
-	if parentID.Valid {
+	if parentId.Valid {
 		detail.Parent = &models.SourceParent{
-			ID:    parentID.String,
+			Id:    parentId.String,
 			Title: parentTitle.String,
 			IsRTL: parentIsRTL.Bool,
 			Join:  parentJoin.Bool,
@@ -123,28 +123,40 @@ func (r *SQLiteSourceRepository) GetDetailByIDAndUserID(ctx context.Context, id 
 	return &detail, nil
 }
 
-func (r *SQLiteSourceRepository) UpdateStatus(ctx context.Context, id string, userID int, status models.SourceStatus) error {
+func (r *SQLiteSourceRepository) UpdateStatus(ctx context.Context, id string, userId int, status models.SourceStatus) error {
 	query := `
 		UPDATE source SET
 			status = ?,
 			updatedAt = CURRENT_TIMESTAMP
 		WHERE id = ? AND userId = ?
 	`
-	_, err := datasources.GetDB(ctx, r.db).ExecContext(ctx, query, status, id, userID)
+	_, err := datasources.GetDB(ctx, r.db).ExecContext(ctx, query, status, id, userId)
 	return err
 }
 
-func (r *SQLiteSourceRepository) Delete(ctx context.Context, id string, userID int) error {
+func (r *SQLiteSourceRepository) UpdateErrorMsg(ctx context.Context, id string, userId int, errorMsg string) error {
+	query := `
+		UPDATE source SET
+			status = ?,
+			errorMsg = ?,
+			updatedAt = CURRENT_TIMESTAMP
+		WHERE id = ? AND userId = ?
+	`
+	_, err := datasources.GetDB(ctx, r.db).ExecContext(ctx, query, models.SourceStatusFailed, errorMsg, id, userId)
+	return err
+}
+
+func (r *SQLiteSourceRepository) Delete(ctx context.Context, id string, userId int) error {
 	query := `DELETE FROM source WHERE id = ? AND userId = ?`
-	_, err := datasources.GetDB(ctx, r.db).ExecContext(ctx, query, id, userID)
+	_, err := datasources.GetDB(ctx, r.db).ExecContext(ctx, query, id, userId)
 	return err
 }
 
 // sourceFields returns the scan destinations matching sourceColumns.
 func sourceFields(s *models.Source) []any {
 	return []any{
-		&s.ID, &s.UserID, &s.Title, &s.Filename, &s.Kepubify, &s.ToCloud, &s.ConfigKey,
-		&s.IsRTL, &s.Join, &s.Status, &s.Size, &s.IsFile,
-		&s.CreatedAt, &s.UpdatedAt, &s.CompletedAt, &s.ParentID,
+		&s.Id, &s.UserId, &s.Title, &s.Filename, &s.Kepubify, &s.ToCloud, &s.ConfigKey,
+		&s.IsRTL, &s.Join, &s.Status, &s.ErrorMsg, &s.Size, &s.IsFile,
+		&s.CreatedAt, &s.UpdatedAt, &s.CompletedAt, &s.ParentId,
 	}
 }

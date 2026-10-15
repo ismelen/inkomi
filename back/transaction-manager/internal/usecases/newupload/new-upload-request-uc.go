@@ -83,7 +83,7 @@ func (n *NewUploadRequestUC) saveSource(ctx context.Context, op *uploadOperation
 		src.Size = new(int64)
 	}
 
-	var parentID, configHash *string
+	var parentId, configHash *string
 
 	if src.ConfigKey != nil {
 		if config, ok := op.data.Configs[*src.ConfigKey]; ok {
@@ -96,7 +96,7 @@ func (n *NewUploadRequestUC) saveSource(ctx context.Context, op *uploadOperation
 		src.Kepubify = parent.Kepubify
 		src.ReadingDirection = parent.ReadingDirection
 		src.ToCloud = parent.ToCloud
-		parentID = new(parent.Id)
+		parentId = new(parent.Id)
 
 		if configHash == nil && parent.ConfigKey != nil {
 			if config, ok := op.data.Configs[*parent.ConfigKey]; ok {
@@ -115,7 +115,7 @@ func (n *NewUploadRequestUC) saveSource(ctx context.Context, op *uploadOperation
 	}
 
 	id, err := n.sourceRepo.Create(ctx, &models.Source{
-		UserID:    op.userId,
+		UserId:    op.userId,
 		Title:     src.Title,
 		Filename:  src.Filename,
 		Kepubify:  src.Kepubify,
@@ -125,7 +125,7 @@ func (n *NewUploadRequestUC) saveSource(ctx context.Context, op *uploadOperation
 		Join:      join,
 		Size:      src.Size,
 		IsFile:    src.Type != models.SourceTypeFolder,
-		ParentID:  parentID,
+		ParentId:  parentId,
 	})
 	if err != nil {
 		return err

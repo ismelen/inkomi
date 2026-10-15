@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/ismelen/inkomi/back/contracts/jobs"
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/domain/models"
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/domain/ports"
 )
@@ -28,47 +29,29 @@ func NewForwardEventsUC(
 
 func (f *ForwardEventsUC) Execute() error {
 	return f.queue.Subscribe("job.step.>", func(ctx context.Context, subject string, payload []byte) error {
-		var step stepMsgDTO
-		if err := json.Unmarshal(payload, &step); err != nil {
+		var job jobs.Msg
+		if err := json.Unmarshal(payload, &job); err != nil {
 			return err
 		}
 
-		stepKey := subject[9:] // len("job.step.")
-		status := f.getStatus(stepKey)
+		status := models.StatusFromSubject(jobs.Subject(subject))
 		msg := map[string]any{
-			"id":     step.Id,
+			"id":     job.Id,
 			"status": status,
 		}
 
-		if step.Error != "" {
-			msg["error"] = step.Error
+		var err error
+		if status == models.SourceStatusFailed && job.ErrorMsg != "" {
+			err = f.sourceRepo.UpdateErrorMsg(ctx, job.Id, job.UserId, job.ErrorMsg)
+			msg["error"] = job.ErrorMsg
+		} else {
+			err = f.sourceRepo.UpdateStatus(ctx, job.Id, job.UserId, status)
 		}
 
-		if err := f.sourceRepo.UpdateStatus(ctx, step.Id, step.UserId, status); err != nil {
+		if err != nil {
 			return err
 		}
 
-		return f.hub.Send(step.UserId, msg)
+		return f.hub.Send(job.UserId, msg)
 	})
-}
-
-func (f *ForwardEventsUC) getStatus(key string) models.SourceStatus {
-	switch key {
-	case "start":
-		return models.SourceStatusProcessing
-	case "kepub", "epub.kepub":
-		return models.SourceStatusKepubifying
-	case "waitjoin":
-		return models.SourceStatusWaitingJoin
-	case "join", "epub.join":
-		return models.SourceStatusJoining
-	case "done":
-		return models.SourceStatusDone
-	case "sent":
-		return models.SourceStatusSent
-	case "error":
-		return models.SourceStatusFailed
-	default:
-		return models.SourceStatusFailed
-	}
 }

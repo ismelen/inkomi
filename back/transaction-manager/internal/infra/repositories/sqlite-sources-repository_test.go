@@ -19,7 +19,7 @@ func TestSQLiteSourceRepository_Create_ValidSource_ReturnsId(t *testing.T) {
 	repo := repositories.NewSQLiteSourceRepository(db)
 
 	source := &models.Source{
-		UserID:   1,
+		UserId:   1,
 		Filename: "test.zip",
 		Title:    "Test Title",
 		Join:     true,
@@ -40,7 +40,7 @@ func TestSQLiteSourceRepository_Create_ValidSource_ReturnsId(t *testing.T) {
 	assert.Equal(t, 1, count)
 }
 
-func TestSQLiteSourceRepository_GetByIDAndUserID_ExistingSource_ReturnsSource(t *testing.T) {
+func TestSQLiteSourceRepository_GetByIdAndUserId_ExistingSource_ReturnsSource(t *testing.T) {
 	// Arrange
 	db := setupTestDB(t)
 	defer db.Close()
@@ -48,7 +48,7 @@ func TestSQLiteSourceRepository_GetByIDAndUserID_ExistingSource_ReturnsSource(t 
 	repo := repositories.NewSQLiteSourceRepository(db)
 	size := int64(42)
 	created := &models.Source{
-		UserID:   1,
+		UserId:   1,
 		Title:    "Title",
 		Filename: "book.epub",
 		Kepubify: true,
@@ -61,12 +61,12 @@ func TestSQLiteSourceRepository_GetByIDAndUserID_ExistingSource_ReturnsSource(t 
 	require.NoError(t, err)
 
 	// Act
-	source, err := repo.GetByIDAndUserID(context.Background(), id, 1)
+	source, err := repo.GetByIdAndUserId(context.Background(), id, 1)
 
 	// Assert
 	require.NoError(t, err)
-	assert.Equal(t, id, source.ID)
-	assert.Equal(t, 1, source.UserID)
+	assert.Equal(t, id, source.Id)
+	assert.Equal(t, 1, source.UserId)
 	assert.Equal(t, "Title", source.Title)
 	assert.Equal(t, "book.epub", source.Filename)
 	assert.True(t, source.Kepubify)
@@ -76,29 +76,29 @@ func TestSQLiteSourceRepository_GetByIDAndUserID_ExistingSource_ReturnsSource(t 
 	assert.False(t, source.Join)
 	assert.Equal(t, models.SourceStatusPendingUpload, source.Status)
 	assert.Equal(t, &size, source.Size)
-	assert.Nil(t, source.ParentID)
+	assert.Nil(t, source.ParentId)
 	assert.Nil(t, source.ConfigKey)
 	assert.False(t, source.CreatedAt.IsZero())
 }
 
-func TestSQLiteSourceRepository_GetByIDAndUserID_OtherUser_ReturnsNotFound(t *testing.T) {
+func TestSQLiteSourceRepository_GetByIdAndUserId_OtherUser_ReturnsNotFound(t *testing.T) {
 	// Arrange
 	db := setupTestDB(t)
 	defer db.Close()
 
 	repo := repositories.NewSQLiteSourceRepository(db)
-	id, err := repo.Create(context.Background(), &models.Source{UserID: 1, Filename: "a.epub"})
+	id, err := repo.Create(context.Background(), &models.Source{UserId: 1, Filename: "a.epub"})
 	require.NoError(t, err)
 
 	// Act
-	source, err := repo.GetByIDAndUserID(context.Background(), id, 2)
+	source, err := repo.GetByIdAndUserId(context.Background(), id, 2)
 
 	// Assert
 	assert.ErrorIs(t, err, models.ErrSourceNotFound)
 	assert.Nil(t, source)
 }
 
-func TestSQLiteSourceRepository_GetDetailByIDAndUserID_WithConfigAndParent_LoadsRelations(t *testing.T) {
+func TestSQLiteSourceRepository_GetDetailByIdAndUserId_WithConfigAndParent_LoadsRelations(t *testing.T) {
 	// Arrange
 	db := setupTestDB(t)
 	defer db.Close()
@@ -110,46 +110,46 @@ func TestSQLiteSourceRepository_GetDetailByIDAndUserID_WithConfigAndParent_Loads
 	hash, err := configRepo.Create(ctx, &models.Config{Hash: "cfg-hash", Data: `{"gamma":1}`})
 	require.NoError(t, err)
 
-	parentID, err := repo.Create(ctx, &models.Source{UserID: 1, Title: "Folder", IsRTL: true, Join: true})
+	parentId, err := repo.Create(ctx, &models.Source{UserId: 1, Title: "Folder", IsRTL: true, Join: true})
 	require.NoError(t, err)
 
-	childID, err := repo.Create(ctx, &models.Source{
-		UserID:    1,
+	childId, err := repo.Create(ctx, &models.Source{
+		UserId:    1,
 		Title:     "Chapter 1",
 		Filename:  "ch1.cbz",
 		IsFile:    true,
 		ConfigKey: &hash,
-		ParentID:  &parentID,
+		ParentId:  &parentId,
 	})
 	require.NoError(t, err)
 
 	// Act
-	detail, err := repo.GetDetailByIDAndUserID(ctx, childID, 1)
+	detail, err := repo.GetDetailByIdAndUserId(ctx, childId, 1)
 
 	// Assert
 	require.NoError(t, err)
-	assert.Equal(t, childID, detail.ID)
-	assert.Equal(t, &parentID, detail.ParentID)
+	assert.Equal(t, childId, detail.Id)
+	assert.Equal(t, &parentId, detail.ParentId)
 
 	require.NotNil(t, detail.Config)
 	assert.Equal(t, "cfg-hash", detail.Config.Hash)
 	assert.Equal(t, `{"gamma":1}`, detail.Config.Data)
 
 	require.NotNil(t, detail.Parent)
-	assert.Equal(t, models.SourceParent{ID: parentID, Title: "Folder", IsRTL: true, Join: true}, *detail.Parent)
+	assert.Equal(t, models.SourceParent{Id: parentId, Title: "Folder", IsRTL: true, Join: true}, *detail.Parent)
 }
 
-func TestSQLiteSourceRepository_GetDetailByIDAndUserID_WithoutRelations_ReturnsNilRelations(t *testing.T) {
+func TestSQLiteSourceRepository_GetDetailByIdAndUserId_WithoutRelations_ReturnsNilRelations(t *testing.T) {
 	// Arrange
 	db := setupTestDB(t)
 	defer db.Close()
 
 	repo := repositories.NewSQLiteSourceRepository(db)
-	id, err := repo.Create(context.Background(), &models.Source{UserID: 1, Filename: "book.epub", IsFile: true})
+	id, err := repo.Create(context.Background(), &models.Source{UserId: 1, Filename: "book.epub", IsFile: true})
 	require.NoError(t, err)
 
 	// Act
-	detail, err := repo.GetDetailByIDAndUserID(context.Background(), id, 1)
+	detail, err := repo.GetDetailByIdAndUserId(context.Background(), id, 1)
 
 	// Assert
 	require.NoError(t, err)
@@ -157,7 +157,7 @@ func TestSQLiteSourceRepository_GetDetailByIDAndUserID_WithoutRelations_ReturnsN
 	assert.Nil(t, detail.Parent)
 }
 
-func TestSQLiteSourceRepository_GetDetailByIDAndUserID_NotExisting_ReturnsNotFound(t *testing.T) {
+func TestSQLiteSourceRepository_GetDetailByIdAndUserId_NotExisting_ReturnsNotFound(t *testing.T) {
 	// Arrange
 	db := setupTestDB(t)
 	defer db.Close()
@@ -165,7 +165,7 @@ func TestSQLiteSourceRepository_GetDetailByIDAndUserID_NotExisting_ReturnsNotFou
 	repo := repositories.NewSQLiteSourceRepository(db)
 
 	// Act
-	detail, err := repo.GetDetailByIDAndUserID(context.Background(), "missing", 1)
+	detail, err := repo.GetDetailByIdAndUserId(context.Background(), "missing", 1)
 
 	// Assert
 	assert.ErrorIs(t, err, models.ErrSourceNotFound)
@@ -178,7 +178,7 @@ func TestSQLiteSourceRepository_UpdateStatus_ExistingSource_UpdatesStatus(t *tes
 	defer db.Close()
 
 	repo := repositories.NewSQLiteSourceRepository(db)
-	source := &models.Source{UserID: 1, Filename: "test.zip"}
+	source := &models.Source{UserId: 1, Filename: "test.zip"}
 	id, _ := repo.Create(context.Background(), source)
 
 	// Act
@@ -199,7 +199,7 @@ func TestSQLiteSourceRepository_Delete_ExistingSource_DeletesRecord(t *testing.T
 	defer db.Close()
 
 	repo := repositories.NewSQLiteSourceRepository(db)
-	source := &models.Source{UserID: 1, Filename: "test.zip"}
+	source := &models.Source{UserId: 1, Filename: "test.zip"}
 	id, _ := repo.Create(context.Background(), source)
 
 	// Act
@@ -212,4 +212,26 @@ func TestSQLiteSourceRepository_Delete_ExistingSource_DeletesRecord(t *testing.T
 	err = db.QueryRow("SELECT COUNT(*) FROM source WHERE id = ?", id).Scan(&count)
 	assert.NoError(t, err)
 	assert.Equal(t, 0, count)
+}
+
+func TestSQLiteSourceRepository_UpdateErrorMsg_ExistingSource_SetsErrorAndFailedStatus(t *testing.T) {
+	// Arrange
+	db := setupTestDB(t)
+	defer db.Close()
+
+	ctx := context.Background()
+	repo := repositories.NewSQLiteSourceRepository(db)
+	id, err := repo.Create(ctx, &models.Source{UserId: 1, Filename: "book.epub", IsFile: true})
+	require.NoError(t, err)
+
+	// Act
+	err = repo.UpdateErrorMsg(ctx, id, 1, "conversion failed")
+
+	// Assert
+	require.NoError(t, err)
+	source, err := repo.GetByIdAndUserId(ctx, id, 1)
+	require.NoError(t, err)
+	assert.Equal(t, models.SourceStatusFailed, source.Status)
+	require.NotNil(t, source.ErrorMsg)
+	assert.Equal(t, "conversion failed", *source.ErrorMsg)
 }

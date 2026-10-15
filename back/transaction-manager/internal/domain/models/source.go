@@ -12,7 +12,6 @@ const (
 	SourceStatusPendingUpload SourceStatus = "pending_upload"
 	SourceStatusQueued        SourceStatus = "queued"
 	SourceStatusProcessing    SourceStatus = "processing"
-	SourceStatusWaitingJoin   SourceStatus = "waiting_join"
 	SourceStatusJoining       SourceStatus = "joining"
 	SourceStatusKepubifying   SourceStatus = "kepubifying"
 	SourceStatusSent          SourceStatus = "sent"
@@ -39,8 +38,8 @@ const (
 
 // Source maps the source table.
 type Source struct {
-	ID          string       `json:"id"`
-	UserID      int          `json:"userId"`
+	Id          string       `json:"id"`
+	UserId      int          `json:"userId"`
 	Title       string       `json:"title"`
 	Filename    string       `json:"filename"`
 	Kepubify    bool         `json:"kepubify"`
@@ -49,12 +48,13 @@ type Source struct {
 	IsRTL       bool         `json:"isRtl"`
 	Join        bool         `json:"join"`
 	Status      SourceStatus `json:"status"`
+	ErrorMsg    *string      `json:"errorMsg"`
 	Size        *int64       `json:"size"`
 	IsFile      bool         `json:"isFile"`
 	CreatedAt   time.Time    `json:"createdAt"`
 	UpdatedAt   time.Time    `json:"updatedAt"`
 	CompletedAt *time.Time   `json:"completedAt"`
-	ParentID    *string      `json:"parentId"`
+	ParentId    *string      `json:"parentId"`
 }
 
 // IsLibrary reports whether the source is a library download: a file that is
@@ -64,9 +64,9 @@ func (s *Source) IsLibrary() bool {
 }
 
 func (s *Source) IsEpub() bool {
-	return strings.EqualFold(filepath.Ext(s.Filename), ".epub")
+	return s.IsFile && strings.EqualFold(filepath.Ext(s.Filename), ".epub")
 }
 
 func (s *Source) IsKepub() bool {
-	return strings.Contains(strings.ToLower(s.Filename), ".kepub")
+	return s.IsFile && strings.Contains(strings.ToLower(s.Filename), ".kepub")
 }

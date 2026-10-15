@@ -6,6 +6,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/ismelen/inkomi/back/contracts/jobs"
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/domain/models"
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/usecases/mocks"
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/usecases/uploaddone"
@@ -16,8 +17,8 @@ import (
 func fileSource(filename string) models.Source {
 	size := int64(100)
 	return models.Source{
-		ID:       "source-1",
-		UserID:   1,
+		Id:       "source-1",
+		UserId:   1,
 		Title:    "Title",
 		Filename: filename,
 		Size:     &size,
@@ -27,7 +28,7 @@ func fileSource(filename string) models.Source {
 
 func repoReturning(detail *models.SourceDetail) *mocks.MockSourceRepository {
 	return &mocks.MockSourceRepository{
-		GetDetailByIDAndUserIDFn: func(ctx context.Context, id string, userID int) (*models.SourceDetail, error) {
+		GetDetailByIdAndUserIdFn: func(ctx context.Context, id string, userId int) (*models.SourceDetail, error) {
 			return detail, nil
 		},
 	}
@@ -40,13 +41,13 @@ func cloudWithFile(found bool) *mocks.MockCloudStorage {
 }
 
 // publish runs the use case and returns the published subject and decoded payload.
-func publish(t *testing.T, detail *models.SourceDetail) (string, map[string]any) {
+func publish(t *testing.T, detail *models.SourceDetail) (jobs.Subject, map[string]any) {
 	t.Helper()
 
-	var subject string
+	var subject jobs.Subject
 	var payload []byte
 	queue := &mocks.MockQueue{
-		PublishFn: func(ctx context.Context, s string, p []byte) error {
+		PublishFn: func(ctx context.Context, s jobs.Subject, p []byte) error {
 			subject, payload = s, p
 			return nil
 		},
@@ -76,8 +77,8 @@ func TestUploadDoneUC_Execute_SourceNotFound_ReturnsError(t *testing.T) {
 func TestUploadDoneUC_Execute_PublishesCorrectSubject(t *testing.T) {
 	t.Parallel()
 
-	joinParent := &models.SourceParent{ID: "folder-1", Title: "Folder", Join: true}
-	noJoinParent := &models.SourceParent{ID: "folder-1", Title: "Folder"}
+	joinParent := &models.SourceParent{Id: "folder-1", Title: "Folder", Join: true}
+	noJoinParent := &models.SourceParent{Id: "folder-1", Title: "Folder"}
 
 	cases := []struct {
 		name            string
@@ -85,16 +86,16 @@ func TestUploadDoneUC_Execute_PublishesCorrectSubject(t *testing.T) {
 		size            *int64
 		kepubify        bool
 		parent          *models.SourceParent
-		expectedSubject string
+		expectedSubject jobs.Subject
 	}{
-		{"Library", "md5", nil, false, nil, models.SubjectJobLibrary},
-		{"Manga", "chapter.cbz", new(int64(1)), false, nil, models.SubjectJobManga},
-		{"Manga in join folder", "chapter.cbz", new(int64(1)), false, joinParent, models.SubjectJobManga},
-		{"Epub in join folder", "book.epub", new(int64(1)), true, joinParent, models.SubjectJobWaitJoin},
-		{"Epub in folder without join", "book.epub", new(int64(1)), true, noJoinParent, models.SubjectJobKepub},
-		{"Epub kepubify", "book.epub", new(int64(1)), true, nil, models.SubjectJobKepub},
-		{"Epub no kepubify", "book.epub", new(int64(1)), false, nil, models.SubjectJobDone},
-		{"Already kepub", "book.kepub.epub", new(int64(1)), true, nil, models.SubjectJobDone},
+		{"Library", "md5", nil, false, nil, jobs.SubjectLibrary},
+		{"Manga", "chapter.cbz", new(int64(1)), false, nil, jobs.SubjectManga},
+		{"Manga in join folder", "chapter.cbz", new(int64(1)), false, joinParent, jobs.SubjectManga},
+		{"Epub in join folder", "book.epub", new(int64(1)), true, joinParent, jobs.SubjectJoin},
+		{"Epub in folder without join", "book.epub", new(int64(1)), true, noJoinParent, jobs.SubjectKepub},
+		{"Epub kepubify", "book.epub", new(int64(1)), true, nil, jobs.SubjectKepub},
+		{"Epub no kepubify", "book.epub", new(int64(1)), false, nil, jobs.SubjectDone},
+		{"Already kepub", "book.kepub.epub", new(int64(1)), true, nil, jobs.SubjectDone},
 	}
 
 	for _, tc := range cases {
@@ -164,7 +165,7 @@ func TestUploadDoneUC_Execute_JoinFolder_AddsParent(t *testing.T) {
 	// Arrange
 	detail := &models.SourceDetail{
 		Source: fileSource("book.epub"),
-		Parent: &models.SourceParent{ID: "folder-1", Title: "Folder", IsRTL: true, Join: true},
+		Parent: &models.SourceParent{Id: "folder-1", Title: "Folder", IsRTL: true, Join: true},
 	}
 
 	// Act
@@ -185,7 +186,7 @@ func TestUploadDoneUC_Execute_Success_SetsQueuedStatus(t *testing.T) {
 	// Arrange
 	var status models.SourceStatus
 	repo := repoReturning(&models.SourceDetail{Source: fileSource("book.epub")})
-	repo.UpdateStatusFn = func(ctx context.Context, id string, userID int, s models.SourceStatus) error {
+	repo.UpdateStatusFn = func(ctx context.Context, id string, userId int, s models.SourceStatus) error {
 		status = s
 		return nil
 	}
@@ -205,7 +206,7 @@ func TestUploadDoneUC_Execute_QueueError_ReturnsError(t *testing.T) {
 	// Arrange
 	queueErr := errors.New("queue error")
 	queue := &mocks.MockQueue{
-		PublishFn: func(ctx context.Context, subject string, payload []byte) error {
+		PublishFn: func(ctx context.Context, subject jobs.Subject, payload []byte) error {
 			return queueErr
 		},
 	}
