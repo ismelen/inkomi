@@ -8,7 +8,7 @@ import (
 
 type EventHandler func(ctx context.Context, subject string, payload []byte) error
 
-type Queue interface {
+type IQueue interface {
 	Publish(ctx context.Context, subject jobs.Subject, payload []byte) error
 	Subscribe(subject jobs.Subject, handler EventHandler) error
 	Close() error

@@ -9,12 +9,15 @@ import (
 	"time"
 
 	"github.com/ismelen/inkomi/back/common/jobrun"
-	"github.com/ismelen/inkomi/back/epub-worker/internal/domain/ports"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 )
 
 const retryDelay = 10 * time.Second
+
+var _ IQueue = (*NatsQueue)(nil)
+
+var streamNameReplacer = strings.NewReplacer(".", "_", "*", "all", ">", "all")
 
 type NatsQueue struct {
 	nc         *nats.Conn
@@ -34,6 +37,7 @@ func NewNatsQueue(url string, ackWait time.Duration, maxDeliver int) (*NatsQueue
 
 	js, err := jetstream.New(nc)
 	if err != nil {
+		nc.Close()
 		return nil, fmt.Errorf("failed to create jetstream: %w", err)
 	}
 
@@ -45,20 +49,22 @@ func NewNatsQueue(url string, ackWait time.Duration, maxDeliver int) (*NatsQueue
 	}, nil
 }
 
-func (n *NatsQueue) ensureStream(ctx context.Context, subject string) error {
-	streamName := strings.ReplaceAll(subject, ".", "_")
-	streamName = strings.ReplaceAll(streamName, "*", "all")
-	streamName = strings.ReplaceAll(streamName, ">", "all")
+func streamName(subject string) string {
+	return streamNameReplacer.Replace(subject)
+}
 
-	_, err := n.js.Stream(ctx, streamName)
+func (n *NatsQueue) ensureStream(ctx context.Context, subject string) error {
+	name := streamName(subject)
+	if _, err := n.js.Stream(ctx, name); err == nil {
+		return nil
+	}
+
+	_, err := n.js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{
+		Name:     name,
+		Subjects: []string{subject},
+	})
 	if err != nil {
-		_, err = n.js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{
-			Name:     streamName,
-			Subjects: []string{subject},
-		})
-		if err != nil {
-			return fmt.Errorf("failed to create stream for subject %s: %w", subject, err)
-		}
+		return fmt.Errorf("failed to create stream for subject %s: %w", subject, err)
 	}
 	return nil
 }
@@ -73,26 +79,21 @@ func (n *NatsQueue) Publish(ctx context.Context, subject string, payload any) er
 		return fmt.Errorf("failed to marshal payload: %w", err)
 	}
 
-	_, err = n.js.Publish(ctx, subject, bytes)
-	if err != nil {
+	if _, err := n.js.Publish(ctx, subject, bytes); err != nil {
 		return fmt.Errorf("failed to publish message to %s: %w", subject, err)
 	}
-
 	return nil
 }
 
-func (n *NatsQueue) Subscribe(subject string, handler ports.EventHandler) error {
+func (n *NatsQueue) Subscribe(subject string, handler jobrun.DeliveryHandler) error {
 	ctx := context.Background()
 	if err := n.ensureStream(ctx, subject); err != nil {
 		return err
 	}
 
-	streamName := strings.ReplaceAll(subject, ".", "_")
-	streamName = strings.ReplaceAll(streamName, "*", "all")
-	streamName = strings.ReplaceAll(streamName, ">", "all")
-
-	consumer, err := n.js.CreateOrUpdateConsumer(ctx, streamName, jetstream.ConsumerConfig{
-		Durable:    streamName,
+	name := streamName(subject)
+	consumer, err := n.js.CreateOrUpdateConsumer(ctx, name, jetstream.ConsumerConfig{
+		Durable:    name,
 		AckPolicy:  jetstream.AckExplicitPolicy,
 		AckWait:    n.ackWait,
 		MaxDeliver: n.maxDeliver,

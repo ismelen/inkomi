@@ -29,7 +29,7 @@ func NewSocketHub() *SocketHub {
 	}
 }
 
-var _ ports.SocketHub = NewSocketHub()
+var _ ports.ISocketHub = NewSocketHub()
 
 func (h *SocketHub) Register(id int, w http.ResponseWriter, r *http.Request) error {
 	conn, err := upgrader.Upgrade(w, r, nil)

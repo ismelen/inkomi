@@ -22,7 +22,8 @@ internal/shared/            utilidades sin lógica de negocio
 
 ## Módulo compartido (`back/common`)
 
-- Módulo `github.com/ismelen/inkomi/back/common`: cualquier código que necesiten varios servicios. Contiene los mensajes y subjects de la cola (`jobs.Msg`, `jobs.Subject`) y el consumo de jobs (`jobrun`: `Delivery`, `Handle`, `Permanent`/`For`). Evitar dependencias externas; lo específico de un servicio vive en ese servicio.
+- Módulo `github.com/ismelen/inkomi/back/common`: cualquier código que necesiten varios servicios. Contiene los mensajes y subjects de la cola (`jobs.Msg`, `jobs.Subject`), el consumo de jobs (`jobrun`: `Delivery`, `DeliveryHandler`, `Handle`, `Permanent`/`For`) y lo compartido de infraestructura: `queue` (`IQueue` + `NatsQueue` sobre JetStream), `cloud` (`ICloudStorage` + `CloudflareR2Storage` con claves `id/filename`; además de los streams expone `UploadFile`/`DownloadFile` para ficheros locales), `httpauth` (JWT RS*), `fsutil`. Las dependencias externas solo en esos subpaquetes de adaptador; lo específico de un servicio vive en ese servicio.
+- Los adaptadores de `common` reciben su configuración por parámetro (nunca leen el `config.Env` de un servicio). Las interfaces de `common` (`IQueue`, `ICloudStorage`) son los puertos de cola y storage de los servicios: se usan directamente, sin redeclararlas en `domain/ports`. Cada paquete comprueba su implementación con `var _ IX = (*Impl)(nil)`.
 - Cada servicio lo importa con `require github.com/ismelen/inkomi/back/common v0.0.0` + `replace github.com/ismelen/inkomi/back/common => ../common`. Sin `go.work`.
 - La traducción a tipos propios del servicio (p. ej. subject → `SourceStatus`) vive en el servicio, no en `common`.
 - El Dockerfile de un servicio que lo use se construye con contexto `back/` para poder copiar `common/`.
@@ -32,7 +33,7 @@ internal/shared/            utilidades sin lógica de negocio
 - Ficheros `kebab-case.go`; paquetes en minúsculas, una palabra (`uploaddone`, `requtil`).
 - `New<Tipo>` devuelve puntero (o `(*T, error)` si puede fallar). Casos de uso: `<X>UC` con `Execute(ctx, ...)`.
 - Handlers: `<Recurso>Handler.Handle<Acción>`. Rutas: `Setup<Recurso>Routes`. DTOs: `<X>Request` / `<X>Response`.
-- Puertos sin prefijo `I` (`CloudStorage`, `Queue`). Implementaciones: `<Tecnología><Puerto>` (`NatsQueue`, `SQLiteSourceRepository`). Mocks: `Mock<Puerto>`.
+- Toda interface empieza por `I` (puertos, interfaces de `common`, internas de un adaptador y genéricas): `IQueue`, `ICloudStorage`, `ISourceRepository`, `IMirror`, `IFilter[T, R]`. Las implementaciones y los mocks usan el nombre sin la `I`: `<Tecnología><Nombre>` (`NatsQueue`, `SQLiteSourceRepository`) y `Mock<Nombre>` (`MockQueue`).
 - Errores `Err<Causa>`; enums `<Tipo><Valor>`; constantes en camelCase/PascalCase, nunca `UPPER_SNAKE`.
 - Acrónimos en mayúsculas en el código nuevo (`MD5`, `URL`), salvo `Id`: siempre `Id` / `xId` (`UserId`, `ParentId`, `GetByIdAndUserId`), nunca `ID`. Receptor de 1–2 letras, siempre puntero y el mismo en todo el tipo.
 - Inglés en código, comentarios y mensajes de error. Revisa las erratas en nombres de paquetes y tipos.
@@ -72,7 +73,7 @@ Workers: los UCs exponen `Execute(ctx, msg jobs.Msg, delivery jobrun.Delivery) e
 - Mensajes de error en minúscula y sin punto final. Nunca ignorar errores en silencio: `_ = f()` con un comentario.
 - Estado compartido con `atomic`, `sync.Map` o `RWMutex` + `defer Unlock()`. No llamar callbacks con un lock tomado. Los getters devuelven copias (`slices.Clone`).
 - Las goroutines largas y los `select` sobre canales respetan `ctx.Done()`. Los procesos periódicos usan `Start(ctx, interval)` con `time.Ticker`.
-- OTel: cada `Execute`/`Process` abre un span `"<Tipo>.<Método>"` con `defer span.End()`. El tracer name va en una constante del servicio. En caso de error: `span.RecordError(err)` + `span.SetStatus(codes.Error, err.Error())`.
+- OTel solo en `api/`; los servicios nuevos no usan tracing. En `api/`, cada `Execute`/`Process` abre un span `"<Tipo>.<Método>"` con `defer span.End()`. El tracer name va en una constante del servicio. En caso de error: `span.RecordError(err)` + `span.SetStatus(codes.Error, err.Error())`.
 
 ## Tests
 

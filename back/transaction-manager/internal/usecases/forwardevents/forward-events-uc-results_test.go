@@ -53,7 +53,7 @@ func resultRepo(t *testing.T, existing []models.Source, parent *parentUpdate) *m
 	}
 }
 
-func handleResult(t *testing.T, repo ports.SourceRepository, subject jobs.Subject, job jobs.Msg) []map[string]any {
+func handleResult(t *testing.T, repo ports.ISourceRepository, subject jobs.Subject, job jobs.Msg) []map[string]any {
 	t.Helper()
 
 	var handler ports.EventHandler

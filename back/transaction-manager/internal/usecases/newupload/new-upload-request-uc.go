@@ -13,17 +13,17 @@ import (
 )
 
 type NewUploadRequestUC struct {
-	txManager    ports.TxManager
-	sourceRepo   ports.SourceRepository
-	configRepo   ports.ConfigRepository
-	cloudStorage ports.CloudStorage
+	txManager    ports.ITxManager
+	sourceRepo   ports.ISourceRepository
+	configRepo   ports.IConfigRepository
+	cloudStorage ports.ICloudStorage
 }
 
 func NewNewUploadRequestUC(
-	txManager ports.TxManager,
-	sourceRepo ports.SourceRepository,
-	configRepo ports.ConfigRepository,
-	cloudStorage ports.CloudStorage,
+	txManager ports.ITxManager,
+	sourceRepo ports.ISourceRepository,
+	configRepo ports.IConfigRepository,
+	cloudStorage ports.ICloudStorage,
 ) *NewUploadRequestUC {
 	return &NewUploadRequestUC{
 		txManager,

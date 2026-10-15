@@ -6,7 +6,7 @@ import (
 	"github.com/ismelen/inkomi/back/common/jobs"
 )
 
-type JoinStore interface {
+type IJoinStore interface {
 	// Add stores msg under parentId and, once total messages are stored and the group is not
 	// already claimed, claims it and returns all of them. It returns nil otherwise.
 	Add(ctx context.Context, parentId string, total int, msg jobs.Msg) ([]jobs.Msg, error)

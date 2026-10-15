@@ -14,7 +14,7 @@ type SQLiteConfigRepository struct {
 	db *sql.DB
 }
 
-func NewSQLiteConfigRepository(db *sql.DB) ports.ConfigRepository {
+func NewSQLiteConfigRepository(db *sql.DB) ports.IConfigRepository {
 	return &SQLiteConfigRepository{db: db}
 }
 

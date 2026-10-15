@@ -11,15 +11,15 @@ import (
 )
 
 type UploadDoneUC struct {
-	sourceRepo   ports.SourceRepository
-	cloudStorage ports.CloudStorage
-	queue        ports.Queue
+	sourceRepo   ports.ISourceRepository
+	cloudStorage ports.ICloudStorage
+	queue        ports.IQueue
 }
 
 func NewUploadDoneUC(
-	sourceRepo ports.SourceRepository,
-	cloudStorage ports.CloudStorage,
-	queue ports.Queue,
+	sourceRepo ports.ISourceRepository,
+	cloudStorage ports.ICloudStorage,
+	queue ports.IQueue,
 ) *UploadDoneUC {
 	return &UploadDoneUC{
 		sourceRepo:   sourceRepo,

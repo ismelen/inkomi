@@ -20,7 +20,7 @@ type SQLiteSourceRepository struct {
 	db *sql.DB
 }
 
-func NewSQLiteSourceRepository(db *sql.DB) ports.SourceRepository {
+func NewSQLiteSourceRepository(db *sql.DB) ports.ISourceRepository {
 	return &SQLiteSourceRepository{db: db}
 }
 

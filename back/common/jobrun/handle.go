@@ -9,8 +9,8 @@ import (
 	"github.com/ismelen/inkomi/back/common/jobs"
 )
 
-// Publisher is the part of a queue jobrun needs to report failures.
-type Publisher interface {
+// IPublisher is the part of a queue jobrun needs to report failures.
+type IPublisher interface {
 	Publish(ctx context.Context, subject string, payload any) error
 }
 
@@ -19,7 +19,7 @@ type Handler func(ctx context.Context, msg jobs.Msg, delivery Delivery) error
 // Handle adapts a job handler to a queue handler: it parses the jobs.Msg, runs h and reports
 // failures on SubjectFailed. Permanent failures are reported right away and transient ones on
 // the last attempt; otherwise the error is returned so the queue redelivers the job.
-func Handle(pub Publisher, h Handler) func(ctx context.Context, delivery Delivery) error {
+func Handle(pub IPublisher, h Handler) DeliveryHandler {
 	return func(ctx context.Context, delivery Delivery) error {
 		var msg jobs.Msg
 		err := json.Unmarshal(delivery.Payload, &msg)
@@ -32,7 +32,7 @@ func Handle(pub Publisher, h Handler) func(ctx context.Context, delivery Deliver
 	}
 }
 
-func report(ctx context.Context, pub Publisher, delivery Delivery, msg jobs.Msg, err error) error {
+func report(ctx context.Context, pub IPublisher, delivery Delivery, msg jobs.Msg, err error) error {
 	if err == nil {
 		return nil
 	}

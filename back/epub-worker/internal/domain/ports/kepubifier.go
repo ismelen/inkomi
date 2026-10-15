@@ -2,6 +2,6 @@ package ports
 
 import "context"
 
-type Kepubifier interface {
+type IKepubifier interface {
 	Kepubify(ctx context.Context, inputPath, outputPath string) error
 }

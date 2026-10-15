@@ -4,13 +4,13 @@ import (
 	"context"
 	"log"
 
+	"github.com/ismelen/inkomi/back/common/cloud"
 	"github.com/ismelen/inkomi/back/common/jobrun"
 	"github.com/ismelen/inkomi/back/common/jobs"
+	"github.com/ismelen/inkomi/back/common/queue"
 	"github.com/ismelen/inkomi/back/epub-worker/internal/config"
-	"github.com/ismelen/inkomi/back/epub-worker/internal/infra/cloud"
 	"github.com/ismelen/inkomi/back/epub-worker/internal/infra/epub"
 	"github.com/ismelen/inkomi/back/epub-worker/internal/infra/kepub"
-	"github.com/ismelen/inkomi/back/epub-worker/internal/infra/queue"
 	"github.com/ismelen/inkomi/back/epub-worker/internal/infra/store"
 	"github.com/ismelen/inkomi/back/epub-worker/internal/usecases/joinepubs"
 	"github.com/ismelen/inkomi/back/epub-worker/internal/usecases/kepubify"
@@ -33,7 +33,13 @@ func main() {
 	redisClient := redis.NewClient(redisOpts)
 	defer redisClient.Close()
 
-	cloudStorage, err := cloud.NewCloudflareR2Storage(context.Background())
+	cloudStorage, err := cloud.NewCloudflareR2Storage(
+		context.Background(),
+		config.Env.R2AccountId,
+		config.Env.R2AccessKeyId,
+		config.Env.R2SecretAccessKey,
+		config.Env.R2BucketName,
+	)
 	if err != nil {
 		log.Fatal(err)
 	}

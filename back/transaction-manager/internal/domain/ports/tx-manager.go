@@ -2,6 +2,6 @@ package ports
 
 import "context"
 
-type TxManager interface {
+type ITxManager interface {
 	ExecuteTx(ctx context.Context, fn func(ctx context.Context) error) error
 }

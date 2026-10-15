@@ -11,15 +11,15 @@ import (
 )
 
 type ForwardEventsUC struct {
-	hub        ports.SocketHub
-	queue      ports.Queue
-	sourceRepo ports.SourceRepository
+	hub        ports.ISocketHub
+	queue      ports.IQueue
+	sourceRepo ports.ISourceRepository
 }
 
 func NewForwardEventsUC(
-	hub ports.SocketHub,
-	queue ports.Queue,
-	sourceRepo ports.SourceRepository,
+	hub ports.ISocketHub,
+	queue ports.IQueue,
+	sourceRepo ports.ISourceRepository,
 ) *ForwardEventsUC {
 	return &ForwardEventsUC{
 		hub,

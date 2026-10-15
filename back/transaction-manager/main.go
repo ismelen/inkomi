@@ -5,9 +5,9 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/ismelen/inkomi/back/common/httpauth"
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/config"
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/infra/api/handlers"
-	"github.com/ismelen/inkomi/back/transaction-manager/internal/infra/api/middlewares"
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/infra/api/routes"
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/infra/cloud"
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/infra/datasources"
@@ -22,8 +22,13 @@ import (
 func main() {
 	config.Load()
 
+	authMiddleware, err := httpauth.NewAuthMiddleware(config.Env.JwtPublicKey)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	api := chi.NewRouter()
-	api.Use(middlewares.AuthMiddleware)
+	api.Use(authMiddleware)
 
 	sockethub := sockethub.NewSocketHub()
 	queue, err := queue.NewNatsQueue(config.Env.NATSUrl)

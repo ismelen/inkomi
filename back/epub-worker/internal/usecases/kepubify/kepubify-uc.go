@@ -7,20 +7,21 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/ismelen/inkomi/back/common/cloud"
 	"github.com/ismelen/inkomi/back/common/jobrun"
 	"github.com/ismelen/inkomi/back/common/jobs"
+	"github.com/ismelen/inkomi/back/common/queue"
 	"github.com/ismelen/inkomi/back/epub-worker/internal/domain/models"
 	"github.com/ismelen/inkomi/back/epub-worker/internal/domain/ports"
-	"github.com/ismelen/inkomi/back/epub-worker/internal/usecases/cloudfile"
 )
 
 type KepubifyUC struct {
-	queue        ports.Queue
-	cloudStorage ports.CloudStorage
-	kepubifier   ports.Kepubifier
+	queue        queue.IQueue
+	cloudStorage cloud.ICloudStorage
+	kepubifier   ports.IKepubifier
 }
 
-func NewKepubifyUC(queue ports.Queue, cloudStorage ports.CloudStorage, kepubifier ports.Kepubifier) *KepubifyUC {
+func NewKepubifyUC(queue queue.IQueue, cloudStorage cloud.ICloudStorage, kepubifier ports.IKepubifier) *KepubifyUC {
 	return &KepubifyUC{
 		queue:        queue,
 		cloudStorage: cloudStorage,
@@ -46,7 +47,7 @@ func (k *KepubifyUC) Execute(ctx context.Context, msg jobs.Msg, _ jobrun.Deliver
 	original := msg.Filename
 	kepubName := models.KepubFilename(original)
 	inputPath := filepath.Join(dir, "input.epub")
-	if err := cloudfile.Download(ctx, k.cloudStorage, msg.Id, original, inputPath); err != nil {
+	if err := k.cloudStorage.DownloadFile(ctx, msg.Id, original, inputPath); err != nil {
 		if k.alreadyConverted(ctx, msg.Id, kepubName) {
 			return nil
 		}
@@ -58,7 +59,7 @@ func (k *KepubifyUC) Execute(ctx context.Context, msg jobs.Msg, _ jobrun.Deliver
 		return jobrun.Permanent(err)
 	}
 
-	size, err := cloudfile.Upload(ctx, k.cloudStorage, msg.Id, kepubName, outputPath)
+	size, err := k.cloudStorage.UploadFile(ctx, msg.Id, kepubName, outputPath)
 	if err != nil {
 		return err
 	}

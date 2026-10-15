@@ -6,18 +6,22 @@ import (
 	"time"
 
 	"github.com/ismelen/inkomi/back/common/jobrun"
-	"github.com/ismelen/inkomi/back/epub-worker/internal/infra/queue"
+	"github.com/ismelen/inkomi/back/common/queue"
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats-server/v2/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// runJetStreamServer starts an embedded NATS server with JetStream enabled on a random port.
-func runJetStreamServer() *server.Server {
+// runJetStreamServer starts an embedded NATS server with JetStream enabled on a random port
+// and a fresh store, so streams left by other runs are not redelivered.
+func runJetStreamServer(t *testing.T) *server.Server {
+	t.Helper()
+
 	opts := test.DefaultTestOptions
-	opts.Port = -1 // Asigna un puerto aleatorio disponible
+	opts.Port = -1 // random free port
 	opts.JetStream = true
+	opts.StoreDir = t.TempDir()
 	return test.RunServer(&opts)
 }
 
@@ -35,11 +39,10 @@ func TestNatsQueue_NewNatsQueue_InvalidURL_ReturnsError(t *testing.T) {
 
 func TestNatsQueue_PublishAndSubscribe_ValidMessage_HandlesEvent(t *testing.T) {
 	// Arrange
-	// Levantamos el servidor NATS de prueba en memoria
-	s := runJetStreamServer()
+	// embedded NATS server
+	s := runJetStreamServer(t)
 	defer s.Shutdown()
 
-	// Conectamos nuestra cola al servidor en memoria
 	q, err := queue.NewNatsQueue(s.ClientURL(), time.Minute, 3)
 	assert.NoError(t, err)
 	defer q.Close()
@@ -63,7 +66,7 @@ func TestNatsQueue_PublishAndSubscribe_ValidMessage_HandlesEvent(t *testing.T) {
 	case msg := <-received:
 		assert.JSONEq(t, `{"msg":"hello world"}`, msg)
 	case <-time.After(2 * time.Second):
-		t.Fatal("Timeout esperando el mensaje")
+		t.Fatal("timeout waiting for the message")
 	}
 }
 
@@ -80,7 +83,7 @@ func TestNatsQueue_Subscribe_FirstDelivery_ReportsLastAttempt(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Arrange
-			s := runJetStreamServer()
+			s := runJetStreamServer(t)
 			defer s.Shutdown()
 
 			q, err := queue.NewNatsQueue(s.ClientURL(), time.Minute, tc.maxDeliver)

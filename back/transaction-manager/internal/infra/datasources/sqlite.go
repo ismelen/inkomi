@@ -49,7 +49,7 @@ func (ds *SQLiteDatasource) Close() error {
 
 // --- Transaction Support ---
 
-type DBTX interface {
+type IDBTX interface {
 	ExecContext(context.Context, string, ...interface{}) (sql.Result, error)
 	PrepareContext(context.Context, string) (*sql.Stmt, error)
 	QueryContext(context.Context, string, ...interface{}) (*sql.Rows, error)
@@ -78,7 +78,7 @@ func (ds *SQLiteDatasource) ExecuteTx(ctx context.Context, fn func(ctx context.C
 
 // GetDB returns the transaction from the context if it exists,
 // otherwise it returns the default DB connection.
-func GetDB(ctx context.Context, defaultDB *sql.DB) DBTX {
+func GetDB(ctx context.Context, defaultDB *sql.DB) IDBTX {
 	if tx, ok := ctx.Value(txKey{}).(*sql.Tx); ok {
 		return tx
 	}

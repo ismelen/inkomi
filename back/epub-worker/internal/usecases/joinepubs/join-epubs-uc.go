@@ -11,12 +11,13 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/ismelen/inkomi/back/common/cloud"
+	"github.com/ismelen/inkomi/back/common/fsutil"
 	"github.com/ismelen/inkomi/back/common/jobrun"
 	"github.com/ismelen/inkomi/back/common/jobs"
+	"github.com/ismelen/inkomi/back/common/queue"
 	"github.com/ismelen/inkomi/back/epub-worker/internal/domain/models"
 	"github.com/ismelen/inkomi/back/epub-worker/internal/domain/ports"
-	"github.com/ismelen/inkomi/back/epub-worker/internal/shared/fsutil"
-	"github.com/ismelen/inkomi/back/epub-worker/internal/usecases/cloudfile"
 )
 
 var (
@@ -25,18 +26,18 @@ var (
 )
 
 type JoinEpubsUC struct {
-	queue        ports.Queue
-	joinStore    ports.JoinStore
-	cloudStorage ports.CloudStorage
-	merger       ports.EpubMerger
+	queue        queue.IQueue
+	joinStore    ports.IJoinStore
+	cloudStorage cloud.ICloudStorage
+	merger       ports.IEpubMerger
 	maxBlockSize int64
 }
 
 func NewJoinEpubsUC(
-	queue ports.Queue,
-	joinStore ports.JoinStore,
-	cloudStorage ports.CloudStorage,
-	merger ports.EpubMerger,
+	queue queue.IQueue,
+	joinStore ports.IJoinStore,
+	cloudStorage cloud.ICloudStorage,
+	merger ports.IEpubMerger,
 	maxBlockSize int64,
 ) *JoinEpubsUC {
 	return &JoinEpubsUC{
@@ -228,7 +229,7 @@ func (j *JoinEpubsUC) processBlock(ctx context.Context, parent *jobs.Parent, blo
 		return publication{subject: jobs.SubjectFailed, msg: result}, nil
 	}
 
-	result.Size, err = cloudfile.Upload(ctx, j.cloudStorage, result.Id, filename, outputPath)
+	result.Size, err = j.cloudStorage.UploadFile(ctx, result.Id, filename, outputPath)
 	if err != nil {
 		return publication{}, err
 	}
@@ -246,7 +247,7 @@ func (j *JoinEpubsUC) download(ctx context.Context, dir string, block []models.J
 			Path:  filepath.Join(dir, fmt.Sprintf("%04d.epub", i)),
 			Title: cmp.Or(item.Msg.Title, strings.TrimSuffix(item.Msg.Filename, filepath.Ext(item.Msg.Filename))),
 		}
-		if err := cloudfile.Download(ctx, j.cloudStorage, item.Msg.Id, item.Msg.Filename, books[i].Path); err != nil {
+		if err := j.cloudStorage.DownloadFile(ctx, item.Msg.Id, item.Msg.Filename, books[i].Path); err != nil {
 			return nil, err
 		}
 	}

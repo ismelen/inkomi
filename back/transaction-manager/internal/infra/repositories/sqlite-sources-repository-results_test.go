@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func createFolder(t *testing.T, repo ports.SourceRepository) string {
+func createFolder(t *testing.T, repo ports.ISourceRepository) string {
 	t.Helper()
 
 	id, err := repo.Create(context.Background(), &models.Source{UserId: 1, Title: "Folder", Join: true})
