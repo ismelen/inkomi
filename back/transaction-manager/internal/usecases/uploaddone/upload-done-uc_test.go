@@ -165,7 +165,7 @@ func TestUploadDoneUC_Execute_JoinFolder_AddsParent(t *testing.T) {
 	// Arrange
 	detail := &models.SourceDetail{
 		Source: fileSource("book.epub"),
-		Parent: &models.SourceParent{Id: "folder-1", Title: "Folder", IsRTL: true, Join: true},
+		Parent: &models.SourceParent{Id: "folder-1", Title: "Folder", IsRTL: true, Join: true, ChildCount: 3},
 	}
 
 	// Act
@@ -176,6 +176,7 @@ func TestUploadDoneUC_Execute_JoinFolder_AddsParent(t *testing.T) {
 		"parentId": "folder-1",
 		"title":    "Folder",
 		"rtl":      true,
+		"total":    float64(3),
 	}, msg["parent"])
 	assert.NotContains(t, msg, "mangaCfg")
 }

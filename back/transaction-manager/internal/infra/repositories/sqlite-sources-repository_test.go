@@ -123,6 +123,9 @@ func TestSQLiteSourceRepository_GetDetailByIdAndUserId_WithConfigAndParent_Loads
 	})
 	require.NoError(t, err)
 
+	_, err = repo.Create(ctx, &models.Source{UserId: 1, Title: "Chapter 2", Filename: "ch2.cbz", IsFile: true, ParentId: &parentId})
+	require.NoError(t, err)
+
 	// Act
 	detail, err := repo.GetDetailByIdAndUserId(ctx, childId, 1)
 
@@ -136,7 +139,7 @@ func TestSQLiteSourceRepository_GetDetailByIdAndUserId_WithConfigAndParent_Loads
 	assert.Equal(t, `{"gamma":1}`, detail.Config.Data)
 
 	require.NotNil(t, detail.Parent)
-	assert.Equal(t, models.SourceParent{Id: parentId, Title: "Folder", IsRTL: true, Join: true}, *detail.Parent)
+	assert.Equal(t, models.SourceParent{Id: parentId, Title: "Folder", IsRTL: true, Join: true, ChildCount: 2}, *detail.Parent)
 }
 
 func TestSQLiteSourceRepository_GetDetailByIdAndUserId_WithoutRelations_ReturnsNilRelations(t *testing.T) {

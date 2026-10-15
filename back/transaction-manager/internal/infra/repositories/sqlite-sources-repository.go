@@ -78,7 +78,8 @@ func (r *SQLiteSourceRepository) GetByIdAndUserId(ctx context.Context, id string
 func (r *SQLiteSourceRepository) GetDetailByIdAndUserId(ctx context.Context, id string, userId int) (*models.SourceDetail, error) {
 	query := `SELECT ` + sourceColumns + `,
 			c.hash, c.data, c.createdAt, c.lastUsed,
-			p.id, p.title, p.isRtl, p."join"
+			p.id, p.title, p.isRtl, p."join",
+			(SELECT COUNT(*) FROM source AS ch WHERE ch.parentId = p.id AND ch.userId = p.userId)
 		FROM source AS s
 		LEFT JOIN config AS c ON c.hash = s.configKey
 		LEFT JOIN source AS p ON p.id = s.parentId AND p.userId = s.userId
@@ -90,10 +91,11 @@ func (r *SQLiteSourceRepository) GetDetailByIdAndUserId(ctx context.Context, id 
 	var cfgHash, cfgData, parentId, parentTitle sql.NullString
 	var cfgCreatedAt, cfgLastUsed sql.NullTime
 	var parentIsRTL, parentJoin sql.NullBool
+	var parentChildCount sql.NullInt64
 
 	fields := append(sourceFields(&detail.Source),
 		&cfgHash, &cfgData, &cfgCreatedAt, &cfgLastUsed,
-		&parentId, &parentTitle, &parentIsRTL, &parentJoin,
+		&parentId, &parentTitle, &parentIsRTL, &parentJoin, &parentChildCount,
 	)
 	if err := row.Scan(fields...); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -113,10 +115,11 @@ func (r *SQLiteSourceRepository) GetDetailByIdAndUserId(ctx context.Context, id 
 
 	if parentId.Valid {
 		detail.Parent = &models.SourceParent{
-			Id:    parentId.String,
-			Title: parentTitle.String,
-			IsRTL: parentIsRTL.Bool,
-			Join:  parentJoin.Bool,
+			Id:         parentId.String,
+			Title:      parentTitle.String,
+			IsRTL:      parentIsRTL.Bool,
+			Join:       parentJoin.Bool,
+			ChildCount: int(parentChildCount.Int64),
 		}
 	}
 

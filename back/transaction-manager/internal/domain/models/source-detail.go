@@ -9,8 +9,9 @@ type SourceDetail struct {
 
 // SourceParent holds the fields of the parent folder that affect its children.
 type SourceParent struct {
-	Id    string
-	Title string
-	IsRTL bool
-	Join  bool
+	Id         string
+	Title      string
+	IsRTL      bool
+	Join       bool
+	ChildCount int
 }
