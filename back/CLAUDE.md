@@ -41,7 +41,7 @@ internal/shared/            utilidades sin lógica de negocio
 
 - Entidades con `New<X>` que fija invariantes; la lógica de la entidad vive en sus métodos, no en los handlers.
 - Enums: preferir `type X string` + constantes. Si hace falta orden, `int32`+`iota` con `String`/`MarshalJSON`/`UnmarshalJSON`/`IsValid`.
-- Puerto con comentario: `// X is the port implemented by infra/<pkg> to ...`.
+- Puertos sin comentario de cabecera (`// X is the port implemented by...`): el nombre ya lo explica. Solo se comentan los métodos con semántica no evidente (p. ej. qué devuelve en un caso especial).
 - El estado compartido entre goroutines se encapsula en tipos seguros (atomic, mutex); no se exponen los campos crudos.
 
 ## Casos de uso
