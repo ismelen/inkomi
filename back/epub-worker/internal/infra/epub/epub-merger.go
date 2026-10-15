@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"slices"
 	"strings"
 	"time"
 
@@ -64,10 +65,15 @@ func NewEpubMerger() *EpubMerger {
 }
 
 // Merge writes one epub with every book under OEBPS/b<N>/, keeping their original tree so
-// relative links still resolve. Rendition metadata is inherited from the first book.
+// relative links still resolve. With meta.RTL the books go in reverse order; the cover and the
+// rendition metadata come from the first book of the resulting order.
 func (m *EpubMerger) Merge(outputPath string, meta models.EpubMeta, books []models.EpubBook) (err error) {
 	if len(books) == 0 {
 		return errNoBooks
+	}
+	if meta.RTL {
+		books = slices.Clone(books)
+		slices.Reverse(books)
 	}
 
 	sources := make([]*sourceEpub, 0, len(books))

@@ -3,6 +3,7 @@ package epub_test
 import (
 	"archive/zip"
 	"encoding/xml"
+	"fmt"
 	"os"
 	"path"
 	"path/filepath"
@@ -226,4 +227,45 @@ func TestEpubMerger_Merge_TocTitleFallbacks(t *testing.T) {
 	// Assert
 	assert.Contains(t, m.files["OEBPS/nav.xhtml"], ">Inner title</a>")
 	assert.Contains(t, m.files["OEBPS/nav.xhtml"], ">Part 2</a>")
+}
+
+func TestEpubMerger_Merge_BookOrderFollowsDirection(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name     string
+		rtl      bool
+		expected []string
+	}{
+		{"LTR", false, []string{"1", "2", "3"}},
+		{"RTL", true, []string{"3", "2", "1"}},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			// Arrange
+			var books []models.EpubBook
+			for _, title := range []string{"1", "2", "3"} {
+				books = append(books, models.EpubBook{Path: writeFakeEpub(t, fakeEpub{title: title, pages: 1, cover: true}), Title: title})
+			}
+
+			// Act
+			m := merge(t, models.EpubMeta{Title: "Manga", RTL: tc.rtl}, books...)
+
+			// Assert
+			entries := regexp.MustCompile(`<a href="(b\d)/[^"]*">([^<]+)</a>`).FindAllStringSubmatch(m.files["OEBPS/nav.xhtml"], -1)
+			require.Len(t, entries, 3)
+			for i, e := range entries {
+				assert.Equal(t, fmt.Sprintf("b%d", i), e[1])
+				assert.Equal(t, tc.expected[i], e[2])
+			}
+
+			cover, ok := m.meta("cover")
+			require.True(t, ok)
+			assert.Equal(t, "b0_cover", cover, "the cover comes from the first book of the spine")
+			assert.Equal(t, "b0_page0", m.opf.Spine.ItemRefs[0].IdRef)
+		})
+	}
 }
