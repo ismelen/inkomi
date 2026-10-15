@@ -12,6 +12,7 @@ const (
 	defaultJoinTTL        = 24 * time.Hour
 	defaultJoinLockTTL    = 30 * time.Minute
 	defaultNATSAckWait    = 30 * time.Minute
+	defaultNATSMaxDeliver = 3
 	defaultJoinMaxBlockMB = 200
 )
 
@@ -22,6 +23,7 @@ type AppConfig struct {
 	R2BucketName      string
 	NATSUrl           string
 	NATSAckWait       time.Duration
+	NATSMaxDeliver    int
 	RedisURL          string
 	JoinTTL           time.Duration
 	JoinLockTTL       time.Duration
@@ -40,6 +42,7 @@ func Load() {
 		R2BucketName:      os.Getenv("R2_BUCKET_NAME"),
 		NATSUrl:           os.Getenv("NATS_URL"),
 		NATSAckWait:       durationOr(os.Getenv("NATS_ACK_WAIT"), defaultNATSAckWait),
+		NATSMaxDeliver:    int(intOr(os.Getenv("NATS_MAX_DELIVER"), defaultNATSMaxDeliver)),
 		RedisURL:          os.Getenv("REDIS_URL"),
 		JoinTTL:           durationOr(os.Getenv("JOIN_TTL"), defaultJoinTTL),
 		JoinLockTTL:       durationOr(os.Getenv("JOIN_LOCK_TTL"), defaultJoinLockTTL),

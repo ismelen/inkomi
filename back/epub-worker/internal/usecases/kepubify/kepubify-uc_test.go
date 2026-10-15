@@ -22,12 +22,13 @@ type publishedEvent struct {
 }
 
 type fixture struct {
-	queue      *mocks.MockQueue
-	cloud      *mocks.MockCloudStorage
-	kepubifier *mocks.MockKepubifier
-	published  []publishedEvent
-	uploaded   []string
-	deleted    []string
+	lastAttempt bool
+	queue       *mocks.MockQueue
+	cloud       *mocks.MockCloudStorage
+	kepubifier  *mocks.MockKepubifier
+	published   []publishedEvent
+	uploaded    []string
+	deleted     []string
 }
 
 func newFixture() *fixture {
@@ -66,7 +67,7 @@ func (f *fixture) handle(t *testing.T, payload []byte) error {
 
 	require.NoError(t, kepubify.NewKepubifyUC(f.queue, f.cloud, f.kepubifier).Execute())
 	require.NotNil(t, handler)
-	return handler(context.Background(), string(jobs.SubjectKepub), payload)
+	return handler(context.Background(), ports.Delivery{Subject: string(jobs.SubjectKepub), Payload: payload, LastAttempt: f.lastAttempt})
 }
 
 func job(t *testing.T, filename string) []byte {
@@ -81,14 +82,6 @@ func job(t *testing.T, filename string) []byte {
 	})
 	require.NoError(t, err)
 	return bytes
-}
-
-func TestKepubFilename(t *testing.T) {
-	t.Parallel()
-
-	assert.Equal(t, "Manga Ch.[1 - 2].kepub.epub", kepubify.KepubFilename("Manga Ch.[1 - 2].epub"))
-	assert.True(t, kepubify.IsKepub("book.KEPUB.epub"))
-	assert.False(t, kepubify.IsKepub("book.epub"))
 }
 
 func TestKepubifyUC_Execute_Epub_ReplacesFileAndPublishesDone(t *testing.T) {
@@ -112,26 +105,6 @@ func TestKepubifyUC_Execute_Epub_ReplacesFileAndPublishesDone(t *testing.T) {
 	assert.Equal(t, &jobs.Result{ParentId: "folder-1", Index: 0, Total: 1}, done.msg.Result)
 }
 
-func TestKepubifyUC_Execute_AlreadyKepub_PublishesDoneWithoutConverting(t *testing.T) {
-	t.Parallel()
-
-	// Arrange
-	f := newFixture()
-	f.kepubifier.KepubifyFn = func(ctx context.Context, inputPath, outputPath string) error {
-		t.Fatal("kepub files must not be converted again")
-		return nil
-	}
-
-	// Act
-	err := f.handle(t, job(t, "book.kepub.epub"))
-
-	// Assert
-	require.NoError(t, err)
-	require.Len(t, f.published, 1)
-	assert.Equal(t, string(jobs.SubjectDone), f.published[0].subject)
-	assert.Empty(t, f.uploaded)
-}
-
 func TestKepubifyUC_Execute_InvalidJob_PublishesFailed(t *testing.T) {
 	t.Parallel()
 
@@ -141,6 +114,8 @@ func TestKepubifyUC_Execute_InvalidJob_PublishesFailed(t *testing.T) {
 		setup   func(f *fixture)
 	}{
 		{"Invalid json", func(t *testing.T) []byte { return []byte("{") }, func(f *fixture) {}},
+		{"Already kepub", func(t *testing.T) []byte { return job(t, "book.kepub.epub") }, func(f *fixture) {}},
+		{"Not an epub", func(t *testing.T) []byte { return job(t, "book.pdf") }, func(f *fixture) {}},
 		{"Conversion fails", func(t *testing.T) []byte { return job(t, "book.epub") }, func(f *fixture) {
 			f.kepubifier.KepubifyFn = func(ctx context.Context, inputPath, outputPath string) error {
 				return errors.New("broken epub")
@@ -245,4 +220,29 @@ func TestKepubifyUC_Execute_DeleteFails_StillSucceeds(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, f.published, 1)
 	assert.Equal(t, string(jobs.SubjectDone), f.published[0].subject)
+}
+
+func TestKepubifyUC_Execute_TransientErrorOnLastAttempt_PublishesFailed(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	f := newFixture()
+	f.lastAttempt = true
+	f.cloud.UploadFn = func(ctx context.Context, id, filename string, body io.Reader) error {
+		return errors.New("r2 down")
+	}
+
+	// Act
+	err := f.handle(t, job(t, "book.epub"))
+
+	// Assert
+	require.NoError(t, err)
+	require.Len(t, f.published, 1)
+	failed := f.published[0]
+	assert.Equal(t, string(jobs.SubjectFailed), failed.subject)
+	assert.Equal(t, "result-1", failed.msg.Id)
+	assert.Equal(t, "book.epub", failed.msg.Filename)
+	assert.NotNil(t, failed.msg.Result)
+	assert.Contains(t, failed.msg.ErrorMsg, "r2 down")
+	assert.Empty(t, f.deleted)
 }

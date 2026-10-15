@@ -75,3 +75,41 @@ func TestBlockTitle(t *testing.T) {
 		})
 	}
 }
+
+func TestCheckEpubFilename(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		filename string
+		expected error
+	}{
+		{"book.epub", nil},
+		{"Book.EPUB", nil},
+		{"book.kepub.epub", models.ErrKepubNotAccepted},
+		{"book.KEPUB.EPUB", models.ErrKepubNotAccepted},
+		{"book.pdf", models.ErrNotEpub},
+		{"book", models.ErrNotEpub},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.filename, func(t *testing.T) {
+			t.Parallel()
+
+			// Act
+			err := models.CheckEpubFilename(tc.filename)
+
+			// Assert
+			assert.ErrorIs(t, err, tc.expected)
+		})
+	}
+}
+
+func TestKepubFilename(t *testing.T) {
+	t.Parallel()
+
+	// Act
+	name := models.KepubFilename("Manga Ch.[1 - 2].epub")
+
+	// Assert
+	assert.Equal(t, "Manga Ch.[1 - 2].kepub.epub", name)
+}

@@ -18,7 +18,7 @@ import (
 func main() {
 	config.Load()
 
-	queue, err := queue.NewNatsQueue(config.Env.NATSUrl, config.Env.NATSAckWait)
+	queue, err := queue.NewNatsQueue(config.Env.NATSUrl, config.Env.NATSAckWait, config.Env.NATSMaxDeliver)
 	if err != nil {
 		log.Fatal(err)
 	}

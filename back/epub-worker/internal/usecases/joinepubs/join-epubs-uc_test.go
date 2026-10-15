@@ -25,13 +25,14 @@ type publishedEvent struct {
 }
 
 type fixture struct {
-	queue     *mocks.MockQueue
-	store     *mocks.MockJoinStore
-	cloud     *mocks.MockCloudStorage
-	merger    *mocks.MockEpubMerger
-	published []publishedEvent
-	cleared   bool
-	released  bool
+	lastAttempt bool
+	queue       *mocks.MockQueue
+	store       *mocks.MockJoinStore
+	cloud       *mocks.MockCloudStorage
+	merger      *mocks.MockEpubMerger
+	published   []publishedEvent
+	cleared     bool
+	released    bool
 }
 
 // newFixture returns mocks where the store always completes the group with children
@@ -76,7 +77,7 @@ func (f *fixture) handle(t *testing.T, payload []byte) error {
 	uc := joinepubs.NewJoinEpubsUC(f.queue, f.store, f.cloud, f.merger, maxBlockSize)
 	require.NoError(t, uc.Execute())
 	require.NotNil(t, handler)
-	return handler(context.Background(), string(jobs.SubjectJoin), payload)
+	return handler(context.Background(), ports.Delivery{Subject: string(jobs.SubjectJoin), Payload: payload, LastAttempt: f.lastAttempt})
 }
 
 func (f *fixture) bySubject(subject jobs.Subject) []jobs.Msg {
@@ -373,4 +374,73 @@ func TestJoinEpubsUC_Execute_DeleteFails_StillSucceeds(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, f.cleared)
 	assert.False(t, f.released)
+}
+
+func TestJoinEpubsUC_Execute_TransientErrorOnLastAttempt_FailsParentAndClears(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	children := []jobs.Msg{child("1", 0, false)}
+	f := newFixture(children)
+	f.lastAttempt = true
+	f.cloud.SizeFn = func(ctx context.Context, id, filename string) (int64, error) {
+		return 0, errors.New("r2 down")
+	}
+
+	// Act
+	err := f.handle(t, payloadOf(t, children[0]))
+
+	// Assert
+	require.NoError(t, err)
+	assert.True(t, f.cleared)
+	assert.False(t, f.released)
+	failed := f.bySubject(jobs.SubjectFailed)
+	require.Len(t, failed, 1)
+	assert.Equal(t, "parent-1", failed[0].Id)
+	assert.Contains(t, failed[0].ErrorMsg, "r2 down")
+}
+
+func TestJoinEpubsUC_Execute_InvalidChildren_FailsThemAndMergesTheRest(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	kepub := child("2", 1, false)
+	kepub.Filename = "2.kepub.epub"
+	children := []jobs.Msg{child("1", 0, false), kepub, child("3", 2, false)}
+	f := newFixture(children)
+
+	// Act
+	err := f.handle(t, payloadOf(t, children[0]))
+
+	// Assert
+	require.NoError(t, err)
+	failed := f.bySubject(jobs.SubjectFailed)
+	require.Len(t, failed, 1)
+	assert.Equal(t, "2", failed[0].Id)
+	assert.Contains(t, failed[0].ErrorMsg, "kepub")
+
+	done := f.bySubject(jobs.SubjectDone)
+	require.Len(t, done, 1)
+	assert.Equal(t, "Manga Ch.[1 - 3]", done[0].Title)
+	assert.Len(t, f.bySubject(jobs.SubjectJoined), 2)
+}
+
+func TestJoinEpubsUC_Execute_NoValidChildren_FailsParent(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	invalid := child("1", 0, false)
+	invalid.Filename = "1.pdf"
+	f := newFixture([]jobs.Msg{invalid})
+
+	// Act
+	err := f.handle(t, payloadOf(t, invalid))
+
+	// Assert
+	require.NoError(t, err)
+	assert.True(t, f.cleared)
+	failed := f.bySubject(jobs.SubjectFailed)
+	require.Len(t, failed, 2)
+	assert.Equal(t, "1", failed[0].Id)
+	assert.Equal(t, "parent-1", failed[1].Id)
 }

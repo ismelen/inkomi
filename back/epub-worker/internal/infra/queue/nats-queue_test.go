@@ -5,10 +5,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ismelen/inkomi/back/epub-worker/internal/domain/ports"
 	"github.com/ismelen/inkomi/back/epub-worker/internal/infra/queue"
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats-server/v2/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // runJetStreamServer starts an embedded NATS server with JetStream enabled on a random port.
@@ -24,7 +26,7 @@ func TestNatsQueue_NewNatsQueue_InvalidURL_ReturnsError(t *testing.T) {
 	url := "invalid-url://localhost:99999"
 
 	// Act
-	q, err := queue.NewNatsQueue(url, time.Minute)
+	q, err := queue.NewNatsQueue(url, time.Minute, 3)
 
 	// Assert
 	assert.Error(t, err)
@@ -38,7 +40,7 @@ func TestNatsQueue_PublishAndSubscribe_ValidMessage_HandlesEvent(t *testing.T) {
 	defer s.Shutdown()
 
 	// Conectamos nuestra cola al servidor en memoria
-	q, err := queue.NewNatsQueue(s.ClientURL(), time.Minute)
+	q, err := queue.NewNatsQueue(s.ClientURL(), time.Minute, 3)
 	assert.NoError(t, err)
 	defer q.Close()
 
@@ -47,8 +49,8 @@ func TestNatsQueue_PublishAndSubscribe_ValidMessage_HandlesEvent(t *testing.T) {
 	received := make(chan string, 1)
 
 	// Act
-	err = q.Subscribe(subject, func(ctx context.Context, subject string, data []byte) error {
-		received <- string(data)
+	err = q.Subscribe(subject, func(ctx context.Context, delivery ports.Delivery) error {
+		received <- string(delivery.Payload)
 		return nil
 	})
 	assert.NoError(t, err)
@@ -62,5 +64,46 @@ func TestNatsQueue_PublishAndSubscribe_ValidMessage_HandlesEvent(t *testing.T) {
 		assert.Equal(t, "hello world", msg)
 	case <-time.After(2 * time.Second):
 		t.Fatal("Timeout esperando el mensaje")
+	}
+}
+
+func TestNatsQueue_Subscribe_FirstDelivery_ReportsLastAttempt(t *testing.T) {
+	cases := []struct {
+		name        string
+		maxDeliver  int
+		lastAttempt bool
+	}{
+		{"Retries left", 3, false},
+		{"No retries left", 1, true},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			s := runJetStreamServer()
+			defer s.Shutdown()
+
+			q, err := queue.NewNatsQueue(s.ClientURL(), time.Minute, tc.maxDeliver)
+			require.NoError(t, err)
+			defer q.Close()
+
+			received := make(chan ports.Delivery, 1)
+			require.NoError(t, q.Subscribe("test.attempt", func(ctx context.Context, delivery ports.Delivery) error {
+				received <- delivery
+				return nil
+			}))
+
+			// Act
+			require.NoError(t, q.Publish(context.Background(), "test.attempt", map[string]string{"id": "1"}))
+
+			// Assert
+			select {
+			case delivery := <-received:
+				assert.Equal(t, "test.attempt", delivery.Subject)
+				assert.Equal(t, tc.lastAttempt, delivery.LastAttempt)
+			case <-time.After(2 * time.Second):
+				t.Fatal("timeout waiting for the message")
+			}
+		})
 	}
 }

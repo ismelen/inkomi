@@ -7,14 +7,13 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/ismelen/inkomi/back/contracts/jobs"
+	"github.com/ismelen/inkomi/back/epub-worker/internal/domain/models"
 	"github.com/ismelen/inkomi/back/epub-worker/internal/domain/ports"
 	"github.com/ismelen/inkomi/back/epub-worker/internal/usecases/cloudfile"
+	"github.com/ismelen/inkomi/back/epub-worker/internal/usecases/jobfail"
 )
-
-const kepubExt = ".kepub.epub"
 
 type KepubifyUC struct {
 	queue        ports.Queue
@@ -31,18 +30,18 @@ func NewKepubifyUC(queue ports.Queue, cloudStorage ports.CloudStorage, kepubifie
 }
 
 func (k *KepubifyUC) Execute() error {
-	return k.queue.Subscribe(string(jobs.SubjectKepub), func(ctx context.Context, subject string, payload []byte) error {
-		return k.handle(ctx, payload)
+	return k.queue.Subscribe(string(jobs.SubjectKepub), func(ctx context.Context, delivery ports.Delivery) error {
+		return jobfail.Report(ctx, k.queue, delivery, k.handle(ctx, delivery.Payload))
 	})
 }
 
 func (k *KepubifyUC) handle(ctx context.Context, payload []byte) error {
 	var msg jobs.Msg
 	if err := json.Unmarshal(payload, &msg); err != nil {
-		return k.fail(ctx, msg, err)
+		return jobfail.Permanent(fmt.Errorf("parse kepub job: %w", err))
 	}
-	if IsKepub(msg.Filename) {
-		return k.queue.Publish(ctx, string(jobs.SubjectDone), msg)
+	if err := models.CheckEpubFilename(msg.Filename); err != nil {
+		return jobfail.Permanent(fmt.Errorf("%s: %w", msg.Filename, err))
 	}
 
 	dir, err := os.MkdirTemp("", "kepubify-*")
@@ -55,7 +54,7 @@ func (k *KepubifyUC) handle(ctx context.Context, payload []byte) error {
 	}()
 
 	original := msg.Filename
-	kepubName := KepubFilename(original)
+	kepubName := models.KepubFilename(original)
 	inputPath := filepath.Join(dir, "input.epub")
 	if err := cloudfile.Download(ctx, k.cloudStorage, msg.Id, original, inputPath); err != nil {
 		if k.alreadyConverted(ctx, msg.Id, kepubName) {
@@ -64,9 +63,9 @@ func (k *KepubifyUC) handle(ctx context.Context, payload []byte) error {
 		return err
 	}
 
-	outputPath := filepath.Join(dir, "output"+kepubExt)
+	outputPath := filepath.Join(dir, "output"+models.KepubExt)
 	if err := k.kepubifier.Kepubify(ctx, inputPath, outputPath); err != nil {
-		return k.fail(ctx, msg, err)
+		return jobfail.Permanent(err)
 	}
 
 	size, err := cloudfile.Upload(ctx, k.cloudStorage, msg.Id, kepubName, outputPath)
@@ -92,19 +91,4 @@ func (k *KepubifyUC) handle(ctx context.Context, payload []byte) error {
 func (k *KepubifyUC) alreadyConverted(ctx context.Context, id, kepubName string) bool {
 	_, err := k.cloudStorage.Size(ctx, id, kepubName)
 	return err == nil
-}
-
-// fail reports a job that can't be converted; returning the publish result acks the message so it isn't retried.
-func (k *KepubifyUC) fail(ctx context.Context, msg jobs.Msg, err error) error {
-	msg.ErrorMsg = err.Error()
-	return k.queue.Publish(ctx, string(jobs.SubjectFailed), msg)
-}
-
-func IsKepub(filename string) bool {
-	return strings.HasSuffix(strings.ToLower(filename), kepubExt)
-}
-
-// KepubFilename turns "book.epub" into "book.kepub.epub".
-func KepubFilename(filename string) string {
-	return strings.TrimSuffix(filename, filepath.Ext(filename)) + kepubExt
 }

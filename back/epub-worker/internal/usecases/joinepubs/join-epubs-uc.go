@@ -17,9 +17,13 @@ import (
 	"github.com/ismelen/inkomi/back/epub-worker/internal/domain/ports"
 	"github.com/ismelen/inkomi/back/epub-worker/internal/shared/fsutil"
 	"github.com/ismelen/inkomi/back/epub-worker/internal/usecases/cloudfile"
+	"github.com/ismelen/inkomi/back/epub-worker/internal/usecases/jobfail"
 )
 
-var errMissingParent = errors.New("join job without parent or total")
+var (
+	errMissingParent   = errors.New("join job without parent or total")
+	errNoValidChildren = errors.New("no child of the folder is a plain .epub")
+)
 
 type JoinEpubsUC struct {
 	queue        ports.Queue
@@ -51,18 +55,18 @@ type publication struct {
 }
 
 func (j *JoinEpubsUC) Execute() error {
-	return j.queue.Subscribe(string(jobs.SubjectJoin), func(ctx context.Context, subject string, payload []byte) error {
-		return j.handle(ctx, payload)
+	return j.queue.Subscribe(string(jobs.SubjectJoin), func(ctx context.Context, delivery ports.Delivery) error {
+		return jobfail.Report(ctx, j.queue, delivery, j.handle(ctx, delivery))
 	})
 }
 
-func (j *JoinEpubsUC) handle(ctx context.Context, payload []byte) error {
+func (j *JoinEpubsUC) handle(ctx context.Context, delivery ports.Delivery) error {
 	var msg jobs.Msg
-	if err := json.Unmarshal(payload, &msg); err != nil {
-		return j.fail(ctx, msg, err)
+	if err := json.Unmarshal(delivery.Payload, &msg); err != nil {
+		return jobfail.Permanent(fmt.Errorf("parse join job: %w", err))
 	}
 	if msg.Parent == nil || msg.Parent.Total <= 0 {
-		return j.fail(ctx, msg, errMissingParent)
+		return jobfail.Permanent(errMissingParent)
 	}
 
 	msgs, err := j.joinStore.Add(ctx, msg.Parent.Id, msg.Parent.Total, msg)
@@ -75,34 +79,48 @@ func (j *JoinEpubsUC) handle(ctx context.Context, payload []byte) error {
 
 	merged, err := j.join(ctx, msg.Parent, msgs)
 	if err != nil {
-		if releaseErr := j.joinStore.Release(ctx, msg.Parent.Id); releaseErr != nil {
-			return errors.Join(err, releaseErr)
-		}
-		return err
+		return j.giveBack(ctx, delivery, msg, err)
 	}
 
+	// The results are already published: retrying because of a cleanup failure would fail
+	// on what was already cleaned, so these failures are only logged.
 	if err := j.joinStore.Clear(ctx, msg.Parent.Id); err != nil {
-		return err
+		log.Printf("join %s: clear group: %v", msg.Parent.Id, err)
 	}
-
-	// The results are already published: retrying because a source couldn't be deleted
-	// would fail on the sources that were, so cleanup failures are only logged.
 	if err := j.deleteSources(ctx, merged); err != nil {
 		log.Printf("join %s: delete merged sources: %v", msg.Parent.Id, err)
 	}
 	return nil
 }
 
+// giveBack releases the group so a redelivery can retry it or, when no retry is left,
+// clears it and reports the failure on the parent folder.
+func (j *JoinEpubsUC) giveBack(ctx context.Context, delivery ports.Delivery, msg jobs.Msg, err error) error {
+	err = jobfail.For(jobs.Msg{Id: msg.Parent.Id, UserId: msg.UserId}, err)
+	if !delivery.LastAttempt && !jobfail.IsPermanent(err) {
+		return errors.Join(err, j.joinStore.Release(ctx, msg.Parent.Id))
+	}
+	if clearErr := j.joinStore.Clear(ctx, msg.Parent.Id); clearErr != nil {
+		log.Printf("join %s: clear group: %v", msg.Parent.Id, clearErr)
+	}
+	return err
+}
+
 // join merges the group and publishes its results. It returns the children whose block
 // was merged, so their source files can be deleted.
 func (j *JoinEpubsUC) join(ctx context.Context, parent *jobs.Parent, msgs []jobs.Msg) ([]jobs.Msg, error) {
-	items, err := j.orderedItems(ctx, msgs)
+	valid, err := j.rejectInvalid(ctx, msgs)
+	if err != nil {
+		return nil, err
+	}
+
+	items, err := j.orderedItems(ctx, valid)
 	if err != nil {
 		return nil, err
 	}
 
 	blocks := SplitBlocks(items, j.maxBlockSize)
-	publications := make([]publication, 0, len(blocks)+len(msgs))
+	publications := make([]publication, 0, len(blocks)+len(items))
 	var merged []jobs.Msg
 	for i, block := range blocks {
 		result, err := j.processBlock(ctx, parent, block, i, len(blocks))
@@ -140,6 +158,26 @@ func (j *JoinEpubsUC) deleteSources(ctx context.Context, msgs []jobs.Msg) error 
 		}
 	}
 	return errors.Join(errs...)
+}
+
+// rejectInvalid reports the children that aren't plain .epub files as failed and returns the rest.
+func (j *JoinEpubsUC) rejectInvalid(ctx context.Context, msgs []jobs.Msg) ([]jobs.Msg, error) {
+	valid := make([]jobs.Msg, 0, len(msgs))
+	for _, child := range msgs {
+		err := models.CheckEpubFilename(child.Filename)
+		if err == nil {
+			valid = append(valid, child)
+			continue
+		}
+		child.ErrorMsg = fmt.Sprintf("%s: %v", child.Filename, err)
+		if err := j.queue.Publish(ctx, string(jobs.SubjectFailed), child); err != nil {
+			return nil, err
+		}
+	}
+	if len(valid) == 0 {
+		return nil, jobfail.Permanent(errNoValidChildren)
+	}
+	return valid, nil
 }
 
 func (j *JoinEpubsUC) orderedItems(ctx context.Context, msgs []jobs.Msg) ([]models.JoinItem, error) {
@@ -223,13 +261,4 @@ func (j *JoinEpubsUC) download(ctx context.Context, dir string, block []models.J
 		}
 	}
 	return books, nil
-}
-
-// fail reports an unprocessable job; returning the publish result acks the message so it isn't retried.
-func (j *JoinEpubsUC) fail(ctx context.Context, msg jobs.Msg, err error) error {
-	return j.queue.Publish(ctx, string(jobs.SubjectFailed), jobs.Msg{
-		Id:       msg.Id,
-		UserId:   msg.UserId,
-		ErrorMsg: err.Error(),
-	})
 }

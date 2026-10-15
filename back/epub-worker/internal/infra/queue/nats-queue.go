@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -12,15 +13,19 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 )
 
+const retryDelay = 10 * time.Second
+
 type NatsQueue struct {
-	nc      *nats.Conn
-	js      jetstream.JetStream
-	subs    []jetstream.ConsumeContext
-	ackWait time.Duration
+	nc         *nats.Conn
+	js         jetstream.JetStream
+	subs       []jetstream.ConsumeContext
+	ackWait    time.Duration
+	maxDeliver int
 }
 
-// NewNatsQueue connects to NATS; ackWait is how long a handler may run before the message is redelivered.
-func NewNatsQueue(url string, ackWait time.Duration) (*NatsQueue, error) {
+// NewNatsQueue connects to NATS. ackWait is how long a handler may run before the message is
+// redelivered and maxDeliver how many times a failing message is delivered in total.
+func NewNatsQueue(url string, ackWait time.Duration, maxDeliver int) (*NatsQueue, error) {
 	nc, err := nats.Connect(url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to nats: %w", err)
@@ -32,9 +37,10 @@ func NewNatsQueue(url string, ackWait time.Duration) (*NatsQueue, error) {
 	}
 
 	return &NatsQueue{
-		nc:      nc,
-		js:      js,
-		ackWait: ackWait,
+		nc:         nc,
+		js:         js,
+		ackWait:    ackWait,
+		maxDeliver: maxDeliver,
 	}, nil
 }
 
@@ -85,21 +91,35 @@ func (n *NatsQueue) Subscribe(subject string, handler ports.EventHandler) error 
 	streamName = strings.ReplaceAll(streamName, ">", "all")
 
 	consumer, err := n.js.CreateOrUpdateConsumer(ctx, streamName, jetstream.ConsumerConfig{
-		Durable:   streamName,
-		AckPolicy: jetstream.AckExplicitPolicy,
-		AckWait:   n.ackWait,
+		Durable:    streamName,
+		AckPolicy:  jetstream.AckExplicitPolicy,
+		AckWait:    n.ackWait,
+		MaxDeliver: n.maxDeliver,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create consumer for %s: %w", subject, err)
 	}
 
 	subCtx, err := consumer.Consume(func(msg jetstream.Msg) {
-		hCtx := context.Background()
-		err = handler(hCtx, msg.Subject(), msg.Data())
+		attempt := uint64(1)
+		if meta, err := msg.Metadata(); err == nil {
+			attempt = meta.NumDelivered
+		}
+
+		err := handler(context.Background(), ports.Delivery{
+			Subject:     msg.Subject(),
+			Payload:     msg.Data(),
+			LastAttempt: attempt >= uint64(n.maxDeliver),
+		})
+		var ackErr error
 		if err != nil {
-			msg.Nak()
+			log.Printf("nats: %s attempt %d failed: %v", msg.Subject(), attempt, err)
+			ackErr = msg.NakWithDelay(time.Duration(attempt) * retryDelay)
 		} else {
-			msg.Ack()
+			ackErr = msg.Ack()
+		}
+		if ackErr != nil {
+			log.Printf("nats: %s ack: %v", msg.Subject(), ackErr)
 		}
 	})
 	if err != nil {
