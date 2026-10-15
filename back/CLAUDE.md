@@ -20,6 +20,13 @@ internal/infra/<adaptador>/ queue, cloud, repositories, datasources, sockethub�
 internal/shared/            utilidades sin lógica de negocio
 ```
 
+## Contratos entre servicios (`back/contracts`)
+
+- Módulo `github.com/ismelen/inkomi/back/contracts`: solo los mensajes y subjects que viajan por la cola (`jobs.Msg`, `jobs.Subject`). Sin lógica ni dependencias externas.
+- Cada servicio lo importa con `require github.com/ismelen/inkomi/back/contracts v0.0.0` + `replace github.com/ismelen/inkomi/back/contracts => ../contracts`. Sin `go.work`.
+- La traducción a tipos propios del servicio (p. ej. subject → `SourceStatus`) vive en el servicio, no en `contracts`.
+- El Dockerfile de un servicio que lo use se construye con contexto `back/` para poder copiar `contracts/`.
+
 ## Nombres
 
 - Ficheros `kebab-case.go`; paquetes en minúsculas, una palabra (`uploaddone`, `requtil`).
