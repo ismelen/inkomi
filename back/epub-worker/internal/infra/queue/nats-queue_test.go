@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ismelen/inkomi/back/epub-worker/internal/domain/ports"
+	"github.com/ismelen/inkomi/back/common/jobrun"
 	"github.com/ismelen/inkomi/back/epub-worker/internal/infra/queue"
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats-server/v2/test"
@@ -45,11 +45,11 @@ func TestNatsQueue_PublishAndSubscribe_ValidMessage_HandlesEvent(t *testing.T) {
 	defer q.Close()
 
 	subject := "test.event.subject"
-	payload := []byte("hello world")
+	payload := map[string]string{"msg": "hello world"}
 	received := make(chan string, 1)
 
 	// Act
-	err = q.Subscribe(subject, func(ctx context.Context, delivery ports.Delivery) error {
+	err = q.Subscribe(subject, func(ctx context.Context, delivery jobrun.Delivery) error {
 		received <- string(delivery.Payload)
 		return nil
 	})
@@ -61,7 +61,7 @@ func TestNatsQueue_PublishAndSubscribe_ValidMessage_HandlesEvent(t *testing.T) {
 	// Assert
 	select {
 	case msg := <-received:
-		assert.Equal(t, "hello world", msg)
+		assert.JSONEq(t, `{"msg":"hello world"}`, msg)
 	case <-time.After(2 * time.Second):
 		t.Fatal("Timeout esperando el mensaje")
 	}
@@ -87,8 +87,8 @@ func TestNatsQueue_Subscribe_FirstDelivery_ReportsLastAttempt(t *testing.T) {
 			require.NoError(t, err)
 			defer q.Close()
 
-			received := make(chan ports.Delivery, 1)
-			require.NoError(t, q.Subscribe("test.attempt", func(ctx context.Context, delivery ports.Delivery) error {
+			received := make(chan jobrun.Delivery, 1)
+			require.NoError(t, q.Subscribe("test.attempt", func(ctx context.Context, delivery jobrun.Delivery) error {
 				received <- delivery
 				return nil
 			}))

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/ismelen/inkomi/back/contracts/jobs"
+	"github.com/ismelen/inkomi/back/common/jobs"
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/domain/models"
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/domain/ports"
 )

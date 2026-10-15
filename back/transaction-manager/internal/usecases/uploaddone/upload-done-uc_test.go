@@ -6,7 +6,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/ismelen/inkomi/back/contracts/jobs"
+	"github.com/ismelen/inkomi/back/common/jobs"
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/domain/models"
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/usecases/mocks"
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/usecases/uploaddone"

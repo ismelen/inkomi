@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ismelen/inkomi/back/contracts/jobs"
+	"github.com/ismelen/inkomi/back/common/jobs"
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/infra/queue"
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats-server/v2/test"

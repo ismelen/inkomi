@@ -2,17 +2,16 @@ package kepubify
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 
-	"github.com/ismelen/inkomi/back/contracts/jobs"
+	"github.com/ismelen/inkomi/back/common/jobrun"
+	"github.com/ismelen/inkomi/back/common/jobs"
 	"github.com/ismelen/inkomi/back/epub-worker/internal/domain/models"
 	"github.com/ismelen/inkomi/back/epub-worker/internal/domain/ports"
 	"github.com/ismelen/inkomi/back/epub-worker/internal/usecases/cloudfile"
-	"github.com/ismelen/inkomi/back/epub-worker/internal/usecases/jobfail"
 )
 
 type KepubifyUC struct {
@@ -29,19 +28,10 @@ func NewKepubifyUC(queue ports.Queue, cloudStorage ports.CloudStorage, kepubifie
 	}
 }
 
-func (k *KepubifyUC) Execute() error {
-	return k.queue.Subscribe(string(jobs.SubjectKepub), func(ctx context.Context, delivery ports.Delivery) error {
-		return jobfail.Report(ctx, k.queue, delivery, k.handle(ctx, delivery.Payload))
-	})
-}
-
-func (k *KepubifyUC) handle(ctx context.Context, payload []byte) error {
-	var msg jobs.Msg
-	if err := json.Unmarshal(payload, &msg); err != nil {
-		return jobfail.Permanent(fmt.Errorf("parse kepub job: %w", err))
-	}
+// Execute replaces the epub of msg in cloud storage with its kepub and publishes it as done.
+func (k *KepubifyUC) Execute(ctx context.Context, msg jobs.Msg, _ jobrun.Delivery) error {
 	if err := models.CheckEpubFilename(msg.Filename); err != nil {
-		return jobfail.Permanent(fmt.Errorf("%s: %w", msg.Filename, err))
+		return jobrun.Permanent(fmt.Errorf("%s: %w", msg.Filename, err))
 	}
 
 	dir, err := os.MkdirTemp("", "kepubify-*")
@@ -65,7 +55,7 @@ func (k *KepubifyUC) handle(ctx context.Context, payload []byte) error {
 
 	outputPath := filepath.Join(dir, "output"+models.KepubExt)
 	if err := k.kepubifier.Kepubify(ctx, inputPath, outputPath); err != nil {
-		return jobfail.Permanent(err)
+		return jobrun.Permanent(err)
 	}
 
 	size, err := cloudfile.Upload(ctx, k.cloudStorage, msg.Id, kepubName, outputPath)

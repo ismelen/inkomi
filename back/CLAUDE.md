@@ -20,12 +20,12 @@ internal/infra/<adaptador>/ queue, cloud, repositories, datasources, sockethub�
 internal/shared/            utilidades sin lógica de negocio
 ```
 
-## Contratos entre servicios (`back/contracts`)
+## Módulo compartido (`back/common`)
 
-- Módulo `github.com/ismelen/inkomi/back/contracts`: solo los mensajes y subjects que viajan por la cola (`jobs.Msg`, `jobs.Subject`). Sin lógica ni dependencias externas.
-- Cada servicio lo importa con `require github.com/ismelen/inkomi/back/contracts v0.0.0` + `replace github.com/ismelen/inkomi/back/contracts => ../contracts`. Sin `go.work`.
-- La traducción a tipos propios del servicio (p. ej. subject → `SourceStatus`) vive en el servicio, no en `contracts`.
-- El Dockerfile de un servicio que lo use se construye con contexto `back/` para poder copiar `contracts/`.
+- Módulo `github.com/ismelen/inkomi/back/common`: cualquier código que necesiten varios servicios. Contiene los mensajes y subjects de la cola (`jobs.Msg`, `jobs.Subject`) y el consumo de jobs (`jobrun`: `Delivery`, `Handle`, `Permanent`/`For`). Evitar dependencias externas; lo específico de un servicio vive en ese servicio.
+- Cada servicio lo importa con `require github.com/ismelen/inkomi/back/common v0.0.0` + `replace github.com/ismelen/inkomi/back/common => ../common`. Sin `go.work`.
+- La traducción a tipos propios del servicio (p. ej. subject → `SourceStatus`) vive en el servicio, no en `common`.
+- El Dockerfile de un servicio que lo use se construye con contexto `back/` para poder copiar `common/`.
 
 ## Nombres
 
@@ -64,6 +64,7 @@ internal/shared/            utilidades sin lógica de negocio
 `shared/filter` (Chain of Responsibility genérico: embeber `filter.Base[T,R]`, encadenar con `filter.Use`), Strategy detrás de puertos (mirrors de libgen),
 callbacks/Observer (`SetOnUpdate`, `OnFreeSpace`), Builders de epub, Worker Pool (`imagev2`), `singleflight`, genéricos (`Wrap[R]`, `Queue[T]`, `AtomicList[T]`).
 Usar genéricos solo cuando eliminan duplicación real.
+Workers: los UCs exponen `Execute(ctx, msg jobs.Msg, delivery jobrun.Delivery) error` y `main` los suscribe con `jobrun.Handle(queue, uc.Execute)`, que parsea el mensaje y publica `job.step.error` (errores `jobrun.Permanent` al momento; el resto en el último intento).
 
 ## Errores, concurrencia, observabilidad
 

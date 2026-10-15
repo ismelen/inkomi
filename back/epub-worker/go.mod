@@ -54,9 +54,9 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.33.7
 	github.com/aws/aws-sdk-go-v2/credentials v1.20.7
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.114.1
-	github.com/ismelen/inkomi/back/contracts v0.0.0
+	github.com/ismelen/inkomi/back/common v0.0.0
 	github.com/pgaskin/kepubify/v4 v4.0.4
 	github.com/redis/go-redis/v9 v9.23.0
 )
 
-replace github.com/ismelen/inkomi/back/contracts => ../contracts
+replace github.com/ismelen/inkomi/back/common => ../common

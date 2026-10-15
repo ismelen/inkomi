@@ -1,6 +1,6 @@
 package models
 
-import "github.com/ismelen/inkomi/back/contracts/jobs"
+import "github.com/ismelen/inkomi/back/common/jobs"
 
 // NewResultSource builds the source row of a join result from the job that reports it.
 func NewResultSource(job jobs.Msg, status SourceStatus) *Source {

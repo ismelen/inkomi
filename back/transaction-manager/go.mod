@@ -55,8 +55,8 @@ require (
 require (
 	github.com/ajg/form v1.5.1 // indirect
 	github.com/go-chi/render v1.0.3
-	github.com/ismelen/inkomi/back/contracts v0.0.0
+	github.com/ismelen/inkomi/back/common v0.0.0
 	modernc.org/sqlite v1.60.1
 )
 
-replace github.com/ismelen/inkomi/back/contracts => ../contracts
+replace github.com/ismelen/inkomi/back/common => ../common

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ismelen/inkomi/back/common/jobrun"
 	"github.com/ismelen/inkomi/back/epub-worker/internal/domain/ports"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
@@ -106,7 +107,7 @@ func (n *NatsQueue) Subscribe(subject string, handler ports.EventHandler) error 
 			attempt = meta.NumDelivered
 		}
 
-		err := handler(context.Background(), ports.Delivery{
+		err := handler(context.Background(), jobrun.Delivery{
 			Subject:     msg.Subject(),
 			Payload:     msg.Data(),
 			LastAttempt: attempt >= uint64(n.maxDeliver),

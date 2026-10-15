@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ismelen/inkomi/back/contracts/jobs"
-	"github.com/ismelen/inkomi/back/epub-worker/internal/domain/ports"
+	"github.com/ismelen/inkomi/back/common/jobrun"
+	"github.com/ismelen/inkomi/back/common/jobs"
 	"github.com/ismelen/inkomi/back/epub-worker/internal/usecases/kepubify"
 	"github.com/ismelen/inkomi/back/epub-worker/internal/usecases/mocks"
 	"github.com/stretchr/testify/assert"
@@ -55,19 +55,13 @@ func newFixture() *fixture {
 	return f
 }
 
+// handle runs the use case the way main wires it: through jobrun.Handle.
 func (f *fixture) handle(t *testing.T, payload []byte) error {
 	t.Helper()
 
-	var handler ports.EventHandler
-	f.queue.SubscribeFn = func(subject string, h ports.EventHandler) error {
-		assert.Equal(t, string(jobs.SubjectKepub), subject)
-		handler = h
-		return nil
-	}
-
-	require.NoError(t, kepubify.NewKepubifyUC(f.queue, f.cloud, f.kepubifier).Execute())
-	require.NotNil(t, handler)
-	return handler(context.Background(), ports.Delivery{Subject: string(jobs.SubjectKepub), Payload: payload, LastAttempt: f.lastAttempt})
+	uc := kepubify.NewKepubifyUC(f.queue, f.cloud, f.kepubifier)
+	delivery := jobrun.Delivery{Subject: string(jobs.SubjectKepub), Payload: payload, LastAttempt: f.lastAttempt}
+	return jobrun.Handle(f.queue, uc.Execute)(context.Background(), delivery)
 }
 
 func job(t *testing.T, filename string) []byte {

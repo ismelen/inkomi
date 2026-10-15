@@ -4,6 +4,8 @@ import (
 	"context"
 	"log"
 
+	"github.com/ismelen/inkomi/back/common/jobrun"
+	"github.com/ismelen/inkomi/back/common/jobs"
 	"github.com/ismelen/inkomi/back/epub-worker/internal/config"
 	"github.com/ismelen/inkomi/back/epub-worker/internal/infra/cloud"
 	"github.com/ismelen/inkomi/back/epub-worker/internal/infra/epub"
@@ -38,13 +40,15 @@ func main() {
 
 	joinStore := store.NewRedisJoinStore(redisClient, config.Env.JoinTTL, config.Env.JoinLockTTL)
 	joinEpubsUC := joinepubs.NewJoinEpubsUC(queue, joinStore, cloudStorage, epub.NewEpubMerger(), config.Env.JoinMaxBlockSize)
-	if err := joinEpubsUC.Execute(); err != nil {
-		log.Fatal(err)
-	}
-
 	kepubifyUC := kepubify.NewKepubifyUC(queue, cloudStorage, kepub.NewKepubifyKepubifier())
-	if err := kepubifyUC.Execute(); err != nil {
-		log.Fatal(err)
+
+	for subject, handler := range map[jobs.Subject]jobrun.Handler{
+		jobs.SubjectJoin:  joinEpubsUC.Execute,
+		jobs.SubjectKepub: kepubifyUC.Execute,
+	} {
+		if err := queue.Subscribe(string(subject), jobrun.Handle(queue, handler)); err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	select {}

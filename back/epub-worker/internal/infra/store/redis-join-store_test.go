@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
-	"github.com/ismelen/inkomi/back/contracts/jobs"
+	"github.com/ismelen/inkomi/back/common/jobs"
 	"github.com/ismelen/inkomi/back/epub-worker/internal/infra/store"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"

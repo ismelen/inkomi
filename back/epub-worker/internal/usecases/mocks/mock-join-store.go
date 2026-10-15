@@ -3,7 +3,7 @@ package mocks
 import (
 	"context"
 
-	"github.com/ismelen/inkomi/back/contracts/jobs"
+	"github.com/ismelen/inkomi/back/common/jobs"
 )
 
 type MockJoinStore struct {

@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ismelen/inkomi/back/contracts/jobs"
+	"github.com/ismelen/inkomi/back/common/jobs"
 	"github.com/redis/go-redis/v9"
 )
 

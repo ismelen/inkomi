@@ -3,7 +3,7 @@ package models_test
 import (
 	"testing"
 
-	"github.com/ismelen/inkomi/back/contracts/jobs"
+	"github.com/ismelen/inkomi/back/common/jobs"
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/domain/models"
 	"github.com/stretchr/testify/assert"
 )

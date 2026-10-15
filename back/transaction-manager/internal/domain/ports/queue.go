@@ -3,7 +3,7 @@ package ports
 import (
 	"context"
 
-	"github.com/ismelen/inkomi/back/contracts/jobs"
+	"github.com/ismelen/inkomi/back/common/jobs"
 )
 
 type EventHandler func(ctx context.Context, subject string, payload []byte) error

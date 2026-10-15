@@ -3,7 +3,6 @@ package joinepubs
 import (
 	"cmp"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -12,12 +11,12 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/ismelen/inkomi/back/contracts/jobs"
+	"github.com/ismelen/inkomi/back/common/jobrun"
+	"github.com/ismelen/inkomi/back/common/jobs"
 	"github.com/ismelen/inkomi/back/epub-worker/internal/domain/models"
 	"github.com/ismelen/inkomi/back/epub-worker/internal/domain/ports"
 	"github.com/ismelen/inkomi/back/epub-worker/internal/shared/fsutil"
 	"github.com/ismelen/inkomi/back/epub-worker/internal/usecases/cloudfile"
-	"github.com/ismelen/inkomi/back/epub-worker/internal/usecases/jobfail"
 )
 
 var (
@@ -54,19 +53,10 @@ type publication struct {
 	msg     jobs.Msg
 }
 
-func (j *JoinEpubsUC) Execute() error {
-	return j.queue.Subscribe(string(jobs.SubjectJoin), func(ctx context.Context, delivery ports.Delivery) error {
-		return jobfail.Report(ctx, j.queue, delivery, j.handle(ctx, delivery))
-	})
-}
-
-func (j *JoinEpubsUC) handle(ctx context.Context, delivery ports.Delivery) error {
-	var msg jobs.Msg
-	if err := json.Unmarshal(delivery.Payload, &msg); err != nil {
-		return jobfail.Permanent(fmt.Errorf("parse join job: %w", err))
-	}
+// Execute buffers a child of a join folder and, once the whole folder has arrived, merges it.
+func (j *JoinEpubsUC) Execute(ctx context.Context, msg jobs.Msg, delivery jobrun.Delivery) error {
 	if msg.Parent == nil || msg.Parent.Total <= 0 {
-		return jobfail.Permanent(errMissingParent)
+		return jobrun.Permanent(errMissingParent)
 	}
 
 	msgs, err := j.joinStore.Add(ctx, msg.Parent.Id, msg.Parent.Total, msg)
@@ -95,9 +85,9 @@ func (j *JoinEpubsUC) handle(ctx context.Context, delivery ports.Delivery) error
 
 // giveBack releases the group so a redelivery can retry it or, when no retry is left,
 // clears it and reports the failure on the parent folder.
-func (j *JoinEpubsUC) giveBack(ctx context.Context, delivery ports.Delivery, msg jobs.Msg, err error) error {
-	err = jobfail.For(jobs.Msg{Id: msg.Parent.Id, UserId: msg.UserId}, err)
-	if !delivery.LastAttempt && !jobfail.IsPermanent(err) {
+func (j *JoinEpubsUC) giveBack(ctx context.Context, delivery jobrun.Delivery, msg jobs.Msg, err error) error {
+	err = jobrun.For(jobs.Msg{Id: msg.Parent.Id, UserId: msg.UserId}, err)
+	if !delivery.LastAttempt && !jobrun.IsPermanent(err) {
 		return errors.Join(err, j.joinStore.Release(ctx, msg.Parent.Id))
 	}
 	if clearErr := j.joinStore.Clear(ctx, msg.Parent.Id); clearErr != nil {
@@ -175,7 +165,7 @@ func (j *JoinEpubsUC) rejectInvalid(ctx context.Context, msgs []jobs.Msg) ([]job
 		}
 	}
 	if len(valid) == 0 {
-		return nil, jobfail.Permanent(errNoValidChildren)
+		return nil, jobrun.Permanent(errNoValidChildren)
 	}
 	return valid, nil
 }

@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ismelen/inkomi/back/contracts/jobs"
+	"github.com/ismelen/inkomi/back/common/jobrun"
+	"github.com/ismelen/inkomi/back/common/jobs"
 	"github.com/ismelen/inkomi/back/epub-worker/internal/domain/models"
-	"github.com/ismelen/inkomi/back/epub-worker/internal/domain/ports"
 	"github.com/ismelen/inkomi/back/epub-worker/internal/usecases/joinepubs"
 	"github.com/ismelen/inkomi/back/epub-worker/internal/usecases/mocks"
 	"github.com/stretchr/testify/assert"
@@ -64,20 +64,13 @@ func newFixture(children []jobs.Msg) *fixture {
 	return f
 }
 
+// handle runs the use case the way main wires it: through jobrun.Handle.
 func (f *fixture) handle(t *testing.T, payload []byte) error {
 	t.Helper()
 
-	var handler ports.EventHandler
-	f.queue.SubscribeFn = func(subject string, h ports.EventHandler) error {
-		assert.Equal(t, string(jobs.SubjectJoin), subject)
-		handler = h
-		return nil
-	}
-
 	uc := joinepubs.NewJoinEpubsUC(f.queue, f.store, f.cloud, f.merger, maxBlockSize)
-	require.NoError(t, uc.Execute())
-	require.NotNil(t, handler)
-	return handler(context.Background(), ports.Delivery{Subject: string(jobs.SubjectJoin), Payload: payload, LastAttempt: f.lastAttempt})
+	delivery := jobrun.Delivery{Subject: string(jobs.SubjectJoin), Payload: payload, LastAttempt: f.lastAttempt}
+	return jobrun.Handle(f.queue, uc.Execute)(context.Background(), delivery)
 }
 
 func (f *fixture) bySubject(subject jobs.Subject) []jobs.Msg {

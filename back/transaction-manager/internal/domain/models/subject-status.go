@@ -1,6 +1,6 @@
 package models
 
-import "github.com/ismelen/inkomi/back/contracts/jobs"
+import "github.com/ismelen/inkomi/back/common/jobs"
 
 // StatusFromSubject maps a job subject to the source status it represents.
 func StatusFromSubject(s jobs.Subject) SourceStatus {

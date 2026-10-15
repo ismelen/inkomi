@@ -3,7 +3,7 @@ package joinepubs_test
 import (
 	"testing"
 
-	"github.com/ismelen/inkomi/back/contracts/jobs"
+	"github.com/ismelen/inkomi/back/common/jobs"
 	"github.com/ismelen/inkomi/back/epub-worker/internal/domain/models"
 	"github.com/ismelen/inkomi/back/epub-worker/internal/usecases/joinepubs"
 	"github.com/stretchr/testify/assert"
