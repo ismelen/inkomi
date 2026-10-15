@@ -26,7 +26,7 @@ func NewPlusMirror(url string) *PlusMirror {
 func (p *PlusMirror) Search(ctx context.Context, query string) ([]models.Book, error) {
 	params := url.Values{}
 	params.Set("req", query)
-	params.Set("res", "25")
+	params.Set("res", strconv.Itoa(maxResults))
 	params.Set("filesuns", "all")
 	params.Set("objects[]", "f")
 	for _, column := range []string{"t", "a", "s", "y", "p", "i", "f"} {
@@ -40,7 +40,7 @@ func (p *PlusMirror) Search(ctx context.Context, query string) ([]models.Book, e
 	params.Set("order", "time_added")
 	params.Set("ordermode", "desc")
 
-	doc, err := p.fetchDocument(ctx, p.url+"/index.php?"+params.Encode())
+	doc, err := fetchDocument(ctx, p.url+"/index.php?"+params.Encode())
 	if err != nil {
 		return nil, err
 	}

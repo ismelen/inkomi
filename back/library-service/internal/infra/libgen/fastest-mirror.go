@@ -2,7 +2,6 @@ package libgen
 
 import (
 	"context"
-	"sync"
 	"time"
 )
 
@@ -13,38 +12,23 @@ func fastestMirror(ctx context.Context, mirrors []IMirror) (IMirror, bool) {
 	ctx, cancel := context.WithTimeout(ctx, pingTimeout)
 	defer cancel()
 
-	winner := make(chan IMirror, 1)
-	var wg sync.WaitGroup
+	results := make(chan IMirror, len(mirrors))
 	for _, m := range mirrors {
-		wg.Go(func() {
+		go func() {
 			if ping(ctx, m.URL()) {
-				select {
-				case winner <- m:
-				default:
-				}
+				results <- m
+				return
 			}
-		})
+			results <- nil
+		}()
 	}
 
-	allDone := make(chan struct{})
-	go func() {
-		wg.Wait()
-		close(allDone)
-	}()
-
-	select {
-	case m := <-winner:
-		return m, true
-	case <-allDone:
-		select {
-		case m := <-winner:
+	for range mirrors {
+		if m := <-results; m != nil {
 			return m, true
-		default:
-			return nil, false
 		}
-	case <-ctx.Done():
-		return nil, false
 	}
+	return nil, false
 }
 
 func ping(ctx context.Context, baseURL string) bool {

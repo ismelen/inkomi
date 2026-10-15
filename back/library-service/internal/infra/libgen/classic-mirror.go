@@ -14,8 +14,6 @@ import (
 	"github.com/ismelen/inkomi/back/library-service/internal/shared/strutil"
 )
 
-const classicMaxResults = 25
-
 // ClassicMirror is a classic libgen site (libgen.is, libgen.rs...): ids are scraped from
 // search.php and their metadata read from json.php.
 type ClassicMirror struct {
@@ -81,19 +79,19 @@ func (c *ClassicMirror) Search(ctx context.Context, query string) ([]models.Book
 func (c *ClassicMirror) searchIds(ctx context.Context, query string) ([]string, error) {
 	params := url.Values{}
 	params.Set("req", query)
-	params.Set("res", strconv.Itoa(classicMaxResults))
+	params.Set("res", strconv.Itoa(maxResults))
 	params.Set("view", "simple")
 	params.Set("phrase", "1")
 	params.Set("column", "def")
 
-	doc, err := c.fetchDocument(ctx, c.url+"/search.php?"+params.Encode())
+	doc, err := fetchDocument(ctx, c.url+"/search.php?"+params.Encode())
 	if err != nil {
 		return nil, err
 	}
 
 	var ids []string
 	doc.Find("table.c tr").Each(func(i int, row *goquery.Selection) {
-		if i == 0 || len(ids) >= classicMaxResults {
+		if i == 0 || len(ids) >= maxResults {
 			return
 		}
 		id := strings.TrimSpace(row.Find("td:nth-child(1)").Text())

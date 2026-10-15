@@ -57,7 +57,6 @@ func (s *SlumMirrorList) Mirrors(ctx context.Context) []IMirror {
 	mirrors, err := s.fetch(ctx)
 	if err != nil {
 		log.Printf("libgen: slum mirrors: %v; using fallback", err)
-		return slices.Clone(s.fallback)
 	}
 	if len(mirrors) == 0 {
 		return slices.Clone(s.fallback)

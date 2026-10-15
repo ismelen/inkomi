@@ -5,7 +5,6 @@ import (
 	"log"
 	"slices"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/ismelen/inkomi/back/library-service/internal/domain/models"
@@ -14,20 +13,16 @@ import (
 
 const refreshTimeout = 30 * time.Second
 
-type activeMirror struct {
-	IMirror
-}
-
 // LibgenLibrary searches and downloads on the fastest known mirror. It renews the mirror
 // periodically (Start) and, when a request fails, replaces it and retries once; failure
 // driven renewals are spaced by cooldown so a dead network doesn't flood the mirror list.
 type LibgenLibrary struct {
 	mirrors  IMirrorList
 	cooldown time.Duration
-	current  atomic.Pointer[activeMirror]
 	group    singleflight.Group
 
 	mu          sync.Mutex
+	current     IMirror
 	lastRefresh time.Time
 }
 
@@ -69,10 +64,10 @@ func (l *LibgenLibrary) Download(ctx context.Context, md5 models.MD5) (*models.B
 }
 
 func withFailover[T any](ctx context.Context, l *LibgenLibrary, op func(IMirror) (T, error)) (T, error) {
-	m, err := l.mirror(ctx)
-	if err != nil {
+	m, ok := l.mirror(ctx, "")
+	if !ok {
 		var zero T
-		return zero, err
+		return zero, models.ErrNoMirror
 	}
 
 	result, err := op(m)
@@ -80,7 +75,7 @@ func withFailover[T any](ctx context.Context, l *LibgenLibrary, op func(IMirror)
 		return result, err
 	}
 
-	next, ok := l.replace(ctx, m)
+	next, ok := l.mirror(ctx, m.URL())
 	if !ok {
 		return result, err
 	}
@@ -88,34 +83,20 @@ func withFailover[T any](ctx context.Context, l *LibgenLibrary, op func(IMirror)
 	return op(next)
 }
 
-func (l *LibgenLibrary) mirror(ctx context.Context) (IMirror, error) {
-	if current := l.current.Load(); current != nil {
-		return current.IMirror, nil
-	}
-	if l.cooldownElapsed() {
-		if m, ok := l.refresh(ctx, ""); ok {
-			return m, nil
-		}
-	}
-	return nil, models.ErrNoMirror
-}
+// mirror returns the current mirror unless it is exclude (another request may have already
+// replaced it); otherwise it discovers a new one if the cooldown allows it.
+func (l *LibgenLibrary) mirror(ctx context.Context, exclude string) (IMirror, bool) {
+	l.mu.Lock()
+	current, canRefresh := l.current, time.Since(l.lastRefresh) >= l.cooldown
+	l.mu.Unlock()
 
-// replace returns a mirror other than failed: the current one if another request already
-// replaced it, or a freshly discovered one if the cooldown allows a refresh.
-func (l *LibgenLibrary) replace(ctx context.Context, failed IMirror) (IMirror, bool) {
-	if current := l.current.Load(); current != nil && current.URL() != failed.URL() {
-		return current.IMirror, true
+	if current != nil && current.URL() != exclude {
+		return current, true
 	}
-	if !l.cooldownElapsed() {
+	if !canRefresh {
 		return nil, false
 	}
-	return l.refresh(ctx, failed.URL())
-}
-
-func (l *LibgenLibrary) cooldownElapsed() bool {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	return time.Since(l.lastRefresh) >= l.cooldown
+	return l.refresh(ctx, exclude)
 }
 
 // refresh stores the fastest mirror other than exclude. Concurrent calls share one discovery,
@@ -131,17 +112,20 @@ func (l *LibgenLibrary) refresh(ctx context.Context, exclude string) (IMirror, b
 		m, ok := fastestMirror(ctx, candidates)
 
 		l.mu.Lock()
+		previous := l.current
 		l.lastRefresh = time.Now()
+		if ok {
+			l.current = m
+		}
 		l.mu.Unlock()
 
 		if !ok {
 			log.Printf("libgen: no mirror answered out of %d", len(candidates))
 			return nil, nil
 		}
-		if current := l.current.Load(); current == nil || current.URL() != m.URL() {
+		if previous == nil || previous.URL() != m.URL() {
 			log.Printf("libgen: using mirror %s", m.URL())
 		}
-		l.current.Store(&activeMirror{m})
 		return m, nil
 	})
 

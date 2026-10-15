@@ -11,7 +11,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/PuerkitoBio/goquery"
 	"github.com/ismelen/inkomi/back/library-service/internal/domain/models"
 )
 
@@ -29,20 +28,6 @@ type mirrorBase struct {
 }
 
 func (m *mirrorBase) URL() string { return m.url }
-
-func (m *mirrorBase) fetchDocument(ctx context.Context, rawURL string) (*goquery.Document, error) {
-	resp, err := get(ctx, pageClient, rawURL)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("parse %s: %w", rawURL, err)
-	}
-	return doc, nil
-}
 
 func (m *mirrorBase) Download(ctx context.Context, md5 models.MD5) (*models.BookDownload, error) {
 	info, err := m.adsInfo(ctx, md5)

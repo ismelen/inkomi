@@ -6,15 +6,19 @@ import (
 	"io"
 	"net/http"
 	"time"
+
+	"github.com/PuerkitoBio/goquery"
 )
 
-const userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+const (
+	userAgent  = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+	maxResults = 25
+)
 
 var (
 	pageClient     = &http.Client{Timeout: 20 * time.Second}
 	downloadClient = &http.Client{Timeout: 10 * time.Minute}
 	pingClient     = &http.Client{
-		Timeout: 12 * time.Second,
 		CheckRedirect: func(*http.Request, []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
@@ -52,4 +56,18 @@ func get(ctx context.Context, client *http.Client, rawURL string) (*http.Respons
 		return nil, &statusError{url: rawURL, code: resp.StatusCode}
 	}
 	return resp, nil
+}
+
+func fetchDocument(ctx context.Context, rawURL string) (*goquery.Document, error) {
+	resp, err := get(ctx, pageClient, rawURL)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("parse %s: %w", rawURL, err)
+	}
+	return doc, nil
 }
