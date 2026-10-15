@@ -91,3 +91,7 @@ Usar genéricos solo cuando eliminan duplicación real.
 ## Commits
 
 Conventional Commits con el servicio como scope: `feat(epub-worker): ...`, `fix(transaction-manager): ...`.
+
+## Comments
+
+Only put comments when its necessary if the code itself isn't explanatory.
