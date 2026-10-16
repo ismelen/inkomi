@@ -16,6 +16,7 @@ import { appVersion } from '../../src/config';
 import { supportedLanguages } from '../../src/i18n/i18n';
 import { findEReader } from '../../src/models/ereaders';
 import { disablePush, enablePush } from '../../src/services/push-service';
+import { useAppUpdate } from '../../src/stores/use-app-update';
 import { useProfile } from '../../src/stores/use-profile';
 import { useSession } from '../../src/stores/use-session';
 import { useSettings } from '../../src/stores/use-settings';
@@ -195,13 +196,19 @@ export default function SettingsScreen() {
           onPress={() => router.push({ pathname: '/options/[id]', params: { id: 'default' } })}
         />
 
-        <SText
-          variant="small"
-          tone="textSecondary"
-          style={{ textAlign: 'center', marginTop: spacing.xl }}
-        >
-          {t('settings.version', { version: appVersion })}
-        </SText>
+        <SectionTitle>{t('update.section')}</SectionTitle>
+        <SettingRow
+          label={t('update.check')}
+          description={t('settings.version', { version: appVersion })}
+          right={busy === 'update' ? <ActivityIndicator color={colors.primary} /> : undefined}
+          onPress={() =>
+            void attempt('update', async () => {
+              if (!(await useAppUpdate.getState().check(true))) {
+                Alert.alert(t('update.section'), t('update.upToDate'));
+              }
+            })
+          }
+        />
       </ScrollView>
       <EReaderPicker
         visible={pickerOpen}

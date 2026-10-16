@@ -218,6 +218,17 @@
     "fileNotAvailable": "The file is not available anymore",
     "sourceNotUploaded": "The file was not uploaded",
     "ereaderNotAvailable": "The selected reader is not valid",
-    "invalidRequest": "Invalid request"
+    "invalidRequest": "Invalid request",
+    "noRelease": "No version has been published",
+    "releaseUnavailable": "Updates can't be checked right now"
+  },
+  "update": {
+    "title": "New version {{version}}",
+    "install": "Update",
+    "later": "Later",
+    "downloading": "Downloading… {{percent}}%",
+    "section": "Updates",
+    "check": "Check for updates",
+    "upToDate": "You have the latest version"
   }
 }

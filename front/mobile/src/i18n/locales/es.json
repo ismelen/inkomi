@@ -218,6 +218,17 @@
     "fileNotAvailable": "El archivo ya no está disponible",
     "sourceNotUploaded": "El archivo no llegó a subirse",
     "ereaderNotAvailable": "El lector seleccionado no es válido",
-    "invalidRequest": "Petición no válida"
+    "invalidRequest": "Petición no válida",
+    "noRelease": "No hay ninguna versión publicada",
+    "releaseUnavailable": "No se pueden comprobar las actualizaciones ahora mismo"
+  },
+  "update": {
+    "title": "Nueva versión {{version}}",
+    "install": "Actualizar",
+    "later": "Más tarde",
+    "downloading": "Descargando… {{percent}}%",
+    "section": "Actualizaciones",
+    "check": "Buscar actualizaciones",
+    "upToDate": "Ya tienes la última versión"
   }
 }

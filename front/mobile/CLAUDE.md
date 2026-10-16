@@ -36,7 +36,7 @@ modules/file-handler/      módulo nativo Android: copia content:// a la caché
 
 ## Contratos (el backend manda)
 
-- Sin prefijo `/api`: el ingress enruta `/auth`, `/users`, `/books`, `/uploads`, `/ws`.
+- Sin prefijo `/api`: el ingress enruta `/auth`, `/users`, `/books`, `/uploads`, `/ws` y `/app` (release-service, público).
 - `src/api/types/*` copia nombres y casing exactos de los DTOs Go y cita el fichero de origen. Si cambia un DTO, se cambia aquí. Casing: **snake_case** en el body de `POST /uploads/request` (`SourceDTO`); **camelCase** en `ConfigDTO`, auth, users, `GET /uploads`, descarga y mensajes del WS.
 - Errores `{error: string}`; el middleware JWT responde 401 en **texto plano**. Los mensajes exactos de los centinelas se traducen en `api/api-error.ts` (`errorKey`) a claves `errors.*`; un centinela nuevo del backend añade su entrada y su texto.
 - Rangos de la configuración manga: `back/manga-worker/internal/domain/models/manga-config.go` (reflejados en `models/manga-config.ts`, que valida antes de enviar).
@@ -73,6 +73,13 @@ modules/file-handler/      módulo nativo Android: copia content:// a la caché
 
 - Solo con el enlace prefirmado de `GET /uploads/{id}/download`, pedido en cada toque: caduca, nunca se cachea la URL. 409/404 se muestran y no se reintentan en bucle.
 - Compartir = `Sharing.shareAsync`. Descargar = carpeta SAF elegida y recordada (Android) / share sheet (iOS).
+
+## Actualizaciones de la app (sin Google Play)
+
+- `.github/workflows/build-mobile.yml` compila el APK y publica una GitHub Release `v<expo.version>` con el asset `inkomi.apk`; solo publica si `expo.version` de `app.json` es mayor que la última release, así que cada versión nueva sube `version`.
+- `back/release-service` expone `GET /app/latest` (versión, notas, tamaño, sha256) y `GET /app/download` (302 al APK). Sin token: se comprueba antes de iniciar sesión.
+- `services/app-update.ts` compara con `appVersion` al arrancar y cada 6 h al volver a primer plano, descarga el APK y abre el instalador (`REQUEST_INSTALL_PACKAGES`). Solo Android.
+- Todas las builds se firman con la misma clave; si cambia, Android no instala encima y hay que desinstalar.
 
 ## Nombres y estilo
 

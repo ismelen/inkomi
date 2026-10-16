@@ -41,6 +41,8 @@ const messageKeys: Record<string, string> = {
   'source not uploaded': 'sourceNotUploaded',
   'e-reader not available': 'ereaderNotAvailable',
   'invalid format': 'invalidRequest',
+  'no release available': 'noRelease',
+  'release source unavailable': 'releaseUnavailable',
 };
 
 /** i18n key that describes err for the user. */

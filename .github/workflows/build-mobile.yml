@@ -3,6 +3,11 @@ name: Build and Deploy Mobile APK
 # Manual only: never on push
 on:
   workflow_dispatch:
+    inputs:
+      notes:
+        description: 'Release notes shown in the in-app update dialog (optional)'
+        required: false
+        default: ''
 
 jobs:
   check-version:
@@ -125,49 +130,19 @@ jobs:
           name: inkomi-apk
           path: build-output
 
-      - name: Ensure directories exist on server
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.ORACLE_HOST }}
-          username: ${{ secrets.ORACLE_USERNAME }}
-          key: ${{ secrets.ORACLE_PRIVATE_KEY }}
-          script: |
-            sudo chown -R $USER:$USER ~/inkomi/back/api/resources || true
-            mkdir -p ~/inkomi/back/api/resources
-            chmod u+w ~/inkomi/back/api/resources || true
-            rm -f ~/inkomi/back/api/resources/inkomi.apk || true
-
-      - name: Copy APK to server
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.ORACLE_HOST }}
-          username: ${{ secrets.ORACLE_USERNAME }}
-          key: ${{ secrets.ORACLE_PRIVATE_KEY }}
-          source: "build-output/inkomi.apk"
-          target: "inkomi/back/api/resources"
-          strip_components: 1
-          overwrite: true
-
-      - name: Update version file in resources
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.ORACLE_HOST }}
-          username: ${{ secrets.ORACLE_USERNAME }}
-          key: ${{ secrets.ORACLE_PRIVATE_KEY }}
-          script: |
-            VERSION_FILE=~/inkomi/back/api/resources/app-version.txt
-            echo "${{ needs.check-version.outputs.app_version }}" > "$VERSION_FILE"
-
       # ─── GitHub Release ───────────────────────────────────────────────────────
+      # back/release-service serves the latest release to the app (GET /app/latest and
+      # /app/download): the tag must be v<expo.version> and the asset must be named inkomi.apk.
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.check-version.outputs.app_version }}
+          NOTES: ${{ inputs.notes }}
         run: |
-          VERSION="${{ needs.check-version.outputs.app_version }}"
           TAG="v${VERSION}"
           gh release create "$TAG" \
             build-output/inkomi.apk \
             --title "Inkomi Mobile $TAG" \
-            --notes "Release automática de la versión $VERSION del APK de Inkomi." \
+            --notes "${NOTES:-Release automática de la versión $VERSION del APK de Inkomi.}" \
             --latest
       # ─────────────────────────────────────────────────────────────────────────
