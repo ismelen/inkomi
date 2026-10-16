@@ -1,0 +1,67 @@
+# The web app (front/web): static files behind nginx. Deployed on its own by
+# .github/workflows/deploy-web.yml, apart from the backend (rendered with envsubst:
+# $NAMESPACE $REGISTRY $TAG_WEB).
+# Its Ingress catches "/" only: Traefik matches the longest prefix first, so the API routes of
+# deploy/k8s/ingress.yaml keep going to the services and the page shares their origin (no CORS).
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  namespace: ${NAMESPACE}
+spec:
+  selector:
+    app: web
+  ports:
+    - name: http
+      port: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: ${NAMESPACE}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - { key: inkomi.io/capacity, operator: In, values: [low] }
+      imagePullSecrets:
+        - name: ghcr
+      containers:
+        - name: web
+          image: ${REGISTRY}/inkomi-web:${TAG_WEB}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet: { path: /, port: 8080 }
+          livenessProbe:
+            tcpSocket: { port: 8080 }
+            initialDelaySeconds: 5
+          resources:
+            requests: { cpu: 5m, memory: 8Mi }
+            limits: { memory: 32Mi }
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: inkomi-web
+  namespace: ${NAMESPACE}
+spec:
+  ingressClassName: traefik
+  rules:
+    - http:
+        paths:
+          - { path: /, pathType: Prefix, backend: { service: { name: web, port: { number: 8080 } } } }

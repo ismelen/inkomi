@@ -1,0 +1,110 @@
+name: Deploy web (k3s)
+
+# Manual only. Builds the web app (front/web) and deploys it to the k3s cluster next to the
+# backend, on the same domain (deploy/k8s/web/web.yaml):
+#   1. typecheck, prettier and build
+#   2. multi-arch nginx image pushed to ghcr.io
+#   3. on the k3s server: apply the manifest with the new image and wait for the rollout
+#
+# Secrets: the same as backend-k3s.yml (ORACLE_HOST, ORACLE_USERNAME, ORACLE_PRIVATE_KEY,
+#          ORACLE_SSH_PORT). The pull secret "ghcr" is created by the backend deploy.
+# Variables (public, baked into the bundle): DROPBOX_APP_KEY, GOOGLE_WEB_CLIENT_ID.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: k3s-deploy-web
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: front/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: front/web/package-lock.json
+      - run: npm ci
+      - run: npx prettier --check .
+      - run: npm run build
+
+  image:
+    needs: check
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+      registry: ${{ steps.meta.outputs.registry }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: meta
+        env:
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          echo "tag=${GITHUB_SHA:0:12}" >> "$GITHUB_OUTPUT"
+          echo "registry=ghcr.io/${OWNER,,}" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: front/web
+          target: runtime
+          platforms: linux/amd64,linux/arm64
+          push: true
+          build-args: |
+            VITE_DROPBOX_API_KEY=${{ vars.DROPBOX_APP_KEY }}
+            VITE_GOOGLE_WEB_CLIENT_ID=${{ vars.GOOGLE_WEB_CLIENT_ID }}
+          tags: ${{ steps.meta.outputs.registry }}/inkomi-web:${{ steps.meta.outputs.tag }}
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
+
+  deploy:
+    needs: image
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Copy the manifest
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          port: ${{ secrets.ORACLE_SSH_PORT || '2222' }}
+          username: ${{ secrets.ORACLE_USERNAME }}
+          key: ${{ secrets.ORACLE_PRIVATE_KEY }}
+          source: "deploy/k8s/web/web.yaml"
+          target: "~/inkomi-k3s/web"
+          strip_components: 3
+          overwrite: true
+
+      - name: Apply and wait for the rollout
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          port: ${{ secrets.ORACLE_SSH_PORT || '2222' }}
+          username: ${{ secrets.ORACLE_USERNAME }}
+          key: ${{ secrets.ORACLE_PRIVATE_KEY }}
+          script: |
+            set -euo pipefail
+            export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
+            export NAMESPACE=inkomi
+            export REGISTRY="${{ needs.image.outputs.registry }}"
+            export TAG_WEB="${{ needs.image.outputs.tag }}"
+            envsubst '$NAMESPACE $REGISTRY $TAG_WEB' < ~/inkomi-k3s/web/web.yaml | kubectl apply -f -
+            if ! kubectl -n inkomi rollout status deployment/web --timeout=300s; then
+              kubectl -n inkomi rollout undo deployment/web || true
+              exit 1
+            fi

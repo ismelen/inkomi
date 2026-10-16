@@ -250,6 +250,16 @@ Secrets del repositorio (o del environment `production`, al que puedes poner apr
 
 Primer despliegue: *Actions → Deploy backend (k3s) → Run workflow* con `all`. Después puedes desplegar solo algunos servicios (`manga-worker,epub-worker`).
 
+### Web (`front/web`)
+
+*Actions → Deploy web (k3s)* (`.github/workflows/deploy-web.yml`) construye la imagen nginx y aplica `deploy/k8s/web/web.yaml` después del backend (usa su secret `ghcr`). Su Ingress solo captura `/`: Traefik prioriza los prefijos más largos, así que la web vive en el mismo dominio que la API, sin CORS en los servicios.
+
+Variables del repositorio (públicas, van dentro del bundle): `DROPBOX_APP_KEY` y `GOOGLE_WEB_CLIENT_ID`. Además, una vez:
+
+- **R2**: el navegador sube con `PUT` a las URLs prefirmadas. Política CORS del bucket: `AllowedOrigins: ["https://<dominio>"]`, `AllowedMethods: ["PUT"]`, `AllowedHeaders: ["content-type"]`.
+- **Dropbox** (app console → OAuth 2 → Redirect URIs): `https://<dominio>/oauth/dropbox`.
+- **Google** (client id web, el mismo de `GOOGLE_CLIENT_IDS` del auth-service): añadir `https://<dominio>` a *Authorized JavaScript origins*.
+
 ## 10. Copias de seguridad
 
 Las bases SQLite (usuarios en auth-service y transacciones en transaction-manager) viven en volúmenes `local-path` del nodo donde corren, en `/var/lib/rancher/k3s/storage/`. **Si se pierde ese disco se pierden los usuarios.** Programa una copia (cron + `sqlite3 .backup` y subida a R2, o snapshot del volumen de Oracle).

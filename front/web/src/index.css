@@ -1,0 +1,154 @@
+@import 'tailwindcss';
+
+/* Open Color palette of the "Web" frame in docs/ideas.excalidraw. Components only use these. */
+:root {
+  --c-bg: #ffffff;
+  --c-subtle: #f8f9fa;
+  --c-surface: #e9ecef;
+  --c-fg: #1e1e1e;
+  --c-muted: #868e96;
+  --c-line: #ced4da;
+  --c-strong-line: #1e1e1e;
+  --c-primary: #1e1e1e;
+  --c-on-primary: #ffffff;
+  --c-success: #2f9e44;
+  --c-info: #1971c2;
+  --c-warning: #f08c00;
+  --c-danger: #e03131;
+  --c-scrim: rgba(30, 30, 30, 0.45);
+  --c-hover: rgba(30, 30, 30, 0.06);
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --c-bg: #141517;
+    --c-subtle: #1b1d20;
+    --c-surface: #2c2f33;
+    --c-fg: #f1f3f5;
+    --c-muted: #a1a8b0;
+    --c-line: #495057;
+    --c-strong-line: #adb5bd;
+    --c-primary: #f1f3f5;
+    --c-on-primary: #1e1e1e;
+    --c-success: #51cf66;
+    --c-info: #4dabf7;
+    --c-warning: #ff922b;
+    --c-danger: #ff6b6b;
+    --c-scrim: rgba(0, 0, 0, 0.6);
+    --c-hover: rgba(255, 255, 255, 0.06);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme='dark'] {
+  --c-bg: #141517;
+  --c-subtle: #1b1d20;
+  --c-surface: #2c2f33;
+  --c-fg: #f1f3f5;
+  --c-muted: #a1a8b0;
+  --c-line: #495057;
+  --c-strong-line: #adb5bd;
+  --c-primary: #f1f3f5;
+  --c-on-primary: #1e1e1e;
+  --c-success: #51cf66;
+  --c-info: #4dabf7;
+  --c-warning: #ff922b;
+  --c-danger: #ff6b6b;
+  --c-scrim: rgba(0, 0, 0, 0.6);
+  --c-hover: rgba(255, 255, 255, 0.06);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+
+  --color-bg: var(--c-bg);
+  --color-subtle: var(--c-subtle);
+  --color-surface: var(--c-surface);
+  --color-fg: var(--c-fg);
+  --color-muted: var(--c-muted);
+  --color-line: var(--c-line);
+  --color-strong: var(--c-strong-line);
+  --color-primary: var(--c-primary);
+  --color-on-primary: var(--c-on-primary);
+  --color-success: var(--c-success);
+  --color-info: var(--c-info);
+  --color-warning: var(--c-warning);
+  --color-danger: var(--c-danger);
+  --color-scrim: var(--c-scrim);
+  --color-hover: var(--c-hover);
+
+  --text-section: 11px;
+  --text-section--letter-spacing: 0.04em;
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-base: 14px;
+  --text-md: 15px;
+  --text-lg: 16px;
+  --text-xl: 18px;
+  --text-2xl: 24px;
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--c-bg);
+  color: var(--c-fg);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+input[type='range'] {
+  appearance: none;
+  background: transparent;
+}
+
+input[type='range']::-webkit-slider-runnable-track {
+  height: 2px;
+  border-radius: 1px;
+  background: var(--c-line);
+}
+
+input[type='range']::-moz-range-track {
+  height: 2px;
+  border-radius: 1px;
+  background: var(--c-line);
+}
+
+input[type='range']::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -6px;
+  border-radius: 50%;
+  background: var(--c-primary);
+}
+
+input[type='range']::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--c-primary);
+}
+
+input[type='range']:focus-visible {
+  outline: 2px solid var(--c-line);
+  outline-offset: 2px;
+}
