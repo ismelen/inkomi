@@ -85,14 +85,14 @@ export function SettingsPage() {
 
   return (
     <>
-      <PageHeader title={t('settings.title')} />
+      <PageHeader back title={t('settings.title')} />
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pt-4 pb-6 md:px-8 md:pt-5">
         <div className="grid max-w-[1000px] grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-2 lg:gap-7">
           <div className="flex flex-col gap-4">
             <Card title={t('settings.account')}>
               <div className="flex items-center gap-4">
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-base">
+                  <p className="truncate text-base font-medium">
                     {profile?.email ?? (loading ? '…' : t('settings.noEmail'))}
                   </p>
                   {providers.length > 0 && (
@@ -144,7 +144,7 @@ export function SettingsPage() {
                 <div className="flex flex-col gap-4">
                   <div className="flex items-center gap-4">
                     <p className="flex min-w-0 flex-1 items-center gap-2 text-base">
-                      <span className="size-1.5 shrink-0 rounded-full bg-success" />
+                      <span className="size-2 shrink-0 rounded-full bg-success" />
                       <span className="truncate">
                         {dropbox.email
                           ? t('settings.connectedAs', { email: dropbox.email })
@@ -196,7 +196,7 @@ export function SettingsPage() {
               ) : (
                 <div className="flex items-center gap-4">
                   <p className="flex flex-1 items-center gap-2 text-base text-muted">
-                    <span className="size-1.5 rounded-full bg-line" />
+                    <span className="size-2 rounded-full bg-line" />
                     {t('settings.disconnected')}
                   </p>
                   <Button

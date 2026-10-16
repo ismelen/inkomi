@@ -13,7 +13,9 @@ import {
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
+import { Link, useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
+import { Brand } from '../components/layout/nav';
 import { PageHeader } from '../components/layout/page-header';
 import { AddMenu } from '../components/list/add-menu';
 import { applyDrop, DragData, dropMarkFor } from '../components/list/list-dnd';
@@ -24,12 +26,14 @@ import { Button } from '../components/ui/button';
 import { Checkbox } from '../components/ui/checkbox';
 import { cx } from '../components/ui/cx';
 import { Icon } from '../components/ui/icon';
+import { IconButton } from '../components/ui/icon-button';
 import { Modal } from '../components/ui/modal';
 import { Switch } from '../components/ui/switch';
-import { desktopQuery, useMediaQuery } from '../hooks/use-media-query';
+import { desktopQuery, phoneQuery, useMediaQuery } from '../hooks/use-media-query';
 import { Group } from '../models/group';
 import { ListItem } from '../models/list-item';
 import { readDrop } from '../services/file-picker';
+import { useActivity } from '../stores/use-activity';
 import { useList } from '../stores/use-list';
 import { useProfile } from '../stores/use-profile';
 import { useSettings } from '../stores/use-settings';
@@ -114,8 +118,11 @@ function hasFiles(e: DragEvent) {
 
 export function ListPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const desktop = useMediaQuery(desktopQuery);
-  const { items, groups, rootOrder, selection } = useList();
+  const phone = useMediaQuery(phoneQuery);
+  const { items, groups, rootOrder, selecting, selection } = useList();
+  const queueCount = useActivity((s) => s.queue.length);
   const toCloudDefault = useSettings((s) => s.toCloudDefault);
   const dropboxLinked = useProfile((s) => s.profile?.dropbox.linked ?? false);
   const sendUpload = useUpload((s) => s.send);
@@ -231,6 +238,12 @@ export function ListPage() {
   const dragged = draggingId ? (items[draggingId]?.title ?? groups[draggingId]?.title) : null;
   const allSelected = rootOrder.length > 0 && selection.length >= rootOrder.length;
 
+  // Phones select like the app: while selecting, a tap toggles instead of opening the options.
+  const focusRow = (id: string) => {
+    if (phone && selecting) useList.getState().toggleSelected(id);
+    else setFocusedId(id);
+  };
+
   const optionsPanel = focusedId && (
     <OptionsPanel
       key={focusedId}
@@ -254,8 +267,71 @@ export function ListPage() {
       }}
       onDrop={(e) => void onFileDrop(e)}
     >
-      <PageHeader title={t('list.title')}>
-        <label className="flex items-center gap-2 text-[13px]">
+      {/* Phones: the app's home header (sections as icons) and its search + attach row. */}
+      <header className="flex h-14 shrink-0 items-center gap-1 px-2 md:hidden">
+        {selecting ? (
+          <>
+            <IconButton
+              icon="close"
+              label={t('home.cancelSelection')}
+              size={24}
+              className="text-fg"
+              onClick={() => useList.getState().clearSelection()}
+            />
+            <h1 className="min-w-0 flex-1 truncate text-lg font-semibold">
+              {t('home.selected', { count: selection.length })}
+            </h1>
+            <IconButton
+              icon="checklist"
+              label={t('home.toggleAll')}
+              size={24}
+              className="text-fg"
+              onClick={() => useList.getState().toggleSelectAll()}
+            />
+          </>
+        ) : (
+          <>
+            <Brand className="flex-1 pl-2" />
+            <IconButton
+              icon="history"
+              label={t('home.history')}
+              size={24}
+              className="text-fg"
+              onClick={() => navigate('/history')}
+            />
+            <IconButton
+              icon="progress_activity"
+              label={t('home.activity')}
+              size={24}
+              badge={queueCount}
+              className="text-fg"
+              onClick={() => navigate('/activity')}
+            />
+            <IconButton
+              icon="settings"
+              label={t('home.settings')}
+              size={24}
+              className="text-fg"
+              onClick={() => navigate('/settings')}
+            />
+          </>
+        )}
+      </header>
+      {!selecting && (
+        <div className="flex shrink-0 gap-2 px-4 md:hidden">
+          <Link
+            to="/search"
+            className="flex h-11 min-w-0 flex-1 items-center gap-2 rounded-input bg-subtle px-3 text-base text-faint"
+          >
+            <Icon name="search" className="text-primary" />
+            <span className="truncate">{t('home.searchPlaceholder')}</span>
+          </Link>
+          <AddMenu compact />
+        </div>
+      )}
+
+      <PageHeader title={t('list.title')} className="max-md:hidden">
+        <label className="flex items-center gap-2 text-sm font-medium text-muted">
           {t('home.dropbox')}
           <Switch label={t('home.dropbox')} checked={toCloud} onChange={toggleCloud} />
         </label>
@@ -271,17 +347,18 @@ export function ListPage() {
 
       <div className="flex min-h-0 flex-1 gap-6 px-4 pt-3 md:px-8 md:pt-5">
         <div className="flex min-w-0 flex-1 flex-col lg:max-w-[600px]">
-          <div className="hidden min-h-[72px] items-center gap-4 rounded-lg border border-dashed border-muted px-5 md:flex">
-            <Icon name="attach_file" size={24} />
+          <div className="hidden min-h-[84px] items-center gap-4 rounded-lg border-2 border-dashed border-line bg-card px-5 md:flex">
+            <span className="inline-flex size-12 shrink-0 items-center justify-center rounded-full bg-primary text-on-primary shadow-card">
+              <Icon name="attach_file" size={24} />
+            </span>
             <div className="min-w-0 flex-1">
-              <p className="text-base">{t('list.dropTitle')}</p>
+              <p className="text-md font-semibold">{t('list.dropTitle')}</p>
               <p className="text-xs text-muted">{t('list.dropHint')}</p>
             </div>
             <AddMenu />
           </div>
-          <AddMenu className="md:hidden" />
 
-          <div className="-mx-1 mt-5 min-h-0 flex-1 overflow-y-auto px-1 pb-4">
+          <div className="-mx-1 min-h-0 md:mt-5 flex-1 overflow-y-auto px-1 pb-4">
             {rows.length === 0 ? (
               <p className="px-4 py-16 text-center text-base text-muted">{t('list.empty')}</p>
             ) : (
@@ -307,7 +384,7 @@ export function ListPage() {
                         className={cx(
                           row.type === 'item' &&
                             row.groupId &&
-                            'relative before:absolute before:top-0 before:-bottom-2 before:left-0 before:w-2 before:rounded-sm before:bg-surface',
+                            'relative before:absolute before:top-0 before:-bottom-2 before:left-0 before:w-1 before:rounded-full before:bg-selected',
                           lastOfGroup && 'mb-2 before:bottom-0'
                         )}
                       >
@@ -317,7 +394,7 @@ export function ListPage() {
                           draggingId={draggingId}
                           focusedId={focusedId}
                           selection={selection}
-                          onFocus={setFocusedId}
+                          onFocus={focusRow}
                         />
                       </li>
                     );
@@ -325,7 +402,7 @@ export function ListPage() {
                 </ul>
                 <DragOverlay dropAnimation={null}>
                   {dragged && (
-                    <div className="max-w-sm truncate rounded-md border border-strong bg-bg px-3 py-2.5 text-base shadow-lg">
+                    <div className="max-w-sm truncate rounded-input bg-card px-3 py-2.5 text-base font-medium shadow-modal">
                       {dragged}
                     </div>
                   )}
@@ -335,13 +412,13 @@ export function ListPage() {
           </div>
 
           {rows.length > 0 && (
-            <div className="mb-3 flex min-h-11 shrink-0 items-center gap-3 rounded-lg border border-line bg-surface px-3 md:mb-6">
+            <div className="mb-6 flex min-h-12 shrink-0 items-center gap-3 rounded-lg bg-card px-3 shadow-raised max-md:hidden">
               <Checkbox
                 checked={allSelected}
                 onChange={() => useList.getState().toggleSelectAll()}
                 label={t('home.toggleAll')}
               />
-              <span className="min-w-0 flex-1 truncate text-[13px]">
+              <span className="min-w-0 flex-1 truncate text-sm font-medium">
                 {selection.length > 0 ? t('home.selected', { count: selection.length }) : ''}
               </span>
               <Button
@@ -376,11 +453,57 @@ export function ListPage() {
         </div>
 
         {desktop && (
-          <aside className="mb-6 w-[372px] shrink-0 overflow-hidden rounded-lg border border-strong">
+          <aside className="mb-6 w-[372px] shrink-0 overflow-hidden rounded-lg bg-card shadow-card">
             {optionsPanel || (
               <p className="p-8 text-center text-base text-muted">{t('list.noFocus')}</p>
             )}
           </aside>
+        )}
+      </div>
+
+      {/* Phones: the app's bottom bar (Dropbox + send, or delete + move while selecting). */}
+      <div
+        className="flex shrink-0 items-center gap-3 bg-card px-4 pt-3 shadow-bar md:hidden"
+        style={{ paddingBottom: 'calc(12px + env(safe-area-inset-bottom))' }}
+      >
+        {selecting ? (
+          <>
+            <Button
+              variant="secondary"
+              size="lg"
+              icon="delete"
+              className="flex-1"
+              disabled={selection.length === 0}
+              onClick={() => setConfirmDelete(true)}
+            >
+              {t('common.delete')}
+            </Button>
+            <Button
+              variant="secondary"
+              size="lg"
+              icon="drive_file_move"
+              className="flex-1"
+              disabled={selection.length === 0}
+              onClick={() => setMoveOpen(true)}
+            >
+              {t('common.move')}
+            </Button>
+          </>
+        ) : (
+          <>
+            <label className="flex items-center gap-2 text-base font-medium">
+              <Switch label={t('home.dropbox')} checked={toCloud} onChange={toggleCloud} />
+              {t('home.dropbox')}
+            </label>
+            <Button
+              size="lg"
+              className="flex-1"
+              disabled={itemCount === 0 || sending}
+              onClick={() => void sendUpload(toCloud)}
+            >
+              {itemCount > 0 ? t('list.sendCount', { count: itemCount }) : t('list.send')}
+            </Button>
+          </>
         )}
       </div>
 
@@ -397,7 +520,7 @@ export function ListPage() {
       )}
 
       {filesOver && (
-        <div className="pointer-events-none absolute inset-2 z-30 flex items-center justify-center rounded-lg border-2 border-dashed border-info bg-bg/80 text-lg text-info">
+        <div className="pointer-events-none absolute inset-2 z-30 flex items-center justify-center rounded-lg border-2 border-dashed border-primary bg-bg/85 text-lg font-semibold text-primary">
           {t('list.dropNow')}
         </div>
       )}

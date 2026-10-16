@@ -26,7 +26,7 @@ export function Menu({ open, onClose, children, className }: Props) {
       <div
         role="menu"
         className={cx(
-          'pb-safe fixed inset-x-0 bottom-0 z-50 rounded-t-lg border border-strong bg-bg p-2 md:absolute md:inset-x-auto md:top-full md:right-0 md:bottom-auto md:mt-1 md:w-64 md:rounded-lg md:p-1.5',
+          'pb-safe fixed inset-x-0 bottom-0 z-50 rounded-t-xl bg-card p-2 shadow-modal md:absolute md:inset-x-auto md:top-full md:right-0 md:bottom-auto md:mt-2 md:w-72 md:rounded-lg md:p-1.5',
           className
         )}
       >
@@ -49,11 +49,13 @@ export function MenuItem({ icon, label, hint, onSelect }: ItemProps) {
       type="button"
       role="menuitem"
       onClick={onSelect}
-      className="flex w-full cursor-pointer items-center gap-3 rounded-md px-2.5 py-2.5 text-left hover:bg-surface md:py-2"
+      className="flex w-full cursor-pointer items-center gap-3 rounded-input px-2.5 py-2.5 text-left transition hover:bg-hover md:py-2"
     >
-      <Icon name={icon} size={22} />
+      <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-selected text-on-selected">
+        <Icon name={icon} size={20} />
+      </span>
       <span className="min-w-0">
-        <span className="block text-md">{label}</span>
+        <span className="block text-md font-medium">{label}</span>
         {hint && <span className="block text-xs text-muted">{hint}</span>}
       </span>
     </button>

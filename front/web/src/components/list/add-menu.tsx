@@ -6,11 +6,15 @@ import { showError, useToast } from '../../stores/use-toast';
 import { Button } from '../ui/button';
 import { cx } from '../ui/cx';
 import { Icon } from '../ui/icon';
+import { IconButton } from '../ui/icon-button';
 import { Menu, MenuItem } from '../ui/menu';
 import { Md5Modal } from './md5-modal';
 
-/** "+ Añadir": files, a folder (a group) or a library book by md5. */
-export function AddMenu({ className }: { className?: string }) {
+/**
+ * "+ Añadir": files, a folder (a group) or a library book by md5. `compact` is the app's attach
+ * button next to the search box (phones).
+ */
+export function AddMenu({ className, compact }: { className?: string; compact?: boolean }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [md5Open, setMd5Open] = useState(false);
@@ -38,16 +42,29 @@ export function AddMenu({ className }: { className?: string }) {
 
   return (
     <div className={cx('relative', className)}>
-      <Button
-        variant="secondary"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        className="w-full gap-3 md:w-auto"
-        onClick={() => setOpen((o) => !o)}
-      >
-        + {t('list.add')}
-        <Icon name="expand_more" />
-      </Button>
+      {compact ? (
+        <IconButton
+          icon="attach_file"
+          label={t('add.title')}
+          size={22}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          className="size-11 rounded-input bg-card text-fg shadow-card"
+          onClick={() => setOpen((o) => !o)}
+        />
+      ) : (
+        <Button
+          variant="secondary"
+          aria-haspopup="menu"
+          aria-expanded={open}
+          className="gap-3"
+          onClick={() => setOpen((o) => !o)}
+        >
+          <Icon name="add" />
+          {t('list.add')}
+          <Icon name="expand_more" />
+        </Button>
+      )}
       <Menu open={open} onClose={() => setOpen(false)}>
         <MenuItem
           icon="attach_file"

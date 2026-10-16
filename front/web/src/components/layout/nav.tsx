@@ -28,12 +28,30 @@ function Badge({ count, className }: { count: number; className?: string }) {
   return (
     <span
       className={cx(
-        'min-w-6 rounded-sm bg-warning px-1.5 text-center text-xs leading-[18px] text-white',
+        'min-w-6 rounded-full bg-primary px-1.5 text-center font-mono text-xs leading-[18px] text-on-primary',
         className
       )}
     >
       {count}
     </span>
+  );
+}
+
+/** The app icon (front/mobile/assets/icon.png) and the name. */
+export function Brand({
+  className,
+  nameClassName,
+}: {
+  className?: string;
+  nameClassName?: string;
+}) {
+  return (
+    <div className={cx('flex items-center gap-2.5', className)}>
+      <img src="/icon.png" alt="" className="size-8 shrink-0 rounded-md" />
+      <span className={cx('text-xl font-bold tracking-tight text-primary', nameClassName)}>
+        Inkomi
+      </span>
+    </div>
   );
 }
 
@@ -49,14 +67,14 @@ export function Sidebar({ disabled }: { disabled?: boolean }) {
   return (
     <aside
       className={cx(
-        'hidden w-16 shrink-0 flex-col border-r border-surface bg-subtle px-2 py-6 md:flex lg:w-[220px] lg:px-3',
+        'z-10 hidden w-[72px] shrink-0 flex-col bg-card px-3 py-6 shadow-card md:flex lg:w-[232px] lg:px-4',
         disabled && 'pointer-events-none'
       )}
     >
-      <div className="mb-6 flex items-center gap-2.5 px-2 lg:px-3">
-        <span className="size-[26px] shrink-0 rounded-md bg-primary" />
-        <span className="hidden text-lg tracking-wide lg:inline">INKOMI</span>
-      </div>
+      <Brand
+        className="mb-8 justify-center lg:justify-start lg:px-2"
+        nameClassName="max-lg:hidden"
+      />
       <nav aria-label={t('nav.menu')} className="flex flex-col gap-1.5">
         {entries.map((entry) => (
           <NavLink
@@ -66,12 +84,16 @@ export function Sidebar({ disabled }: { disabled?: boolean }) {
             title={entry.label}
             className={({ isActive }) =>
               cx(
-                'relative flex h-[34px] items-center justify-center gap-3 rounded-md px-3 text-base lg:justify-start',
-                disabled ? 'text-line' : isActive ? 'bg-surface' : 'hover:bg-hover'
+                'relative flex h-11 items-center justify-center gap-3 rounded-input px-3 text-base transition lg:justify-start',
+                disabled
+                  ? 'text-faint'
+                  : isActive
+                    ? 'bg-accent font-semibold text-on-accent shadow-card'
+                    : 'font-medium text-muted hover:bg-hover hover:text-primary'
               )
             }
           >
-            <Icon name={entry.icon} />
+            <Icon name={entry.icon} size={22} />
             <span className="hidden flex-1 lg:inline">{entry.label}</span>
             {entry.to === '/activity' && !disabled && (
               <Badge
@@ -83,56 +105,21 @@ export function Sidebar({ disabled }: { disabled?: boolean }) {
         ))}
       </nav>
       {!disabled && (
-        <div className="mt-auto hidden border-t border-surface px-3 pt-4 lg:block">
-          <p className="truncate text-[13px]">{profile?.email ?? '…'}</p>
+        <div className="mt-auto hidden rounded-lg bg-subtle p-3 lg:block">
+          <p className="truncate text-sm font-medium">{profile?.email ?? '…'}</p>
           <p className="mt-1 flex items-center gap-1.5 text-xs text-muted">
-            <span className={cx('size-1.5 rounded-full', linked ? 'bg-success' : 'bg-line')} />
+            <span className={cx('size-2 rounded-full', linked ? 'bg-success' : 'bg-line')} />
             {linked ? t('shell.dropboxConnected') : t('shell.dropboxDisconnected')}
           </p>
           <button
             type="button"
             onClick={() => void signOut()}
-            className="mt-3 cursor-pointer text-sm text-info hover:underline"
+            className="mt-3 cursor-pointer text-sm font-semibold text-primary hover:underline"
           >
             {t('settings.signOut')}
           </button>
         </div>
       )}
     </aside>
-  );
-}
-
-/** Phones: the sections at the bottom, like a native tab bar. */
-export function BottomNav() {
-  const { t } = useTranslation();
-  const entries = useNavEntries();
-  const queueCount = useActivity((s) => s.queue.length);
-  return (
-    <nav
-      aria-label={t('nav.menu')}
-      className="pb-safe flex shrink-0 border-t border-surface bg-bg md:hidden"
-    >
-      {entries.map((entry) => (
-        <NavLink
-          key={entry.to}
-          to={entry.to}
-          end={entry.to === '/'}
-          className={({ isActive }) =>
-            cx(
-              'relative flex h-14 flex-1 flex-col items-center justify-center gap-0.5 text-xs',
-              isActive ? 'text-fg' : 'text-muted'
-            )
-          }
-        >
-          <span className="relative">
-            <Icon name={entry.icon} size={22} />
-            {entry.to === '/activity' && (
-              <Badge count={queueCount} className="absolute -top-1.5 left-4 min-w-4" />
-            )}
-          </span>
-          {entry.label}
-        </NavLink>
-      ))}
-    </nav>
   );
 }

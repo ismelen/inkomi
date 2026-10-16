@@ -89,7 +89,7 @@ export function OptionsPanel({ targetId, onClose, onSaved }: Props) {
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex items-start gap-2 px-5 pt-5">
         <div className="min-w-0 flex-1">
-          <h2 className="text-xl">
+          <h2 className="text-xl font-semibold">
             {isDefault ? t('options.defaultTitle') : group ? t('group.title') : t('options.title')}
           </h2>
           {subtitle && <p className="truncate text-sm text-muted">{subtitle}</p>}
@@ -97,7 +97,7 @@ export function OptionsPanel({ targetId, onClose, onSaved }: Props) {
         <button
           type="button"
           onClick={reset}
-          className="mt-1 cursor-pointer text-sm text-info hover:underline"
+          className="mt-1 cursor-pointer text-sm font-semibold text-primary hover:underline"
         >
           {t('options.reset')}
         </button>
@@ -111,11 +111,11 @@ export function OptionsPanel({ targetId, onClose, onSaved }: Props) {
               label={t('common.title')}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="[&_div]:h-8"
+              className="[&_div]:h-10"
             />
             {group && (
               <div className="mt-4 flex items-center gap-3">
-                <span className="flex-1 text-[13px]">{t('group.join')}</span>
+                <span className="flex-1 text-sm">{t('group.join')}</span>
                 <Switch label={t('group.join')} checked={join} onChange={setJoin} />
               </div>
             )}

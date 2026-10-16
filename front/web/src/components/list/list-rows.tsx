@@ -25,19 +25,19 @@ function RowShell({ focused, dropMark, dragging, className, children, ...rest }:
   return (
     <div
       className={cx(
-        'relative flex min-h-11 cursor-pointer touch-manipulation items-center gap-3 rounded-md border px-3 py-1.5 transition-colors select-none',
-        focused ? 'border-line bg-surface' : 'border-strong hover:bg-hover',
-        dropMark === 'inside' && 'ring-2 ring-info',
+        'relative flex min-h-12 cursor-pointer touch-manipulation items-center gap-3 rounded-input border px-3 py-1.5 shadow-card transition select-none',
+        focused ? 'border-primary bg-selected' : 'border-transparent bg-card hover:shadow-raised',
+        dropMark === 'inside' && 'ring-2 ring-primary',
         dragging && 'opacity-40',
         className
       )}
       {...rest}
     >
       {dropMark === 'before' && (
-        <span className="absolute inset-x-0 -top-[5px] h-0.5 rounded-full bg-info" />
+        <span className="absolute inset-x-0 -top-[5px] h-0.5 rounded-full bg-primary" />
       )}
       {dropMark === 'after' && (
-        <span className="absolute inset-x-0 -bottom-[5px] h-0.5 rounded-full bg-info" />
+        <span className="absolute inset-x-0 -bottom-[5px] h-0.5 rounded-full bg-primary" />
       )}
       {children}
     </div>
@@ -96,7 +96,7 @@ export function ItemRow({
       {...dragProps}
     >
       {nested ? (
-        <Icon name="drag_indicator" size={18} className="-mx-1 cursor-grab text-fg" />
+        <Icon name="drag_indicator" size={18} className="-mx-1 cursor-grab text-faint" />
       ) : (
         <Checkbox
           checked={selected}
@@ -105,8 +105,8 @@ export function ItemRow({
         />
       )}
       <div className="min-w-0 flex-1">
-        <p className="truncate text-base">{item.title}</p>
-        <p className="truncate text-[10px] text-muted md:text-xs">{details}</p>
+        <p className="truncate text-base font-medium">{item.title}</p>
+        <p className="truncate font-mono text-[11px] text-muted md:text-xs">{details}</p>
       </div>
       {!nested && isManga(item.ext) && (
         <IconButton
@@ -179,9 +179,12 @@ export function GroupRow({
         }}
       />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-base">{group.title}</p>
+        <p className="truncate text-base font-semibold">{group.title}</p>
         <p
-          className={cx('truncate text-[10px] md:text-xs', group.join ? 'text-info' : 'text-muted')}
+          className={cx(
+            'truncate font-mono text-[11px] md:text-xs',
+            group.join ? 'text-info' : 'text-muted'
+          )}
         >
           {details}
         </p>

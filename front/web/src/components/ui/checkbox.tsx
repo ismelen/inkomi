@@ -22,11 +22,11 @@ export function Checkbox({ checked, onChange, label }: Props) {
     >
       <span
         className={cx(
-          'inline-flex size-3.5 items-center justify-center rounded-[3px] border border-strong',
-          checked && 'bg-primary text-on-primary'
+          'inline-flex size-[18px] items-center justify-center rounded-sm border-2 transition',
+          checked ? 'border-primary bg-primary text-on-primary' : 'border-strong bg-card'
         )}
       >
-        {checked && <Icon name="check" size={12} />}
+        {checked && <Icon name="check" size={14} />}
       </span>
     </button>
   );

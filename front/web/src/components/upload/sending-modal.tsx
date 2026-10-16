@@ -25,10 +25,10 @@ function UploadRow({ file }: { file: UploadFile }) {
   return (
     <li className="py-2">
       <div className="flex items-baseline gap-3">
-        <span className="min-w-0 flex-1 truncate text-base">{file.title}</span>
-        <span className={cx('text-sm', status.className)}>{status.text}</span>
+        <span className="min-w-0 flex-1 truncate text-base font-medium">{file.title}</span>
+        <span className={cx('font-mono text-xs', status.className)}>{status.text}</span>
       </div>
-      <div className="mt-1.5 h-1 rounded-full bg-surface">
+      <div className="mt-1.5 h-1 rounded-full bg-primary/10">
         <div
           className={cx('h-1 rounded-full transition-all', bar)}
           style={{ width: file.state === 'uploading' ? `${percent}%` : '100%' }}

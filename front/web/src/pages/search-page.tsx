@@ -2,7 +2,7 @@ import { FormEvent, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { BookFormat, BookResponse } from '../api/types/books';
-import { PageHeader } from '../components/layout/page-header';
+import { PageHeader, useBack } from '../components/layout/page-header';
 import { Md5Modal } from '../components/list/md5-modal';
 import { Button } from '../components/ui/button';
 import { cx } from '../components/ui/cx';
@@ -18,7 +18,7 @@ const debounceMs = 500;
 function FormatTag({ extension }: { extension: string }) {
   if (!extension) return null;
   return (
-    <span className="inline-block rounded-[5px] border border-strong px-2 py-0.5 text-[10px] uppercase">
+    <span className="inline-block rounded-md bg-surface px-2 py-0.5 font-mono text-[11px] text-primary uppercase">
       {extension}
     </span>
   );
@@ -37,8 +37,10 @@ function AddToggle({ book, added }: { book: BookResponse; added: boolean }) {
       aria-label={book.title}
       onClick={() => useList.getState().toggleLibrary(book)}
       className={cx(
-        'inline-flex size-8 shrink-0 cursor-pointer items-center justify-center justify-self-end rounded-full border border-strong transition',
-        added ? 'bg-primary text-on-primary' : 'hover:bg-hover'
+        'inline-flex size-9 shrink-0 cursor-pointer items-center justify-center justify-self-end rounded-full transition',
+        added
+          ? 'bg-primary text-on-primary shadow-card'
+          : 'bg-surface text-primary hover:bg-variant'
       )}
     >
       <Icon name={added ? 'check' : 'add'} size={18} />
@@ -48,7 +50,7 @@ function AddToggle({ book, added }: { book: BookResponse; added: boolean }) {
 
 function Cover({ book }: { book: BookResponse }) {
   return (
-    <div className="flex h-[52px] w-9 shrink-0 items-center justify-center overflow-hidden rounded-md border border-line bg-surface text-muted">
+    <div className="flex h-[56px] w-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-surface text-primary shadow-card">
       {book.coverUrl ? (
         <img src={book.coverUrl} alt="" loading="lazy" className="size-full object-cover" />
       ) : (
@@ -64,11 +66,11 @@ function ResultRow({ book, added }: { book: BookResponse; added: boolean }) {
     .filter(Boolean)
     .join(' · ');
   return (
-    <li className="grid grid-cols-[1fr_auto] items-center gap-x-4 border-b border-surface py-2.5 md:grid-cols-[minmax(0,1fr)_90px_72px] lg:grid-cols-[minmax(0,1fr)_minmax(0,240px)_90px_72px]">
+    <li className="grid grid-cols-[1fr_auto] items-center gap-x-4 border-b border-surface py-3 last:border-b-0 md:grid-cols-[minmax(0,1fr)_90px_72px] lg:grid-cols-[minmax(0,1fr)_minmax(0,240px)_90px_72px]">
       <div className="flex min-w-0 items-center gap-3 md:gap-4">
         <Cover book={book} />
         <div className="min-w-0">
-          <p className="line-clamp-2 text-md">{book.title}</p>
+          <p className="line-clamp-2 text-md font-medium">{book.title}</p>
           <p className="truncate text-xs text-muted">
             <span className="lg:hidden">{[book.author, meta].filter(Boolean).join(' · ')}</span>
             <span className="max-lg:hidden">{meta}</span>
@@ -78,7 +80,7 @@ function ResultRow({ book, added }: { book: BookResponse; added: boolean }) {
           </div>
         </div>
       </div>
-      <p className="truncate text-[13px] max-lg:hidden">{book.author}</p>
+      <p className="truncate text-sm text-muted max-lg:hidden">{book.author}</p>
       <div className="max-md:hidden">
         <FormatTag extension={book.extension} />
       </div>
@@ -90,6 +92,7 @@ function ResultRow({ book, added }: { book: BookResponse; added: boolean }) {
 export function SearchPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const goBack = useBack();
   const { query, format, results, status, error, setQuery, setFormat, search } = useSearch();
   const items = useList((s) => s.items);
   const [md5Open, setMd5Open] = useState(false);
@@ -113,15 +116,28 @@ export function SearchPage() {
 
   return (
     <>
-      <PageHeader title={t('search.title')}>
+      <PageHeader title={t('search.title')} className="max-md:hidden">
         <Button variant="secondary" icon="search" onClick={() => setMd5Open(true)}>
           <span className="max-sm:hidden">{t('search.addByMd5')}</span>
           <span className="sm:hidden">{t('list.md5')}</span>
         </Button>
       </PageHeader>
-      <div className="flex flex-col gap-3 px-4 pt-3 md:px-8 lg:flex-row lg:items-center lg:gap-6">
-        <form role="search" onSubmit={submit} className="lg:w-[600px]">
+      <div className="flex flex-col gap-3 px-4 pt-3 max-md:pt-2 md:px-8 lg:flex-row lg:items-center lg:gap-6">
+        {/* Phones: the app's search screen, back and the box in the header. */}
+        <form
+          role="search"
+          onSubmit={submit}
+          className="flex items-center gap-1 max-md:-ml-2 lg:w-[600px]"
+        >
+          <IconButton
+            icon="chevron_left"
+            label={t('common.back')}
+            size={24}
+            className="text-fg md:hidden"
+            onClick={goBack}
+          />
           <TextInput
+            className="min-w-0 flex-1"
             autoFocus
             type="text"
             enterKeyHint="search"
@@ -129,7 +145,7 @@ export function SearchPage() {
             placeholder={t('search.placeholder')}
             value={query}
             onChange={(e) => onChangeQuery(e.target.value)}
-            left={<Icon name="search" className="text-fg" />}
+            left={<Icon name="search" className="text-primary" />}
             right={
               query ? (
                 <IconButton
@@ -151,10 +167,10 @@ export function SearchPage() {
               aria-pressed={format === f}
               onClick={() => setFormat(f)}
               className={cx(
-                'h-[30px] cursor-pointer rounded-md border px-3.5 text-sm transition',
+                'h-8 cursor-pointer rounded-full px-4 text-sm font-medium transition',
                 format === f
-                  ? 'border-primary bg-primary text-on-primary'
-                  : 'border-strong hover:bg-hover'
+                  ? 'bg-primary text-on-primary shadow-card'
+                  : 'bg-card text-muted shadow-card hover:text-primary'
               )}
             >
               {f ? f.toUpperCase() : t('search.all')}
@@ -165,22 +181,24 @@ export function SearchPage() {
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pt-4 pb-6 md:px-8">
         {results.length > 0 && (
-          <div className="grid grid-cols-[minmax(0,1fr)_90px_72px] gap-x-4 border-b border-surface pb-2 text-section text-muted uppercase max-md:hidden lg:grid-cols-[minmax(0,1fr)_minmax(0,240px)_90px_72px]">
-            <span>{t('search.colTitle')}</span>
-            <span className="max-lg:hidden">{t('search.colAuthor')}</span>
-            <span>{t('search.colFormat')}</span>
-            <span />
+          <div className="rounded-lg bg-card px-4 shadow-card">
+            <div className="grid grid-cols-[minmax(0,1fr)_90px_72px] gap-x-4 border-b border-surface pt-3 pb-2 text-section text-muted uppercase max-md:hidden lg:grid-cols-[minmax(0,1fr)_minmax(0,240px)_90px_72px]">
+              <span>{t('search.colTitle')}</span>
+              <span className="max-lg:hidden">{t('search.colAuthor')}</span>
+              <span>{t('search.colFormat')}</span>
+              <span />
+            </div>
+            <ul>
+              {results.map((book, i) => (
+                <ResultRow
+                  key={book.md5 || `${book.title}-${i}`}
+                  book={book}
+                  added={isLibraryAdded(items, book.md5)}
+                />
+              ))}
+            </ul>
           </div>
         )}
-        <ul>
-          {results.map((book, i) => (
-            <ResultRow
-              key={book.md5 || `${book.title}-${i}`}
-              book={book}
-              added={isLibraryAdded(items, book.md5)}
-            />
-          ))}
-        </ul>
         {status === 'loading' && <p className="pt-3 text-xs text-muted">{t('search.searching')}</p>}
         {status === 'error' && error && <p className="pt-6 text-center text-danger">{t(error)}</p>}
         {status === 'done' && results.length === 0 && (
@@ -190,8 +208,10 @@ export function SearchPage() {
       </div>
 
       {libraryCount > 0 && (
-        <div className="flex shrink-0 items-center gap-4 bg-surface px-4 py-3 md:px-8">
-          <p className="flex-1 text-base">{t('search.added', { count: libraryCount })}</p>
+        <div className="flex shrink-0 items-center gap-4 bg-card px-4 py-3 shadow-bar md:px-8">
+          <p className="flex-1 text-base font-medium">
+            {t('search.added', { count: libraryCount })}
+          </p>
           <Button size="lg" onClick={() => navigate('/')}>
             {t('search.goToList')}
           </Button>

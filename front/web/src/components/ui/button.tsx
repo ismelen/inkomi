@@ -15,16 +15,16 @@ interface Props extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variants: Record<Variant, string> = {
-  primary: 'bg-primary text-on-primary border border-primary hover:opacity-90',
-  secondary: 'bg-bg text-fg border border-strong hover:bg-hover',
-  ghost: 'text-fg border border-transparent hover:bg-hover',
-  danger: 'bg-danger text-on-primary border border-danger hover:opacity-90',
+  primary: 'bg-primary text-on-primary shadow-card hover:bg-primary-hover',
+  secondary: 'bg-surface text-primary hover:bg-variant',
+  ghost: 'text-muted hover:bg-hover hover:text-fg',
+  danger: 'bg-danger text-on-primary shadow-card hover:opacity-90',
 };
 
 const sizes: Record<Size, string> = {
-  sm: 'h-8 px-3 text-sm gap-1.5',
-  md: 'h-10 px-4 text-base gap-2',
-  lg: 'h-11 px-5 text-md gap-2',
+  sm: 'h-8 px-3 text-sm gap-1.5 rounded-md',
+  md: 'h-10 px-4 text-base gap-2 rounded-input',
+  lg: 'h-11 px-5 text-md gap-2 rounded-input',
 };
 
 export function Button({
@@ -43,7 +43,7 @@ export function Button({
       type={type}
       disabled={disabled || loading}
       className={cx(
-        'inline-flex shrink-0 cursor-pointer items-center justify-center rounded-md font-medium whitespace-nowrap transition disabled:cursor-default disabled:opacity-40',
+        'inline-flex shrink-0 cursor-pointer items-center justify-center font-semibold whitespace-nowrap transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:translate-y-px active:shadow-none disabled:pointer-events-none disabled:opacity-40',
         variants[variant],
         sizes[size],
         className

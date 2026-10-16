@@ -27,11 +27,13 @@ function Choice({
       aria-checked={selected}
       onClick={onClick}
       className={cx(
-        'flex w-full cursor-pointer items-center gap-3 rounded-md border px-3 py-2.5 text-left',
-        selected ? 'border-strong bg-surface' : 'border-line hover:bg-hover'
+        'flex w-full cursor-pointer items-center gap-3 rounded-input border px-3 py-2.5 text-left transition',
+        selected
+          ? 'border-primary bg-selected text-on-selected'
+          : 'border-transparent bg-subtle hover:bg-surface'
       )}
     >
-      <span className="min-w-0 flex-1 truncate text-base">{label}</span>
+      <span className="min-w-0 flex-1 truncate text-base font-medium">{label}</span>
       {detail && <span className="text-sm text-muted">{detail}</span>}
     </button>
   );

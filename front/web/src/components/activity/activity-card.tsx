@@ -44,11 +44,11 @@ export function ActivityCard({ tree }: { tree: UploadTree }) {
   const queued = view.line.key === 'queued' || view.line.key === 'pendingUpload';
 
   return (
-    <article className="rounded-lg border border-strong px-4 py-3">
+    <article className="rounded-lg bg-card px-4 py-3.5 shadow-card">
       <div className="flex items-center gap-3">
-        <h3 className="min-w-0 flex-1 truncate text-md">{tree.root.title}</h3>
+        <h3 className="min-w-0 flex-1 truncate text-md font-semibold">{tree.root.title}</h3>
         {view.counter && (
-          <span className="text-sm text-muted tabular-nums">
+          <span className="rounded-md bg-surface px-1.5 font-mono text-xs text-primary tabular-nums">
             {view.counter.done}/{view.counter.total}
           </span>
         )}
@@ -56,9 +56,9 @@ export function ActivityCard({ tree }: { tree: UploadTree }) {
       <p className={cx('mt-0.5 text-sm', toneText[view.tone])}>{lineText(view.line)}</p>
       {!queued && (
         <>
-          <div className="mt-2 h-1.5 rounded-full bg-surface">
+          <div className="mt-2.5 h-1 rounded-full bg-primary/10">
             <div
-              className={cx('h-1.5 rounded-full transition-all', toneBar[view.tone])}
+              className={cx('h-1 rounded-full transition-all', toneBar[view.tone])}
               style={{ width: `${Math.round(view.progress * 100)}%` }}
             />
           </div>
@@ -74,7 +74,7 @@ export function ActivityCard({ tree }: { tree: UploadTree }) {
                       ? toneText[view.tone]
                       : state === 'done'
                         ? 'text-fg'
-                        : 'text-line'
+                        : 'text-faint'
                   )}
                 >
                   {t(`activity.steps.${step}`)}

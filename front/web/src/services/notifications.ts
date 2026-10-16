@@ -19,7 +19,7 @@ export function notifySent(title: string) {
   if (Notification.permission !== 'granted' || document.hasFocus()) return;
   new Notification(i18n.t('notifications.sentTitle'), {
     body: i18n.t('notifications.sentBody', { title }),
-    icon: '/favicon.svg',
+    icon: '/icon.png',
     tag: `sent-${title}`,
   });
 }

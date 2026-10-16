@@ -14,7 +14,7 @@ Mismo producto que `front/mobile` (mismo funcionamiento y contratos con el backe
 ```
 src/main.tsx · src/router.tsx    sin sesión cualquier ruta muestra el login; con sesión AppLayout
 src/pages/                       list, activity, search, settings, login, oauth-dropbox
-src/components/layout/           AppLayout (arranca WS + sync + perfil), Sidebar, BottomNav, PageHeader
+src/components/layout/           AppLayout (arranca WS + sync + perfil), Sidebar + Brand, PageHeader
 src/components/ui/               primitivas (Button, Modal, Menu, Switch, Slider, TextInput…)
 src/components/<dominio>/        list (filas, dnd, modales), options, activity, history, upload
 src/api/ · src/models/ · src/utils/ · src/i18n/locales/   espejo de móvil (ver abajo)
@@ -28,8 +28,9 @@ src/services/ · src/stores/      como en móvil, con las adaptaciones de plataf
 
 ## Diseño
 
-- Fuente de verdad: frame **"Web"** de `docs/ideas.excalidraw` (escritorio, ≥1024 px). En tablet la sidebar queda en iconos y el panel de opciones pasa a modal; en teléfono hay barra de navegación inferior y se siguen los patrones del frame "Mobile".
-- Colores solo con los tokens de `src/index.css` (`bg`, `fg`, `muted`, `line`, `strong`, `surface`, `subtle`, `primary`, `success`, `info`, `warning`, `danger`…), que cambian en tema oscuro (`data-theme` en `<html>`; "Sistema" sigue `prefers-color-scheme`). Nada de colores sueltos.
+- UX (estructura y flujos): frame **"Web"** de `docs/ideas.excalidraw` (escritorio, ≥1024 px). En tablet la sidebar queda en iconos y el panel de opciones pasa a modal; en teléfono (<768 px, `phoneQuery`) no hay sidebar y la navegación es la de la app: cabecera de la lista con el icono y los botones Historial / En curso (badge) / Ajustes, buscador + adjuntar debajo, barra inferior Dropbox + Enviar (Borrar / Mover al seleccionar), y subpantallas con chevron de volver (`PageHeader back`). En curso (`/activity`) e Historial (`/history`) son pantallas separadas en teléfono; en escritorio `/history` redirige a `/activity`. El excalidraw **no** marca los estilos.
+- Estilos: `front/DESIGN.md` (los de la app). Índigo "Manga Ink" como primario, superficies frías, tarjetas blancas sin borde con sombra suave (`shadow-card`), radios 16 px tarjetas / 12 px inputs y botones (`rounded-input`) / 8 px chips, Inter (titulares en bold con tracking negativo) y JetBrains Mono para metadatos técnicos (tamaños, md5, valores). Icono de la app: `public/icon.png` (copia de `front/mobile/assets/icon.png`), con `Brand` en `components/layout/nav.tsx`.
+- Colores y sombras solo con los tokens de `src/index.css` (`bg`, `card`, `subtle`, `surface`, `variant`, `fg`, `muted`, `faint`, `line`, `primary`, `accent`, `selected`, `success`, `info`, `warning`, `danger`…, `shadow-card/raised/modal/bar`), que cambian en tema oscuro (`data-theme` en `<html>`; "Sistema" sigue `prefers-color-scheme`). Nada de colores sueltos.
 - Iconos solo con `Icon` (`components/icons/icons.ts`, mismos paths que móvil).
 - Mensajes con `useToast`/`showError` en lugar de los `Alert` de la app.
 

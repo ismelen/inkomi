@@ -20,14 +20,14 @@ export function Switch({ checked, onChange, label, disabled }: Props) {
         onChange(!checked);
       }}
       className={cx(
-        'relative inline-flex h-4 w-[30px] shrink-0 cursor-pointer items-center rounded-[5px] border transition disabled:cursor-default disabled:opacity-40',
-        checked ? 'border-primary bg-primary' : 'border-line bg-surface'
+        'relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-default disabled:opacity-40',
+        checked ? 'bg-primary' : 'bg-variant'
       )}
     >
       <span
         className={cx(
-          'absolute size-2.5 rounded-full transition-all',
-          checked ? 'left-[16px] bg-on-primary' : 'left-[3px] bg-muted'
+          'absolute size-5 rounded-full bg-thumb shadow-raised transition-all duration-200',
+          checked ? 'left-[22px]' : 'left-0.5'
         )}
       />
     </button>

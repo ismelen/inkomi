@@ -67,14 +67,14 @@ export function Modal({
         aria-label={title}
         tabIndex={-1}
         className={cx(
-          'pb-safe relative flex w-full flex-col overflow-hidden rounded-t-lg border border-strong bg-bg outline-none md:rounded-lg',
+          'pb-safe relative flex w-full flex-col overflow-hidden rounded-t-xl bg-card shadow-modal outline-none md:rounded-xl',
           tall ? 'h-[92dvh] md:h-auto md:max-h-[88dvh]' : 'max-h-[88dvh]',
           widths[size]
         )}
       >
         {title && (
           <div className="flex items-center gap-2 px-5 pt-5 pb-3 md:px-6 md:pt-6">
-            <h2 className="flex-1 text-xl md:text-center">{title}</h2>
+            <h2 className="flex-1 text-xl font-semibold md:text-center">{title}</h2>
             {!persistent && (
               <IconButton
                 icon="close"

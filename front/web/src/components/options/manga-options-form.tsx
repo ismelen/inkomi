@@ -45,8 +45,8 @@ function ToggleRow({
   onChange: (value: boolean) => void;
 }) {
   return (
-    <div className="flex min-h-[26px] items-center gap-3">
-      <span className="flex-1 text-[13px]">{label}</span>
+    <div className="flex min-h-9 items-center gap-3">
+      <span className="flex-1 text-sm">{label}</span>
       <Switch label={label} checked={checked} onChange={onChange} />
     </div>
   );
@@ -143,7 +143,7 @@ export function MangaOptionsForm({ config, onChange }: Props) {
         />
       </div>
       {showAll && config.sharpen.enabled && (
-        <div className="mt-1 border-l-2 border-surface pl-3">
+        <div className="mt-1 border-l-2 border-variant pl-3">
           {sharpenFields.map(({ key, label }) => (
             <Slider
               key={key}
@@ -158,7 +158,7 @@ export function MangaOptionsForm({ config, onChange }: Props) {
       <button
         type="button"
         onClick={() => setShowAll((s) => !s)}
-        className="mt-3 cursor-pointer text-sm text-info hover:underline"
+        className="mt-3 cursor-pointer text-sm font-semibold text-primary hover:underline"
       >
         {showAll ? t('options.showLess') : t('options.showAll')}
       </button>

@@ -16,8 +16,8 @@ export function Toaster() {
           key={toast.id}
           role={toast.tone === 'danger' ? 'alert' : 'status'}
           className={cx(
-            'pointer-events-auto flex max-w-md items-center gap-2 rounded-md border bg-bg py-1.5 pr-1.5 pl-4 text-base shadow-lg',
-            toast.tone === 'danger' ? 'border-danger text-danger' : 'border-strong'
+            'pointer-events-auto flex max-w-md items-center gap-2 rounded-input py-1.5 pr-1.5 pl-4 text-base shadow-modal',
+            toast.tone === 'danger' ? 'bg-danger-soft text-danger' : 'bg-card text-fg'
           )}
         >
           <span className="flex-1">{toast.message}</span>

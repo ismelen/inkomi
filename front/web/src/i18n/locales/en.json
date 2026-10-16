@@ -24,10 +24,13 @@
     "emailPlaceholder": "you@email.com",
     "password": "Password",
     "passwordHint": "At least 8 characters",
+    "repeatPassword": "Repeat password",
+    "passwordMismatch": "The passwords don't match",
     "signIn": "Sign in",
     "register": "Create account",
     "orContinueWith": "or continue with",
     "google": "Continue with Google",
+    "googleUnavailable": "Google isn't configured in this environment",
     "dropbox": "Continue with Dropbox"
   },
   "home": {

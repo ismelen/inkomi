@@ -23,6 +23,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <ListPage /> },
       { path: 'activity', element: <ActivityPage /> },
+      { path: 'history', element: <ActivityPage /> },
       { path: 'search', element: <SearchPage /> },
       { path: 'settings', element: <SettingsPage /> },
       { path: '*', element: <Navigate to="/" replace /> },

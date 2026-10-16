@@ -29,8 +29,8 @@ export const TextInput = forwardRef<HTMLInputElement, InputProps>(function TextI
       )}
       <div
         className={cx(
-          'flex h-10 items-center gap-2 rounded-md border bg-bg px-2.5 focus-within:ring-2 focus-within:ring-line',
-          error ? 'border-danger' : 'border-strong'
+          'flex h-11 items-center gap-2 rounded-input border bg-subtle px-3 transition focus-within:border-primary focus-within:bg-card focus-within:ring-1 focus-within:ring-primary',
+          error ? 'border-danger' : 'border-transparent'
         )}
       >
         {left}
@@ -38,7 +38,7 @@ export const TextInput = forwardRef<HTMLInputElement, InputProps>(function TextI
           ref={ref}
           id={inputId}
           aria-invalid={!!error}
-          className="h-full min-w-0 flex-1 bg-transparent text-base text-fg outline-none placeholder:text-muted"
+          className="h-full min-w-0 flex-1 bg-transparent text-base text-fg outline-none placeholder:text-faint"
           {...rest}
         />
         {right}
@@ -58,7 +58,7 @@ export function Select({ options, className, ...rest }: SelectProps) {
   return (
     <div className={cx('relative', className)}>
       <select
-        className="h-9 w-full cursor-pointer appearance-none rounded-md border border-strong bg-bg pr-9 pl-2.5 text-base text-fg outline-none focus:ring-2 focus:ring-line"
+        className="h-11 w-full cursor-pointer appearance-none rounded-input border border-transparent bg-subtle pr-10 pl-3 text-base text-fg outline-none transition focus:border-primary focus:bg-card focus:ring-1 focus:ring-primary"
         {...rest}
       >
         {options.map((o) => (
@@ -69,7 +69,7 @@ export function Select({ options, className, ...rest }: SelectProps) {
       </select>
       <Icon
         name="expand_more"
-        className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2"
+        className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-primary"
       />
     </div>
   );

@@ -4,7 +4,7 @@ import { startSync, stopSync } from '../../services/sync-service';
 import { useActivity } from '../../stores/use-activity';
 import { useProfile } from '../../stores/use-profile';
 import { SendingModal } from '../upload/sending-modal';
-import { BottomNav, Sidebar } from './nav';
+import { Sidebar } from './nav';
 
 /** Mounted only with a session: realtime activity and the profile live here. */
 export function AppLayout() {
@@ -25,7 +25,6 @@ export function AppLayout() {
         <main className="flex min-h-0 flex-1 flex-col">
           <Outlet />
         </main>
-        <BottomNav />
       </div>
       <SendingModal />
     </div>

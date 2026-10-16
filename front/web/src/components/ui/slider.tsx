@@ -18,11 +18,11 @@ export function Slider({ label, value, range, onChange, format, disabled, access
   return (
     <div className="py-1">
       <div className="flex items-center gap-2">
-        <label htmlFor={id} className={cx('flex-1 text-[13px]', disabled && 'text-muted')}>
+        <label htmlFor={id} className={cx('flex-1 text-sm', disabled && 'text-faint')}>
           {label}
         </label>
         {accessory}
-        <span className="text-sm text-muted tabular-nums">
+        <span className="rounded-md bg-surface px-1.5 font-mono text-xs text-primary tabular-nums">
           {format ? format(value) : formatNumber(value, range.step)}
         </span>
       </div>

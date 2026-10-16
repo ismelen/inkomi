@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Navigate, useLocation } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { wsClient } from '../api/ws-client';
 import { ActivityCard } from '../components/activity/activity-card';
@@ -6,7 +7,7 @@ import { HistoryRow } from '../components/history/history-row';
 import { PageHeader } from '../components/layout/page-header';
 import { cx } from '../components/ui/cx';
 import { SectionLabel } from '../components/ui/field';
-import { Segmented } from '../components/ui/segmented';
+import { phoneQuery, useMediaQuery } from '../hooks/use-media-query';
 import { treeFinishedAt, UploadTree } from '../models/upload-tree';
 import { downloadSource } from '../services/download-service';
 import { useActivity } from '../stores/use-activity';
@@ -90,9 +91,9 @@ function History() {
     <section className="min-w-0">
       <SectionLabel className="mb-2.5 max-md:hidden">{t('history.title')}</SectionLabel>
       {sections.map((section) => (
-        <div key={section.key} className="mb-3">
+        <div key={section.key} className="mb-4">
           <SectionLabel className="pt-1">{t(`history.${section.key}`)}</SectionLabel>
-          <ul>
+          <ul className="mt-1.5 rounded-lg bg-card px-4 shadow-card">
             {section.trees.map((tree) => (
               <HistoryRow
                 key={tree.root.id}
@@ -114,7 +115,7 @@ function History() {
       {!loadingMore && !historyEnd && history.length > 0 && (
         <button
           type="button"
-          className="cursor-pointer text-sm text-info hover:underline"
+          className="cursor-pointer text-sm font-semibold text-primary hover:underline"
           onClick={() => void loadMoreHistory()}
         >
           {t('history.loadingMore')}
@@ -124,28 +125,32 @@ function History() {
   );
 }
 
+/**
+ * Desktop and tablet: "En curso" and the history side by side. Phones follow the app: two screens
+ * (/activity and /history) opened from the list's header.
+ */
 export function ActivityPage() {
   const { t } = useTranslation();
-  const [tab, setTab] = useState<'queue' | 'history'>('queue');
+  const { pathname } = useLocation();
+  const phone = useMediaQuery(phoneQuery);
+  const history = pathname === '/history';
+
+  if (!phone && history) return <Navigate to="/activity" replace />;
+
   return (
     <>
-      <PageHeader title={t('activity.pageTitle')} />
-      <div className="px-4 pt-2 md:hidden">
-        <Segmented
-          value={tab}
-          onChange={setTab}
-          options={[
-            { value: 'queue', label: t('activity.title') },
-            { value: 'history', label: t('history.title') },
-          ]}
-        />
-      </div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 pt-4 pb-6 md:px-8 md:pt-5">
+      <PageHeader
+        back
+        title={
+          phone ? (history ? t('history.title') : t('activity.title')) : t('activity.pageTitle')
+        }
+      />
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 pt-2 pb-6 md:px-8 md:pt-5">
         <div className="grid gap-8 md:grid-cols-[minmax(0,560px)_minmax(0,1fr)] lg:gap-10">
-          <div className={cx(tab !== 'queue' && 'max-md:hidden')}>
+          <div className={cx(history && 'max-md:hidden')}>
             <InProgress />
           </div>
-          <div className={cx(tab !== 'history' && 'max-md:hidden')}>
+          <div className={cx(!history && 'max-md:hidden')}>
             <History />
           </div>
         </div>

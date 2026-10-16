@@ -38,10 +38,10 @@ export function HistoryRow({ tree, busyId, onDownload }: Props) {
     .join(' · ');
 
   return (
-    <li className="border-b border-surface">
+    <li className="border-b border-surface last:border-b-0">
       <div className="flex items-center gap-3 py-2.5">
         <div className="min-w-0 flex-1">
-          <p className="truncate text-base">{tree.root.title}</p>
+          <p className="truncate text-base font-medium">{tree.root.title}</p>
           <p className="truncate text-xs text-muted">{summary}</p>
           {error !== null && (
             <p className="truncate text-xs text-danger">
@@ -50,7 +50,7 @@ export function HistoryRow({ tree, busyId, onDownload }: Props) {
           )}
         </div>
         {error === null && (
-          <span className="flex items-center gap-1.5 text-sm text-success">
+          <span className="flex items-center gap-1.5 text-sm font-medium text-success">
             <span className="size-1.5 rounded-full bg-success" />
             {t('history.sent')}
           </span>
@@ -73,7 +73,7 @@ export function HistoryRow({ tree, busyId, onDownload }: Props) {
         )}
       </div>
       {open && (
-        <ul className="mb-2.5 flex flex-col gap-1 rounded-md bg-subtle p-2">
+        <ul className="mb-2.5 flex flex-col gap-1 rounded-input bg-subtle p-2">
           {files.map((file) => (
             <li key={file.id} className="flex items-center gap-3 pl-2">
               <span
