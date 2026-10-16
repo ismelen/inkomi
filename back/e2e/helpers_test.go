@@ -31,6 +31,7 @@ type env struct {
 	libraryURL string
 	tmURL      string
 	previewURL string
+	releaseURL string
 }
 
 func loadEnv(t *testing.T) env {
@@ -43,6 +44,7 @@ func loadEnv(t *testing.T) env {
 		libraryURL: getenv("LIBRARY_URL", "http://library-service:3001"),
 		tmURL:      getenv("TM_URL", "http://transaction-manager:3000"),
 		previewURL: getenv("PREVIEW_URL", "http://manga-worker:3003"),
+		releaseURL: getenv("RELEASE_URL", "http://release-service:3200"),
 	}
 }
 

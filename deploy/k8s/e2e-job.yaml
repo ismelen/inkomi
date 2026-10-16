@@ -21,6 +21,7 @@ spec:
             - { name: LIBRARY_URL, value: "http://library-service:3001" }
             - { name: TM_URL, value: "http://transaction-manager:3000" }
             - { name: PREVIEW_URL, value: "http://manga-worker:3003" }
+            - { name: RELEASE_URL, value: "http://release-service:3200" }
           volumeMounts:
             # R2 credentials to check and clean up what the test stores
             - { name: env, mountPath: /app/.env, subPath: .env, readOnly: true }

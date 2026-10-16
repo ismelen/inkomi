@@ -16,3 +16,4 @@ spec:
           - { path: /uploads, pathType: Prefix, backend: { service: { name: transaction-manager, port: { number: 3000 } } } }
           - { path: /ws, pathType: Prefix, backend: { service: { name: transaction-manager, port: { number: 3000 } } } }
           - { path: /preview, pathType: Prefix, backend: { service: { name: manga-worker, port: { number: 3003 } } } }
+          - { path: /app, pathType: Prefix, backend: { service: { name: release-service, port: { number: 3200 } } } }

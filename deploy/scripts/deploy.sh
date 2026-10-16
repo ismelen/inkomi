@@ -20,7 +20,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 ENV_DIR="${ENV_DIR:-$HOME/inkomi/back}"
 PROD_NS="${PROD_NS:-inkomi}"
-ALL_SERVICES=(auth-service library-service transaction-manager manga-worker epub-worker push-service)
+ALL_SERVICES=(auth-service library-service transaction-manager manga-worker epub-worker push-service release-service)
 
 TAG=""
 SERVICES=""

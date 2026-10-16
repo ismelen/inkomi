@@ -155,6 +155,7 @@ La pipeline crea los Secrets a partir de estos ficheros. Cada servicio tiene su 
 /home/deployer/inkomi/back/epub-worker/.env
 /home/deployer/inkomi/back/push-service/.env
 /home/deployer/inkomi/back/push-service/firebase.json
+/home/deployer/inkomi/back/release-service/.env      ← opcional: todas las variables tienen valor por defecto
 ```
 
 ```bash

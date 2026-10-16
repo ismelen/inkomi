@@ -15,7 +15,7 @@ on:
   workflow_dispatch:
     inputs:
       services:
-        description: 'all, or a comma-separated list: auth-service,library-service,transaction-manager,manga-worker,epub-worker,push-service. The first deploy must be all.'
+        description: 'all, or a comma-separated list: auth-service,library-service,transaction-manager,manga-worker,epub-worker,push-service,release-service. The first deploy must be all.'
         required: true
         default: all
 
@@ -42,7 +42,7 @@ jobs:
           INPUT: ${{ inputs.services }}
           OWNER: ${{ github.repository_owner }}
         run: |
-          all="auth-service library-service transaction-manager manga-worker epub-worker push-service"
+          all="auth-service library-service transaction-manager manga-worker epub-worker push-service release-service"
           if [[ "$INPUT" == "all" ]]; then
             selected="$all"
           else
