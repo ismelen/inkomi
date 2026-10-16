@@ -57,15 +57,20 @@ func TestAuthMiddleware_Request_Authorization_Status(t *testing.T) {
 	otherKey, _ := newKeyPair(t)
 
 	cases := []struct {
-		name   string
-		header string
-		status int
+		name     string
+		header   string
+		protocol string
+		status   int
 	}{
-		{"No header", "", http.StatusUnauthorized},
-		{"Not bearer", "Basic abc", http.StatusUnauthorized},
-		{"Wrong signature", "Bearer " + signToken(t, otherKey, time.Now().Add(time.Hour)), http.StatusUnauthorized},
-		{"Expired", "Bearer " + signToken(t, key, time.Now().Add(-time.Hour)), http.StatusUnauthorized},
-		{"Valid", "Bearer " + signToken(t, key, time.Now().Add(time.Hour)), http.StatusOK},
+		{"No header", "", "", http.StatusUnauthorized},
+		{"Not bearer", "Basic abc", "", http.StatusUnauthorized},
+		{"Wrong signature", "Bearer " + signToken(t, otherKey, time.Now().Add(time.Hour)), "", http.StatusUnauthorized},
+		{"Expired", "Bearer " + signToken(t, key, time.Now().Add(-time.Hour)), "", http.StatusUnauthorized},
+		{"Valid", "Bearer " + signToken(t, key, time.Now().Add(time.Hour)), "", http.StatusOK},
+		{"Protocol without token", "", "bearer", http.StatusUnauthorized},
+		{"Protocol not bearer", "", "chat, " + signToken(t, key, time.Now().Add(time.Hour)), http.StatusUnauthorized},
+		{"Protocol expired", "", "bearer, " + signToken(t, key, time.Now().Add(-time.Hour)), http.StatusUnauthorized},
+		{"Protocol valid", "", "bearer, " + signToken(t, key, time.Now().Add(time.Hour)), http.StatusOK},
 	}
 
 	for _, tc := range cases {
@@ -86,6 +91,9 @@ func TestAuthMiddleware_Request_Authorization_Status(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "/", nil)
 			if tc.header != "" {
 				req.Header.Set("Authorization", tc.header)
+			}
+			if tc.protocol != "" {
+				req.Header.Set("Sec-WebSocket-Protocol", tc.protocol)
 			}
 			rec := httptest.NewRecorder()
 

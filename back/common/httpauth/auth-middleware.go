@@ -11,6 +11,9 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+// WebSocketProtocol is the subprotocol that carries the access token of a browser websocket.
+const WebSocketProtocol = "bearer"
+
 var (
 	ErrMissingAuthHeader = errors.New("missing authorization header")
 	ErrInvalidAuthFormat = errors.New("invalid authorization format")
@@ -62,7 +65,7 @@ func parseClaims(r *http.Request, publicKey *rsa.PublicKey) (*UserClaims, error)
 func bearerToken(r *http.Request) (string, error) {
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
-		return "", ErrMissingAuthHeader
+		return webSocketToken(r)
 	}
 
 	scheme, token, ok := strings.Cut(authHeader, " ")
@@ -70,4 +73,29 @@ func bearerToken(r *http.Request) (string, error) {
 		return "", ErrInvalidAuthFormat
 	}
 	return token, nil
+}
+
+// Browsers can't set headers on a websocket handshake, so they send the token as the subprotocol
+// list "bearer, <token>"; the server answers with the "bearer" subprotocol.
+func webSocketToken(r *http.Request) (string, error) {
+	protocols := websocketProtocols(r)
+	if len(protocols) == 0 {
+		return "", ErrMissingAuthHeader
+	}
+	if len(protocols) != 2 || !strings.EqualFold(protocols[0], WebSocketProtocol) || protocols[1] == "" {
+		return "", ErrInvalidAuthFormat
+	}
+	return protocols[1], nil
+}
+
+func websocketProtocols(r *http.Request) []string {
+	var protocols []string
+	for _, header := range r.Header.Values("Sec-WebSocket-Protocol") {
+		for _, p := range strings.Split(header, ",") {
+			if p = strings.TrimSpace(p); p != "" {
+				protocols = append(protocols, p)
+			}
+		}
+	}
+	return protocols
 }

@@ -7,12 +7,15 @@ import (
 	"sync"
 
 	"github.com/gorilla/websocket"
+	"github.com/ismelen/inkomi/back/common/httpauth"
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/domain/ports"
 )
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
+	// Browsers send the token as the subprotocol list "bearer, <token>" and need it echoed.
+	Subprotocols: []string{httpauth.WebSocketProtocol},
 	CheckOrigin: func(r *http.Request) bool {
 		return true // Permite cualquier origen por defecto
 	},
