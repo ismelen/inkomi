@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:mock": "vite --mode mock",
+    "mock": "node dev/mock-backend.mjs",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
@@ -33,6 +35,7 @@
     "prettier": "^3.9.10",
     "tailwindcss": "^4.3.3",
     "typescript": "~5.9",
-    "vite": "^8.3.4"
+    "vite": "^8.3.4",
+    "ws": "^8.22.0"
   }
 }

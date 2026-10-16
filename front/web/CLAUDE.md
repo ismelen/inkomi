@@ -6,6 +6,7 @@ Mismo producto que `front/mobile` (mismo funcionamiento y contratos con el backe
 
 - Vite + React 19 + TypeScript estricto, react-router 7, zustand 5 + immer, Tailwind CSS v4, i18next, `idb` (IndexedDB), dnd-kit.
 - `npm run dev` (proxy de `/auth`, `/users`, `/books`, `/uploads`, `/ws` y `/app` a los servicios locales por sus puertos, o todo a `DEV_BACKEND` si se define) · `npm run build` (incluye `tsc`) · `npm run typecheck` · `npx prettier --check .`.
+- Sin backend: `npm run mock` (backend falso en memoria, `dev/mock-backend.mjs`, puerto 8080) y `npm run dev:mock` (Vite con `.env.mock`). Si cambia un contrato del backend, actualiza también el mock.
 - Variables en `.env` (ver `.env.template`): `VITE_BACKEND_URL` (vacío = mismo origen), `VITE_DROPBOX_API_KEY`, `VITE_GOOGLE_WEB_CLIENT_ID`. Solo se leen en `src/config.ts`.
 
 ## Layout
