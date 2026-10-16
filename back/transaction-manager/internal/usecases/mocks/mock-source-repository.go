@@ -2,6 +2,7 @@ package mocks
 
 import (
 	"context"
+	"time"
 
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/domain/models"
 )
@@ -10,6 +11,8 @@ type MockSourceRepository struct {
 	CreateFn                         func(ctx context.Context, source *models.Source) (string, error)
 	GetByIdAndUserIdFn               func(ctx context.Context, id string, userId int) (*models.Source, error)
 	GetDetailByIdAndUserIdFn         func(ctx context.Context, id string, userId int) (*models.SourceDetail, error)
+	ListTreesByUserIdFn              func(ctx context.Context, userId int, filter models.SourceListFilter) ([]models.SourceTree, error)
+	NowFn                            func(ctx context.Context) (time.Time, error)
 	UpdateStatusFn                   func(ctx context.Context, id string, userId int, status models.SourceStatus) error
 	UpdateFileFn                     func(ctx context.Context, id string, userId int, filename string, size int64) error
 	UpdateErrorMsgFn                 func(ctx context.Context, id string, userId int, errorMsg string) error
@@ -79,4 +82,18 @@ func (m *MockSourceRepository) Delete(ctx context.Context, id string, userId int
 		return m.DeleteFn(ctx, id, userId)
 	}
 	return nil
+}
+
+func (m *MockSourceRepository) ListTreesByUserId(ctx context.Context, userId int, filter models.SourceListFilter) ([]models.SourceTree, error) {
+	if m.ListTreesByUserIdFn != nil {
+		return m.ListTreesByUserIdFn(ctx, userId, filter)
+	}
+	return nil, nil
+}
+
+func (m *MockSourceRepository) Now(ctx context.Context) (time.Time, error) {
+	if m.NowFn != nil {
+		return m.NowFn(ctx)
+	}
+	return time.Now().UTC().Truncate(time.Second), nil
 }

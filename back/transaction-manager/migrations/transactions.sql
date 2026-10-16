@@ -42,3 +42,6 @@ CREATE TABLE IF NOT EXISTS config (
 	createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	lastUsed DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX IF NOT EXISTS idx_source_user_parent_created
+	ON source (userId, parentId, createdAt DESC);

@@ -76,6 +76,12 @@ func (s *Source) IsFinished() bool {
 	}
 }
 
+// IsDownloadable reports whether the final file of the source is kept in cloud storage.
+// Joined items are not: their files are removed once merged.
+func (s *Source) IsDownloadable() bool {
+	return s.IsFile && (s.Status == SourceStatusDone || s.Status == SourceStatusSent)
+}
+
 func (s *Source) IsEpub() bool {
 	return s.IsFile && strings.EqualFold(filepath.Ext(s.Filename), ".epub")
 }

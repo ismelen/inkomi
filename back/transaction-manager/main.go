@@ -15,6 +15,8 @@ import (
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/infra/repositories"
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/infra/sockethub"
 	forwaredevents "github.com/ismelen/inkomi/back/transaction-manager/internal/usecases/forwardevents"
+	"github.com/ismelen/inkomi/back/transaction-manager/internal/usecases/getdownload"
+	"github.com/ismelen/inkomi/back/transaction-manager/internal/usecases/listuploads"
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/usecases/newupload"
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/usecases/uploaddone"
 )
@@ -61,7 +63,9 @@ func main() {
 
 	newUploadRequestUC := newupload.NewNewUploadRequestUC(db, sourceRepo, configRepo, cloudStorage)
 	uploadDoneUC := uploaddone.NewUploadDoneUC(sourceRepo, cloudStorage, queue)
-	uploadsHandler := handlers.NewUploadsHandler(newUploadRequestUC, uploadDoneUC)
+	listUploadsUC := listuploads.NewListUploadsUC(sourceRepo)
+	getDownloadUC := getdownload.NewGetDownloadUC(sourceRepo, cloudStorage)
+	uploadsHandler := handlers.NewUploadsHandler(newUploadRequestUC, uploadDoneUC, listUploadsUC, getDownloadUC)
 	routes.SetupUploadRoutes(api, uploadsHandler)
 
 	forwardEventsUc := forwaredevents.NewForwardEventsUC(sockethub, queue, sourceRepo)

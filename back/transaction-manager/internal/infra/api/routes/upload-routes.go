@@ -11,6 +11,8 @@ func SetupUploadRoutes(api *chi.Mux, handler *handlers.UploadsHandler) {
 	r := chi.NewRouter()
 	api.Mount("/uploads", r)
 
+	r.Get("/", requtil.Wrap(handler.HandleList))
 	r.Post("/request", requtil.Wrap[[]dtos.SourceDTO](handler.HandleNewRequest))
 	r.Patch("/done/{sourceId}", requtil.Wrap(handler.HandleOnComplete))
+	r.Get("/{sourceId}/download", requtil.Wrap(handler.HandleDownload))
 }

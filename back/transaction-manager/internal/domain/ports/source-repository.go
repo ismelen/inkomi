@@ -2,6 +2,7 @@ package ports
 
 import (
 	"context"
+	"time"
 
 	"github.com/ismelen/inkomi/back/transaction-manager/internal/domain/models"
 )
@@ -12,6 +13,13 @@ type ISourceRepository interface {
 	Create(ctx context.Context, source *models.Source) (string, error)
 	GetByIdAndUserId(ctx context.Context, id string, userId int) (*models.Source, error)
 	GetDetailByIdAndUserId(ctx context.Context, id string, userId int) (*models.SourceDetail, error)
+	// ListTreesByUserId returns up to filter.Limit root sources, newest first, with their children.
+	// Trees where no node left pending_upload are skipped, and with UpdatedSince only trees with a node
+	// updated at or after it are returned.
+	ListTreesByUserId(ctx context.Context, userId int, filter models.SourceListFilter) ([]models.SourceTree, error)
+	// Now returns the database clock, the one updatedAt is written with.
+	Now(ctx context.Context) (time.Time, error)
+	// UpdateStatus also sets completedAt when the status is terminal.
 	UpdateStatus(ctx context.Context, id string, userId int, status models.SourceStatus) error
 	// UpdateFile stores the current filename and size of the source; empty values keep the stored ones.
 	UpdateFile(ctx context.Context, id string, userId int, filename string, size int64) error

@@ -119,6 +119,7 @@ sequenceDiagram
     - `POST /transactions/start`: Crea la transacción ligada al `userId` y genera la Presigned URL para S3.
     - `POST /transactions/{id}/ready`: Valida la existencia del archivo en S3 y encola el trabajo en NATS.
     - `GET /transactions/{id}/download`: Genera Presigned URL de descarga del libro terminado.
+    - Implementado: `GET /uploads?limit&cursor&updatedSince` (árboles de envíos para sincronizar cola/historial del móvil) y `GET /uploads/{id}/download` (enlace prefirmado de 15 min); ver `docs/mobile-reimplementation-plan.md`.
   - **Auto-Limpieza (Housekeeping Cron)**: Tarea periódica que purga registros en estado `DONE` o `ERROR` de más de 24 horas de antigüedad.
 - **Persistencia**:
   - **SQLite (`transactions.db`)** sobre volumen PVC en modo WAL.

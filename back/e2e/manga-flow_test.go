@@ -3,6 +3,7 @@
 package e2e_test
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"net/http"
@@ -103,6 +104,69 @@ func TestMangaUpload_EndToEnd(t *testing.T) {
 		_, err = storage.Size(context.Background(), src.Id, src.Filename)
 		assert.Error(t, err, "%s: the source cbz should have been deleted", src.Title)
 	}
+	assertListed(t, e, token, sources, results)
+	for _, src := range sources {
+		assertDownloadable(t, e, token, src.Id, results[src.Id])
+	}
+}
+
+type uploadList struct {
+	Uploads []struct {
+		Id          string     `json:"id"`
+		Status      string     `json:"status"`
+		Filename    string     `json:"filename"`
+		CompletedAt *time.Time `json:"completedAt"`
+	} `json:"uploads"`
+	NextCursor *string   `json:"nextCursor"`
+	SyncedAt   time.Time `json:"syncedAt"`
+}
+
+// assertListed checks that GET /uploads returns the sent sources, the history the app rebuilds from.
+func assertListed(t *testing.T, e env, token string, sources []uploadSource, results map[string]string) {
+	t.Helper()
+
+	var list uploadList
+	status := doJSON(t, http.MethodGet, e.tmURL+"/uploads?limit=10", token, nil, &list)
+	require.Equal(t, http.StatusOK, status)
+	assert.False(t, list.SyncedAt.IsZero())
+
+	listed := map[string]int{}
+	for i, upload := range list.Uploads {
+		listed[upload.Id] = i
+	}
+	for _, src := range sources {
+		i, ok := listed[src.Id]
+		require.True(t, ok, "%s: not listed in GET /uploads", src.Title)
+		upload := list.Uploads[i]
+		assert.Equal(t, "sent", upload.Status, src.Title)
+		assert.Equal(t, results[src.Id], upload.Filename, src.Title)
+		assert.NotNil(t, upload.CompletedAt, src.Title)
+	}
+
+	var since uploadList
+	status = doJSON(t, http.MethodGet, e.tmURL+"/uploads?updatedSince="+list.SyncedAt.Add(time.Hour).Format(time.RFC3339), token, nil, &since)
+	require.Equal(t, http.StatusOK, status)
+	assert.Empty(t, since.Uploads, "nothing changes after syncedAt")
+}
+
+// assertDownloadable asks for the presigned link of a sent source and downloads the epub with it.
+func assertDownloadable(t *testing.T, e env, token, id, filename string) {
+	t.Helper()
+
+	var link struct {
+		Url       string    `json:"url"`
+		Filename  string    `json:"filename"`
+		ExpiresAt time.Time `json:"expiresAt"`
+	}
+	status := doJSON(t, http.MethodGet, e.tmURL+"/uploads/"+id+"/download", token, nil, &link)
+	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, filename, link.Filename)
+	assert.True(t, link.ExpiresAt.After(time.Now()))
+
+	resp, body := get(t, link.Url)
+	require.Equal(t, http.StatusOK, resp.StatusCode, "download %s", filename)
+	assert.Contains(t, resp.Header.Get("Content-Disposition"), "attachment")
+	assert.True(t, bytes.HasPrefix(body, []byte("PK")), "%s: not an epub", filename)
 }
 
 // subscribe opens the transaction-manager websocket and forwards the source events.
