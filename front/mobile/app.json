@@ -30,8 +30,7 @@
         "android.permission.MANAGE_EXTERNAL_STORAGE",
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_DATA_SYNC",
-        "android.permission.POST_NOTIFICATIONS",
-        "android.permission.REQUEST_INSTALL_PACKAGES"
+        "android.permission.POST_NOTIFICATIONS"
       ],
       "intentFilters": [
         {
@@ -57,7 +56,8 @@
       "./plugins/withCustomProguard.js",
       "expo-web-browser",
       "expo-secure-store",
-      "@react-native-firebase/app"
+      "@react-native-firebase/app",
+      "@react-native-google-signin/google-signin"
     ]
   }
 }

@@ -1,25 +1,24 @@
-import { View, ActivityIndicator } from 'react-native';
+import React, { useEffect } from 'react';
+import { ActivityIndicator, View } from 'react-native';
+import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { colors } from '../src/theme';
 
 WebBrowser.maybeCompleteAuthSession();
 
-export default function OAuthCallbackScreen() {
-  const { state } = useLocalSearchParams();
-
-  useFocusEffect(() => {
-    setTimeout(() => {
-      if (state && typeof state === 'string') {
-        router.replace(state as any);
-      } else {
-        router.replace('/(tabs)/settings');
-      }
+/** Redirect target of the Dropbox OAuth; openAuthSessionAsync reads the code from the url. */
+export default function OAuthCallback() {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (router.canGoBack()) router.back();
+      else router.replace('/');
     }, 100);
-  });
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-      <ActivityIndicator />
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+      <ActivityIndicator color={colors.primary} />
     </View>
   );
 }

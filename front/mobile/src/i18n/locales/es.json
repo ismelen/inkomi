@@ -1,144 +1,223 @@
 {
-  "settings": {
-    "title": "Ajustes",
-    "readerModel": "MODELO DE LECTOR",
-    "cloudSync": "SINCRONIZACIÓN EN LA NUBE",
-    "connect": "Conectar",
-    "disconnect": "Desconectar",
-    "connectedAs": "Conectado como {{email}}",
-    "folder": "Carpeta",
-    "selectFolder": "Seleccionar carpeta",
-    "browse": "Explorar",
-    "language": "IDIOMA"
+  "common": {
+    "cancel": "Cancelar",
+    "save": "Guardar",
+    "delete": "Borrar",
+    "move": "Mover",
+    "done": "Listo",
+    "ok": "Aceptar",
+    "retry": "Reintentar",
+    "back": "Volver",
+    "close": "Cerrar",
+    "ltr": "Izq → Der",
+    "rtl": "Der → Izq",
+    "readingDirection": "Dirección de lectura",
+    "title": "Título",
+    "files_one": "{{count}} archivo",
+    "files_other": "{{count}} archivos"
+  },
+  "auth": {
+    "title": "Accede a Inkomi",
+    "signInTab": "Iniciar sesión",
+    "registerTab": "Registrarse",
+    "email": "Email",
+    "emailPlaceholder": "tu@email.com",
+    "password": "Contraseña",
+    "passwordHint": "Mínimo 8 caracteres",
+    "signIn": "Entrar",
+    "register": "Crear cuenta",
+    "orContinueWith": "o continúa con",
+    "google": "Continuar con Google",
+    "dropbox": "Continuar con Dropbox"
   },
   "home": {
-    "sendComic": "Enviar Cómic",
-    "sendComicSubtitle": "Convierte .cbz o .pdf a .epub y envía al dispositivo",
-    "sendComicTag": ".cbz / .pdf a .epub",
-    "sendBook": "Enviar Libro",
-    "sendBookSubtitle": "Gestiona y transfiere archivos .epub",
-    "sendBookTag": "Gestión .epub",
-    "monitoredFolders": "Carpetas monitorizadas",
-    "newFiles": "{{count}} ARCHIVOS NUEVOS",
-    "synced": "SINCRONIZADO"
+    "searchPlaceholder": "Buscar libros…",
+    "empty": "Añade archivos o carpetas, o busca libros para empezar",
+    "dropbox": "Dropbox",
+    "send": "SEND",
+    "selected_one": "{{count}} elemento seleccionado",
+    "selected_other": "{{count}} elementos seleccionados",
+    "cancelSelection": "Cancelar selección",
+    "toggleAll": "Seleccionar todos",
+    "history": "Historial",
+    "activity": "En curso",
+    "settings": "Ajustes",
+    "library": "Biblioteca"
   },
-  "queue": {
-    "title": "Transacciones",
-    "empty": "Tu cola está vacía",
-    "emptySubtitle1": "Empieza enviando algo.",
-    "emptySubtitle2": "Tus subidas activas y completadas aparecerán aquí.",
-    "sendSomething": "Enviar algo",
-    "uploads": "Subidas",
-    "items": "Elementos",
-    "results": "Resultados",
-    "format": "Formato:",
-    "cloud": "Nube",
-    "local": "Local",
-    "cancelTitle": "Cancelar transacción",
-    "cancelMessage": "¿Seguro que quieres cancelar esta transacción?",
-    "no": "No",
-    "yesCancel": "Sí, cancelar",
-    "cancel": "Cancelar",
-    "downloadAll": "Descargar todos los resultados",
-    "downloading": "Descargando...",
-    "status": {
-      "processing": "EN PROCESO",
-      "merging": "FUSIONANDO",
-      "error": "ERROR",
-      "done": "COMPLETADO",
-      "waiting": "EN ESPERA",
-      "canceled": "CANCELADO",
-      "unknown": "DESCONOCIDO",
-      "enqueued": "EN COLA"
-    },
-    "fileStatus": {
-      "converting": "Convirtiendo...",
-      "pending": "Pendiente",
-      "done": "Hecho",
-      "error": "Error",
-      "unknown": "Desconocido"
-    },
-    "uploadStatus": {
-      "sending": "Enviando...",
-      "done": "Hecho",
-      "error": "Error",
-      "pending": "Pendiente"
-    },
-    "sections": {
-      "today": "Hoy",
-      "yesterday": "Ayer",
-      "thisWeek": "Última semana",
-      "thisMonth": "Último mes",
-      "older": "Más antiguos"
-    }
+  "add": {
+    "title": "Añadir",
+    "files": "Archivos",
+    "filesHint": "epub, cbz, pdf",
+    "folder": "Carpeta",
+    "folderHint": "Todos los archivos de una carpeta",
+    "emptyFolder": "La carpeta no tiene archivos epub, cbz ni pdf"
+  },
+  "group": {
+    "title": "Agrupación",
+    "join": "Fusionar en un libro",
+    "mangaOptions": "Opciones manga (todos)",
+    "defaultTitle": "Nueva agrupación"
+  },
+  "delete": {
+    "title_one": "¿Borrar {{count}} elemento?",
+    "title_other": "¿Borrar {{count}} elementos?",
+    "message": "Se quitarán de la lista. Los archivos originales no se modifican."
+  },
+  "move": {
+    "title_one": "Mover {{count}} elemento a",
+    "title_other": "Mover {{count}} elementos a",
+    "ungrouped": "Sin agrupar",
+    "newGroup": "+ Nueva agrupación",
+    "newGroupPlaceholder": "Nombre de la agrupación"
+  },
+  "reorder": {
+    "title": "Reordenar",
+    "subtitle": "{{title}} · {{files}}",
+    "hint": "Mantén pulsado el asa y arrastra",
+    "sortByName": "Ordenar por nombre"
+  },
+  "options": {
+    "title": "Opciones",
+    "defaultTitle": "Manga por defecto",
+    "groupTitle": "Opciones manga · {{title}}",
+    "reset": "Restablecer",
+    "image": "Imagen",
+    "settings": "Ajustes",
+    "gamma": "Gamma",
+    "brightness": "Brillo",
+    "contrast": "Contraste",
+    "blackPoint": "Punto negro",
+    "whitePoint": "Punto blanco",
+    "cropTolerance": "Tolerancia de recorte",
+    "crop": "Recortar márgenes",
+    "quality": "Calidad",
+    "rotateDoublePage": "Rotar páginas dobles",
+    "enlarge": "Ampliar imágenes pequeñas",
+    "embed": "Rellenar hasta el tamaño",
+    "grayscale": "Escala de grises",
+    "dithering": "Dithering",
+    "palette8bit": "Paleta 8 bits",
+    "sharpen": "Enfocar (sharpen)",
+    "sharpenRadius": "Radio",
+    "sharpenX1": "Umbral (x1)",
+    "sharpenY2": "Límite claro (y2)",
+    "sharpenY3": "Límite oscuro (y3)",
+    "sharpenM1": "Pendiente plana (m1)",
+    "sharpenM2": "Pendiente bordes (m2)",
+    "epubHint": "Los epub solo usan el título y la dirección de lectura.",
+    "blackAboveWhite": "El punto negro tiene que ser menor que el punto blanco",
+    "outOfRange": "Hay valores fuera de rango"
   },
   "search": {
-    "title": "Buscar",
-    "placeholder": "Buscar por título, autor o género...",
-    "sendBooks": "Enviar libros ({{count}})",
-    "serviceDown": "Servicio no disponible en este momento."
+    "placeholder": "Buscar por título o autor",
+    "all": "Todos",
+    "added_one": "{{count}} añadido a la lista",
+    "added_other": "{{count}} añadidos a la lista",
+    "empty": "Sin resultados",
+    "idle": "Busca libros para añadirlos a la lista",
+    "noMd5": "No disponible"
   },
-  "sendBook": {
-    "title": "Enviar Libro",
-    "source": "ORIGEN",
-    "readerModel": "MODELO DE LECTOR",
-    "destination": "DESTINO",
-    "options": "OPCIONES",
-    "send": "Enviar",
-    "monitorizeFolder": "Monitorizar carpeta",
-    "monitorizeText": "Monitoriza los cambios en esta carpeta",
-    "unmonitorConfirm": "¿Seguro que quieres dejar de monitorizar esta carpeta?"
+  "sending": {
+    "title": "Enviando",
+    "uploaded": "Subido",
+    "waiting": "En espera",
+    "failed": "Error",
+    "requesting": "Preparando envío…",
+    "keepOpen": "No cierres la app hasta terminar la subida",
+    "viewQueue": "Ver en cola",
+    "finished": "Subida terminada",
+    "notification": "Subiendo archivos…"
   },
-  "sendComic": {
-    "title": "Enviar Cómic",
-    "source": "ORIGEN",
-    "readerModel": "MODELO DE LECTOR",
-    "metadata": "METADATOS",
-    "destination": "DESTINO",
-    "options": "OPCIONES",
-    "mergeChapters": "Combinar capítulos",
-    "mergeText": "Combina múltiples capítulos en un solo volumen",
-    "send": "Enviar",
-    "monitorizeFolder": "Monitorizar carpeta",
-    "monitorizeText": "Monitoriza los cambios en esta carpeta",
-    "unmonitorConfirm": "¿Seguro que quieres dejar de monitorizar esta carpeta?"
+  "activity": {
+    "title": "En curso",
+    "empty": "No hay envíos en curso",
+    "realtime": "Actualización en tiempo real",
+    "steps": {
+      "download": "Bajar",
+      "process": "Procesar",
+      "join": "Fusionar",
+      "kepub": "Kepub",
+      "upload": "Subir"
+    },
+    "line": {
+      "pendingUpload": "Subiendo archivo",
+      "queued": "En cola",
+      "downloading": "Descargando",
+      "processing": "Procesando imágenes",
+      "processingCount": "Procesando imágenes · {{done}}/{{total}}",
+      "waitingJoin": "Esperando fusión · {{done}}/{{total}} libros",
+      "joining": "Fusionando",
+      "kepub": "Kepubify",
+      "uploading": "Enviando",
+      "failed": "Error: {{error}}"
+    }
   },
-  "sendLibgen": {
-    "title": "Enviar Libros",
-    "books": "LIBROS",
-    "readerModel": "MODELO DE LECTOR",
-    "destination": "DESTINO",
-    "send": "Enviar"
+  "history": {
+    "title": "Historial",
+    "empty": "Todavía no has enviado nada",
+    "today": "Hoy",
+    "yesterday": "Ayer",
+    "week": "Esta semana",
+    "older": "Anterior",
+    "joined": "Fusionado",
+    "books_one": "{{count}} libro",
+    "books_other": "{{count}} libros",
+    "sent": "Enviado",
+    "error": "Error: {{error}}",
+    "errorUnknown": "Error",
+    "download": "Descargar",
+    "share": "Compartir",
+    "saved": "Guardado",
+    "results": "Resultados"
   },
-  "loading": {
-    "sendingBook": "Enviando tu libro…",
-    "optimizing": "Optimizando para tu e-reader. No tardará mucho."
-  },
-  "destination": {
-    "local": "Local",
-    "cloud": "Nube"
-  },
-  "metadata": {
-    "title": "Título",
-    "author": "Autor"
+  "settings": {
+    "title": "Ajustes",
+    "account": "Cuenta",
+    "noEmail": "Sin email",
+    "signOut": "Cerrar sesión",
+    "reader": "Lector",
+    "readerSize": "{{width}} × {{height}} px",
+    "readerKepub": "{{width}} × {{height}} px · kepubify automático",
+    "dropbox": "Dropbox",
+    "connected": "Conectado",
+    "disconnected": "No conectado",
+    "connect": "Conectar",
+    "disconnect": "Desconectar",
+    "folder": "Carpeta",
+    "toCloudDefault": "Guardar en Dropbox por defecto",
+    "notifications": "Notificaciones",
+    "notificationsDenied": "Activa las notificaciones de Inkomi en los ajustes del sistema",
+    "language": "Idioma",
+    "defaultManga": "Manga por defecto",
+    "version": "v{{version}}"
   },
   "languages": {
-    "en": "English",
-    "es": "Español"
+    "es": "Español",
+    "en": "English"
   },
-  "common": {
-    "deleteOriginals": "Eliminar archivos originales",
-    "deleteOriginalsText": "Elimina los archivos del dispositivo al completarse la transacción",
-    "confirm": "Confirmar",
-    "ok": "OK",
-    "cancel": "Cancelar",
-    "authConfirmTitle": "Iniciar sesión en Dropbox",
-    "authConfirmMessage": "Para enviar a la nube, la app necesita redirigirte a Dropbox para que inicies sesión o concedas permisos. ¿Quieres continuar?",
-    "authConfirmOk": "Continuar",
-    "error": "Error"
-  },
-  "error": {
-    "auth_failed_title": "Error de autenticación",
-    "auth_failed_message": "Tu sesión ha expirado o el token es inválido. Por favor, vuelve a iniciar sesión en Dropbox para continuar."
+  "errors": {
+    "title": "Algo ha fallado",
+    "unknown": "Ha ocurrido un error inesperado",
+    "network": "Sin conexión con el servidor",
+    "invalidEmail": "El email no es válido",
+    "weakPassword": "La contraseña tiene que tener entre 8 y 128 caracteres",
+    "invalidDeviceId": "Identificador de dispositivo no válido",
+    "invalidDropboxFolder": "La carpeta de Dropbox no es válida",
+    "emailTaken": "Ya existe una cuenta con ese email",
+    "invalidCredentials": "Email o contraseña incorrectos",
+    "sessionExpired": "La sesión ha caducado, vuelve a entrar",
+    "invalidExternalToken": "No se ha podido verificar la cuenta externa",
+    "userNotFound": "El usuario no existe",
+    "dropboxNotLinked": "Dropbox no está vinculado",
+    "dropboxAccountTaken": "Esa cuenta de Dropbox ya está vinculada a otro usuario",
+    "invalidFcmToken": "No se han podido activar las notificaciones",
+    "emptyQuery": "Escribe algo para buscar",
+    "noMirror": "La biblioteca no está disponible ahora mismo, prueba más tarde",
+    "sourceNotFound": "El envío ya no existe",
+    "sourceNotReady": "El archivo todavía no está listo",
+    "fileNotAvailable": "El archivo ya no está disponible",
+    "sourceNotUploaded": "El archivo no llegó a subirse",
+    "ereaderNotAvailable": "El lector seleccionado no es válido",
+    "invalidRequest": "Petición no válida"
   }
 }

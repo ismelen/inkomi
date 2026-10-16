@@ -1,144 +1,223 @@
 {
-  "settings": {
-    "title": "Settings",
-    "readerModel": "READER MODEL",
-    "cloudSync": "CLOUD SYNCHRONIZATION",
-    "connect": "Connect",
-    "disconnect": "Disconnect",
-    "connectedAs": "Connected as {{email}}",
-    "folder": "Folder",
-    "selectFolder": "Select folder",
-    "browse": "Browse",
-    "language": "LANGUAGE"
+  "common": {
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "move": "Move",
+    "done": "Done",
+    "ok": "OK",
+    "retry": "Retry",
+    "back": "Back",
+    "close": "Close",
+    "ltr": "Left → Right",
+    "rtl": "Right → Left",
+    "readingDirection": "Reading direction",
+    "title": "Title",
+    "files_one": "{{count}} file",
+    "files_other": "{{count}} files"
+  },
+  "auth": {
+    "title": "Sign in to Inkomi",
+    "signInTab": "Sign in",
+    "registerTab": "Sign up",
+    "email": "Email",
+    "emailPlaceholder": "you@email.com",
+    "password": "Password",
+    "passwordHint": "At least 8 characters",
+    "signIn": "Sign in",
+    "register": "Create account",
+    "orContinueWith": "or continue with",
+    "google": "Continue with Google",
+    "dropbox": "Continue with Dropbox"
   },
   "home": {
-    "sendComic": "Send Comic",
-    "sendComicSubtitle": "Convert .cbz or .pdf to .epub and send to device",
-    "sendComicTag": ".cbz / .pdf to .epub",
-    "sendBook": "Send Book",
-    "sendBookSubtitle": "Manage and transfer .epub files",
-    "sendBookTag": ".epub management",
-    "monitoredFolders": "Monitored folders",
-    "newFiles": "{{count}} NEW FILES",
-    "synced": "SYNCED"
+    "searchPlaceholder": "Search books…",
+    "empty": "Add files or folders, or search books to start",
+    "dropbox": "Dropbox",
+    "send": "SEND",
+    "selected_one": "{{count}} item selected",
+    "selected_other": "{{count}} items selected",
+    "cancelSelection": "Cancel selection",
+    "toggleAll": "Select all",
+    "history": "History",
+    "activity": "In progress",
+    "settings": "Settings",
+    "library": "Library"
   },
-  "queue": {
-    "title": "Transactions",
-    "empty": "Your queue is empty",
-    "emptySubtitle1": "Start by sending something.",
-    "emptySubtitle2": "Your active and completed uploads will appear here.",
-    "sendSomething": "Send something",
-    "uploads": "Uploads",
-    "items": "Items",
-    "results": "Results",
-    "format": "Format:",
-    "cloud": "Cloud",
-    "local": "Local",
-    "cancelTitle": "Cancel transaction",
-    "cancelMessage": "Are you sure you want to cancel this transaction?",
-    "no": "No",
-    "yesCancel": "Yes, cancel",
-    "cancel": "Cancel",
-    "downloadAll": "Download All Results",
-    "downloading": "Downloading...",
-    "status": {
-      "processing": "PROCESSING",
-      "merging": "MERGING",
-      "error": "ERROR",
-      "done": "DONE",
-      "waiting": "WAITING",
-      "canceled": "CANCELED",
-      "unknown": "UNKNOWN",
-      "enqueued": "ENQUEUED"
-    },
-    "fileStatus": {
-      "converting": "Converting...",
-      "pending": "Pending",
-      "done": "Done",
-      "error": "Error",
-      "unknown": "Unknown"
-    },
-    "uploadStatus": {
-      "sending": "Sending...",
-      "done": "Done",
-      "error": "Error",
-      "pending": "Pending"
-    },
-    "sections": {
-      "today": "Today",
-      "yesterday": "Yesterday",
-      "thisWeek": "Last week",
-      "thisMonth": "Last month",
-      "older": "Older"
-    }
+  "add": {
+    "title": "Add",
+    "files": "Files",
+    "filesHint": "epub, cbz, pdf",
+    "folder": "Folder",
+    "folderHint": "Every file in a folder",
+    "emptyFolder": "The folder has no epub, cbz or pdf files"
+  },
+  "group": {
+    "title": "Group",
+    "join": "Merge into one book",
+    "mangaOptions": "Manga options (all)",
+    "defaultTitle": "New group"
+  },
+  "delete": {
+    "title_one": "Delete {{count}} item?",
+    "title_other": "Delete {{count}} items?",
+    "message": "They will be removed from the list. The original files are not modified."
+  },
+  "move": {
+    "title_one": "Move {{count}} item to",
+    "title_other": "Move {{count}} items to",
+    "ungrouped": "Ungrouped",
+    "newGroup": "+ New group",
+    "newGroupPlaceholder": "Group name"
+  },
+  "reorder": {
+    "title": "Reorder",
+    "subtitle": "{{title}} · {{files}}",
+    "hint": "Long press the handle and drag",
+    "sortByName": "Sort by name"
+  },
+  "options": {
+    "title": "Options",
+    "defaultTitle": "Default manga",
+    "groupTitle": "Manga options · {{title}}",
+    "reset": "Reset",
+    "image": "Image",
+    "settings": "Settings",
+    "gamma": "Gamma",
+    "brightness": "Brightness",
+    "contrast": "Contrast",
+    "blackPoint": "Black point",
+    "whitePoint": "White point",
+    "cropTolerance": "Crop tolerance",
+    "crop": "Crop margins",
+    "quality": "Quality",
+    "rotateDoublePage": "Rotate double pages",
+    "enlarge": "Enlarge small images",
+    "embed": "Fill to size",
+    "grayscale": "Grayscale",
+    "dithering": "Dithering",
+    "palette8bit": "8-bit palette",
+    "sharpen": "Sharpen",
+    "sharpenRadius": "Radius",
+    "sharpenX1": "Threshold (x1)",
+    "sharpenY2": "Light limit (y2)",
+    "sharpenY3": "Dark limit (y3)",
+    "sharpenM1": "Flat slope (m1)",
+    "sharpenM2": "Edge slope (m2)",
+    "epubHint": "Epub files only use the title and the reading direction.",
+    "blackAboveWhite": "The black point must be lower than the white point",
+    "outOfRange": "Some values are out of range"
   },
   "search": {
-    "title": "Search",
-    "placeholder": "Search by title, author or genre...",
-    "sendBooks": "Send books ({{count}})",
-    "serviceDown": "Service currently unavailable."
+    "placeholder": "Search by title or author",
+    "all": "All",
+    "added_one": "{{count}} added to the list",
+    "added_other": "{{count}} added to the list",
+    "empty": "No results",
+    "idle": "Search books to add them to the list",
+    "noMd5": "Unavailable"
   },
-  "sendBook": {
-    "title": "Send Book",
-    "source": "SOURCE",
-    "readerModel": "READER MODEL",
-    "destination": "DESTINATION",
-    "options": "OPTIONS",
-    "send": "Send",
-    "monitorizeFolder": "Monitorize folder",
-    "monitorizeText": "Monitor changes in this folder",
-    "unmonitorConfirm": "Are you sure you want to stop monitoring this folder?"
+  "sending": {
+    "title": "Sending",
+    "uploaded": "Uploaded",
+    "waiting": "Waiting",
+    "failed": "Error",
+    "requesting": "Preparing…",
+    "keepOpen": "Don't close the app until the upload ends",
+    "viewQueue": "View queue",
+    "finished": "Upload finished",
+    "notification": "Uploading files…"
   },
-  "sendComic": {
-    "title": "Send Comic",
-    "source": "SOURCE",
-    "readerModel": "READER MODEL",
-    "metadata": "METADATA",
-    "destination": "DESTINATION",
-    "options": "OPTIONS",
-    "mergeChapters": "Merge chapters",
-    "mergeText": "Combine multiple chapters into a single volume",
-    "send": "Send",
-    "monitorizeFolder": "Monitorize folder",
-    "monitorizeText": "Monitor changes in this folder",
-    "unmonitorConfirm": "Are you sure you want to stop monitoring this folder?"
+  "activity": {
+    "title": "In progress",
+    "empty": "Nothing in progress",
+    "realtime": "Real-time updates",
+    "steps": {
+      "download": "Fetch",
+      "process": "Process",
+      "join": "Merge",
+      "kepub": "Kepub",
+      "upload": "Upload"
+    },
+    "line": {
+      "pendingUpload": "Uploading file",
+      "queued": "Queued",
+      "downloading": "Downloading",
+      "processing": "Processing images",
+      "processingCount": "Processing images · {{done}}/{{total}}",
+      "waitingJoin": "Waiting to merge · {{done}}/{{total}} books",
+      "joining": "Merging",
+      "kepub": "Kepubify",
+      "uploading": "Sending",
+      "failed": "Error: {{error}}"
+    }
   },
-  "sendLibgen": {
-    "title": "Send Books",
-    "books": "BOOKS",
-    "readerModel": "READER MODEL",
-    "destination": "DESTINATION",
-    "send": "Send"
+  "history": {
+    "title": "History",
+    "empty": "You haven't sent anything yet",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "week": "This week",
+    "older": "Older",
+    "joined": "Merged",
+    "books_one": "{{count}} book",
+    "books_other": "{{count}} books",
+    "sent": "Sent",
+    "error": "Error: {{error}}",
+    "errorUnknown": "Error",
+    "download": "Download",
+    "share": "Share",
+    "saved": "Saved",
+    "results": "Results"
   },
-  "loading": {
-    "sendingBook": "Sending your book…",
-    "optimizing": "Optimizing for your e-reader. This will not take long."
-  },
-  "destination": {
-    "local": "Local",
-    "cloud": "Cloud"
-  },
-  "metadata": {
-    "title": "Title",
-    "author": "Author"
+  "settings": {
+    "title": "Settings",
+    "account": "Account",
+    "noEmail": "No email",
+    "signOut": "Sign out",
+    "reader": "Reader",
+    "readerSize": "{{width}} × {{height}} px",
+    "readerKepub": "{{width}} × {{height}} px · automatic kepubify",
+    "dropbox": "Dropbox",
+    "connected": "Connected",
+    "disconnected": "Not connected",
+    "connect": "Connect",
+    "disconnect": "Disconnect",
+    "folder": "Folder",
+    "toCloudDefault": "Save to Dropbox by default",
+    "notifications": "Notifications",
+    "notificationsDenied": "Allow Inkomi notifications in the system settings",
+    "language": "Language",
+    "defaultManga": "Default manga",
+    "version": "v{{version}}"
   },
   "languages": {
-    "en": "English",
-    "es": "Español"
+    "es": "Español",
+    "en": "English"
   },
-  "common": {
-    "deleteOriginals": "Delete original files",
-    "deleteOriginalsText": "Remove files from device when the transaction completes",
-    "confirm": "Confirm",
-    "ok": "OK",
-    "cancel": "Cancel",
-    "authConfirmTitle": "Sign in to Dropbox",
-    "authConfirmMessage": "To send to the cloud, the app needs to redirect you to Dropbox to sign in or grant permissions. Do you want to continue?",
-    "authConfirmOk": "Continue",
-    "error": "Error"
-  },
-  "error": {
-    "auth_failed_title": "Authentication Error",
-    "auth_failed_message": "Your session has expired or the token is invalid. Please log in again to Dropbox to continue."
+  "errors": {
+    "title": "Something went wrong",
+    "unknown": "An unexpected error happened",
+    "network": "Can't reach the server",
+    "invalidEmail": "The email is not valid",
+    "weakPassword": "The password must have between 8 and 128 characters",
+    "invalidDeviceId": "Invalid device id",
+    "invalidDropboxFolder": "The Dropbox folder is not valid",
+    "emailTaken": "There is already an account with that email",
+    "invalidCredentials": "Wrong email or password",
+    "sessionExpired": "Your session expired, sign in again",
+    "invalidExternalToken": "The external account couldn't be verified",
+    "userNotFound": "The user doesn't exist",
+    "dropboxNotLinked": "Dropbox is not linked",
+    "dropboxAccountTaken": "That Dropbox account is linked to another user",
+    "invalidFcmToken": "Notifications couldn't be enabled",
+    "emptyQuery": "Type something to search",
+    "noMirror": "The library is not available right now, try later",
+    "sourceNotFound": "The upload doesn't exist anymore",
+    "sourceNotReady": "The file is not ready yet",
+    "fileNotAvailable": "The file is not available anymore",
+    "sourceNotUploaded": "The file was not uploaded",
+    "ereaderNotAvailable": "The selected reader is not valid",
+    "invalidRequest": "Invalid request"
   }
 }

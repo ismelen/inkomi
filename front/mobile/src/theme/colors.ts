@@ -1,60 +1,18 @@
-export function hexToRgba(hex: string, alpha: number) {
-  const sanitized = hex.replace('#', '');
-  const r = parseInt(sanitized.substring(0, 2), 16);
-  const g = parseInt(sanitized.substring(2, 4), 16);
-  const b = parseInt(sanitized.substring(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-
+// Open Color palette of the "Mobile" frame in docs/ideas.excalidraw.
 export const colors = {
-  boxShadow: `0px 4px 12px 0px ${hexToRgba('#131b2e', 0.04)}`,
+  text: '#1e1e1e',
+  textSecondary: '#868e96',
+  border: '#ced4da',
+  surface: '#e9ecef',
+  background: '#ffffff',
+  primary: '#1e1e1e',
+  onPrimary: '#ffffff',
+  success: '#2f9e44',
+  info: '#1971c2',
+  warning: '#f08c00',
+  danger: '#e03131',
+  scrim: 'rgba(30, 30, 30, 0.45)',
+  ripple: 'rgba(30, 30, 30, 0.08)',
+} as const;
 
-  surface: '#faf8ff',
-  surface_dim: '#d2d9f4',
-  surface_bright: '#faf8ff',
-  surface_container_lowest: '#ffffff',
-  surface_container_low: '#f2f3ff',
-  surface_container: '#eaedff',
-  surface_container_high: '#e2e7ff',
-  surface_container_highest: '#dae2fd',
-  on_surface: '#131b2e',
-  on_surface_variant: '#464554',
-  inverse_surface: '#283044',
-  inverse_on_surface: '#eef0ff',
-  outline: '#767586',
-  outline_variant: '#c7c4d7',
-  surface_tint: '#494bd6',
-  primary: '#4648d4',
-  on_primary: '#ffffff',
-  primary_container: '#6063ee',
-  on_primary_container: '#fffbff',
-  inverse_primary: '#c0c1ff',
-  secondary: '#4b41e1',
-  on_secondary: '#ffffff',
-  secondary_container: '#645efb',
-  on_secondary_container: '#fffbff',
-  tertiary: '#904900',
-  on_tertiary: '#ffffff',
-  tertiary_container: '#b55d00',
-  on_tertiary_container: '#fffbff',
-  error: '#ba1a1a',
-  on_error: '#ffffff',
-  error_container: '#ffdad6',
-  on_error_container: '#93000a',
-  primary_fixed: '#e1e0ff',
-  primary_fixed_dim: '#c0c1ff',
-  on_primary_fixed: '#07006c',
-  on_primary_fixed_variant: '#2f2ebe',
-  secondary_fixed: '#e2dfff',
-  secondary_fixed_dim: '#c3c0ff',
-  on_secondary_fixed: '#0f0069',
-  on_secondary_fixed_variant: '#3323cc',
-  tertiary_fixed: '#ffdcc5',
-  tertiary_fixed_dim: '#ffb783',
-  on_tertiary_fixed: '#301400',
-  on_tertiary_fixed_variant: '#703700',
-  background: '#faf8ff',
-  on_background: '#131b2e',
-  surface_variant: '#dae2fd',
-  ok: '#10B981',
-};
+export type ColorToken = keyof typeof colors;
