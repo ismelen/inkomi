@@ -1,0 +1,19 @@
+# Caddyfile for a Caddy installed on the host (systemd, /etc/caddy/Caddyfile). deploy.sh renders
+# __DOMAIN__ with MONOLITH_DOMAIN from ~/inkomi/back/monolith/.deploy.env and installs it after a
+# healthy deploy.
+
+__DOMAIN__ {
+	# legacy back/api (old app versions) while its container still runs on :3000
+	handle /api/* {
+		reverse_proxy localhost:3000
+	}
+
+	@monolith path /auth/* /users/* /books/* /uploads /uploads/* /ws /ws/* /preview /preview/* /app/* /healthz
+	handle @monolith {
+		reverse_proxy localhost:3001
+	}
+
+	handle {
+		reverse_proxy localhost:8081
+	}
+}

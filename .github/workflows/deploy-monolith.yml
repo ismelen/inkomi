@@ -7,8 +7,8 @@ name: Deploy monolith (Docker Compose)
 #   3. on the server: preview samples to R2, e2e tests against a throwaway compose project and,
 #      only if they pass, the production rollout with rollback (deploy/monolith/deploy.sh)
 #
-# Secrets: ORACLE_HOST, ORACLE_USERNAME, ORACLE_PRIVATE_KEY, ORACLE_SSH_PORT (2222 with the Ansible
-#          config) and GHCR_PULL_TOKEN (PAT with read:packages so the server can pull the images).
+# Secrets: ORACLE_HOST, ORACLE_USERNAME, ORACLE_PRIVATE_KEY, ORACLE_SSH_PORT (default 22) and,
+#          optionally, GHCR_PULL_TOKEN (PAT with read:packages; without it the job token is used).
 # The env lives on the server at ~/inkomi/back/monolith/.env and firebase.json next to it (see
 # back/monolith/.env.example and deploy/SERVERS.md). The web image is the latest one pushed by
 # deploy-web.yml.
@@ -130,13 +130,13 @@ jobs:
       - name: Prepare the deploy files
         run: |
           mkdir -p bundle
-          cp back/monolith/docker-compose.yml deploy/monolith/deploy.sh bundle/
+          cp back/monolith/docker-compose.yml deploy/monolith/deploy.sh deploy/monolith/Caddyfile bundle/
 
       - name: Clean the deploy files on the server
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.ORACLE_HOST }}
-          port: ${{ secrets.ORACLE_SSH_PORT || '2222' }}
+          port: ${{ secrets.ORACLE_SSH_PORT || '22' }}
           username: ${{ secrets.ORACLE_USERNAME }}
           key: ${{ secrets.ORACLE_PRIVATE_KEY }}
           script: |
@@ -147,7 +147,7 @@ jobs:
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.ORACLE_HOST }}
-          port: ${{ secrets.ORACLE_SSH_PORT || '2222' }}
+          port: ${{ secrets.ORACLE_SSH_PORT || '22' }}
           username: ${{ secrets.ORACLE_USERNAME }}
           key: ${{ secrets.ORACLE_PRIVATE_KEY }}
           source: "bundle/*"
@@ -157,11 +157,12 @@ jobs:
       - name: Sandbox tests and deploy
         uses: appleboy/ssh-action@v1.0.3
         env:
-          GHCR_USER: ${{ github.repository_owner }}
-          GHCR_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+          GHCR_USER: ${{ secrets.GHCR_PULL_TOKEN && github.repository_owner || github.actor }}
+          # without a PAT the job token pulls the images (enough: they stay cached on the server)
+          GHCR_TOKEN: ${{ secrets.GHCR_PULL_TOKEN || secrets.GITHUB_TOKEN }}
         with:
           host: ${{ secrets.ORACLE_HOST }}
-          port: ${{ secrets.ORACLE_SSH_PORT || '2222' }}
+          port: ${{ secrets.ORACLE_SSH_PORT || '22' }}
           username: ${{ secrets.ORACLE_USERNAME }}
           key: ${{ secrets.ORACLE_PRIVATE_KEY }}
           command_timeout: 45m

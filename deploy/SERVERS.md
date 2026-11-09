@@ -302,7 +302,16 @@ sudo install -d -o 10001 -g 10001 -m 700 ~deployer/inkomi/back/monolith/data
 sudo usermod -aG docker deployer        # deploy.sh usa docker compose (si no, prueba con sudo -n)
 ```
 
-`setup-oracle.sh` con `MONOLITH_DOMAIN` hace estos pasos y añade al Caddyfile:
+**Servidor actual (Oracle Linux 9, `opc` por el puerto 22, Caddy instalado con systemd):** ya está preparado. Se usa `opc` en lugar de `deployer`, y `opc` ya está en el grupo `docker`. En `~/inkomi/back/monolith/` están:
+
+- `.env`, con claves JWT y `TOKEN_ENCRYPTION_KEY` recién generadas y la `DROPBOX_APP_KEY` de la app. **Faltan `R2_*` y `GOOGLE_CLIENT_IDS`**, y `deploy.sh` no despliega sin ellas.
+- `firebase.json`, la cuenta de servicio de la API antigua.
+- `data/`.
+- `.deploy.env`, con `MONOLITH_DOMAIN=inkomi.duckdns.org`.
+
+Tras el primer despliegue sano, `deploy.sh` instala `deploy/monolith/Caddyfile` en `/etc/caddy/Caddyfile` y guarda una copia `.bak-*` del anterior. Con ese Caddyfile, `/api/*` sigue yendo a la API antigua en `:3000` para las versiones viejas de la app, las rutas del monolito van a `127.0.0.1:3001` y el resto a la web en `127.0.0.1:8081`. Secrets de GitHub para este servidor: `ORACLE_HOST=inkomi.duckdns.org`, `ORACLE_USERNAME=opc` y `ORACLE_PRIVATE_KEY`. `ORACLE_SSH_PORT` es 22 por defecto y `GHCR_PULL_TOKEN` es opcional: sin él se usa el token del job.
+
+Con Caddy en Docker (servidores montados con el Ansible), `setup-oracle.sh` con `MONOLITH_DOMAIN` hace estos pasos y añade al Caddyfile:
 
 ```caddyfile
 mono.tudominio.com {

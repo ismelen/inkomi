@@ -1,10 +1,12 @@
-# Monolith deployment on the Oracle server, run by deploy/monolith/deploy.sh. Caddy (another
-# compose project on the caddy_net network) serves MONOLITH_DOMAIN: the API paths go to
-# inkomi-monolith:3000 and the rest to inkomi-web:8080 (their aliases on that network).
+# Monolith deployment on the Oracle server, run by deploy/monolith/deploy.sh. Caddy serves
+# MONOLITH_DOMAIN: the API paths go to the monolith and the rest to the web. Both are reachable
+# by a Caddy on the host (127.0.0.1:MONOLITH_HOST_PORT / WEB_HOST_PORT, deploy/monolith/Caddyfile)
+# and by a Caddy in docker on caddy_net (aliases inkomi-monolith:3000 / inkomi-web:8080).
 #
 #   REGISTRY=ghcr.io/<owner> TAG=<sha> docker compose up -d
 #
-# CADDY_NETWORK lets the sandbox of the pipeline use a throwaway network instead of caddy_net.
+# The sandbox of the pipeline sets CADDY_NETWORK to a throwaway network and empty host ports
+# (docker then picks free ones).
 # The e2e profile runs the end-to-end tests against this stack:
 #   docker compose --profile e2e run --rm e2e
 
@@ -22,6 +24,8 @@ services:
     volumes:
       - ${DATA_PATH:-./data}:/app/data
       - ./firebase.json:/app/firebase.json:ro
+    ports:
+      - "127.0.0.1:${MONOLITH_HOST_PORT-3001}:3000"
     networks:
       default:
       caddy:
@@ -30,6 +34,8 @@ services:
   web:
     image: ${REGISTRY:-ghcr.io/ismelen}/inkomi-web:${WEB_TAG:-latest}
     restart: unless-stopped
+    ports:
+      - "127.0.0.1:${WEB_HOST_PORT-8081}:8080"
     networks:
       default:
       caddy:

@@ -17,7 +17,15 @@
 set -euo pipefail
 
 MONOLITH_DIR="${MONOLITH_DIR:-$HOME/inkomi/back/monolith}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT="inkomi-monolith"
+# per-server settings (MONOLITH_DOMAIN), kept next to the .env
+if [[ -f "$MONOLITH_DIR/.deploy.env" ]]; then
+  set -a
+  # shellcheck source=/dev/null
+  source "$MONOLITH_DIR/.deploy.env"
+  set +a
+fi
 HEALTH_TIMEOUT="${HEALTH_TIMEOUT:-180}"
 
 TAG=""
@@ -51,6 +59,11 @@ compose() { "${DOCKER[@]}" compose --project-directory "$MONOLITH_DIR" -f "$MONO
 check_host() {
   "${DOCKER[@]}" info >/dev/null || { echo "docker is not reachable (add the deploy user to the docker group)" >&2; exit 1; }
   [[ -f "$MONOLITH_DIR/.env" ]] || { echo "$MONOLITH_DIR/.env not found (see back/monolith/.env.example)" >&2; exit 1; }
+  local var missing=()
+  for var in JWT_PRIVATE_KEY JWT_PUBLIC_KEY TOKEN_ENCRYPTION_KEY GOOGLE_CLIENT_IDS R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_BUCKET_NAME; do
+    grep -Eq "^$var=.+" "$MONOLITH_DIR/.env" || missing+=("$var")
+  done
+  [[ ${#missing[@]} -eq 0 ]] || { echo "empty in $MONOLITH_DIR/.env: ${missing[*]}" >&2; exit 1; }
   if [[ ! -f "$MONOLITH_DIR/firebase.json" ]]; then
     warn "$MONOLITH_DIR/firebase.json not found: push notifications can't start"
     echo '{}' > "$MONOLITH_DIR/firebase.json"
@@ -83,16 +96,17 @@ run_sandbox() {
 
   "${DOCKER[@]}" network create "$network" >/dev/null
   local status=0
-  REGISTRY="$REGISTRY" TAG="$TAG" DATA_PATH="$data" CADDY_NETWORK="$network" \
-    compose -p "$project" --profile e2e run --rm e2e || status=$?
+  sandbox() {
+    REGISTRY="$REGISTRY" TAG="$TAG" DATA_PATH="$data" CADDY_NETWORK="$network" \
+      MONOLITH_HOST_PORT="" WEB_HOST_PORT="" compose -p "$project" "$@"
+  }
+  sandbox --profile e2e run --rm e2e || status=$?
 
   if [[ $status -ne 0 ]]; then
     log "Sandbox logs"
-    REGISTRY="$REGISTRY" TAG="$TAG" DATA_PATH="$data" CADDY_NETWORK="$network" \
-      compose -p "$project" logs --tail 200 monolith || true
+    sandbox logs --tail 200 monolith || true
   fi
-  REGISTRY="$REGISTRY" TAG="$TAG" DATA_PATH="$data" CADDY_NETWORK="$network" \
-    compose -p "$project" --profile e2e down -v --remove-orphans >/dev/null 2>&1 || true
+  sandbox --profile e2e down -v --remove-orphans >/dev/null 2>&1 || true
   "${DOCKER[@]}" network rm "$network" >/dev/null 2>&1 || true
   # the files belong to uid 10001; a leftover temp dir is harmless
   rm -rf "$data" 2>/dev/null || true
@@ -113,6 +127,32 @@ wait_healthy() {
   return 1
 }
 
+# install_caddyfile points a Caddy installed on the host (systemd) at the stack, when
+# MONOLITH_DOMAIN is set in $MONOLITH_DIR/.deploy.env. A Caddy in docker is configured by
+# deploy/servers/setup-oracle.sh instead.
+install_caddyfile() {
+  local template="$SCRIPT_DIR/Caddyfile" target=/etc/caddy/Caddyfile rendered
+  [[ -n "${MONOLITH_DOMAIN:-}" && -f "$template" && -f "$target" ]] || return 0
+  systemctl is-active --quiet caddy || return 0
+
+  rendered="$(mktemp)"
+  sed "s/__DOMAIN__/$MONOLITH_DOMAIN/" "$template" > "$rendered"
+  if sudo -n cmp -s "$rendered" "$target"; then
+    rm -f "$rendered"
+    return 0
+  fi
+  log "Caddy for $MONOLITH_DOMAIN"
+  if ! caddy validate --adapter caddyfile --config "$rendered" >/dev/null 2>&1; then
+    warn "invalid Caddyfile: Caddy untouched"
+    rm -f "$rendered"
+    return 0
+  fi
+  sudo -n cp "$target" "$target.bak-$(date +%Y%m%d%H%M%S)"
+  sudo -n install -m 644 "$rendered" "$target"
+  sudo -n systemctl reload caddy || warn "caddy reload failed"
+  rm -f "$rendered"
+}
+
 deploy_production() {
   local previous=""
   [[ -f "$MONOLITH_DIR/.deployed-tag" ]] && previous="$(cat "$MONOLITH_DIR/.deployed-tag")"
@@ -124,6 +164,7 @@ deploy_production() {
   if wait_healthy; then
     echo "$TAG" > "$MONOLITH_DIR/.deployed-tag"
     "${DOCKER[@]}" image prune -f >/dev/null || true
+    install_caddyfile
     log "Deployed $TAG"
     return 0
   fi
