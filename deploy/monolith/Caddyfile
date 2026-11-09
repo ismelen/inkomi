@@ -3,11 +3,6 @@
 # healthy deploy.
 
 __DOMAIN__ {
-	# legacy back/api (old app versions) while its container still runs on :3000
-	handle /api/* {
-		reverse_proxy localhost:3000
-	}
-
 	@monolith path /auth/* /users/* /books/* /uploads /uploads/* /ws /ws/* /preview /preview/* /app/* /healthz
 	handle @monolith {
 		reverse_proxy localhost:3001
