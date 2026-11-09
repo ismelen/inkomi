@@ -41,6 +41,8 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 [[ -n "$TAG" && -n "$REGISTRY" ]] || { echo "--tag and --registry are required" >&2; exit 2; }
+# every compose call interpolates them (the rollback overrides TAG inline)
+export REGISTRY TAG
 
 log() { printf '\n==> %s\n' "$*"; }
 warn() { printf 'WARNING: %s\n' "$*" >&2; }
