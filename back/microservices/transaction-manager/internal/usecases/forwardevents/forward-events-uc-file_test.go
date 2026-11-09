@@ -1,4 +1,4 @@
-package forwaredevents_test
+package forwardevents_test
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 
 	"github.com/ismelen/inkomi/back/microservices/common/jobs"
 	"github.com/ismelen/inkomi/back/microservices/transaction-manager/internal/domain/ports"
-	forwaredevents "github.com/ismelen/inkomi/back/microservices/transaction-manager/internal/usecases/forwardevents"
+	"github.com/ismelen/inkomi/back/microservices/transaction-manager/internal/usecases/forwardevents"
 	"github.com/ismelen/inkomi/back/microservices/transaction-manager/internal/usecases/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -49,7 +49,7 @@ func TestForwardEventsUC_Execute_FileFields_UpdatesFile(t *testing.T) {
 				sent = v.(map[string]any)
 				return nil
 			}}
-			require.NoError(t, forwaredevents.NewForwardEventsUC(hub, queue, repo).Execute())
+			require.NoError(t, forwardevents.NewForwardEventsUC(hub, queue, repo).Execute())
 			payload, err := json.Marshal(tc.job)
 			require.NoError(t, err)
 

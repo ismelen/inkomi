@@ -1,6 +1,7 @@
 package sockethub_test
 
 import (
+	"github.com/ismelen/inkomi/back/monolith/internal/modules/transactions/domain/models"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -76,6 +77,5 @@ func TestSocketHub_Send_NonExistingClient_ReturnsError(t *testing.T) {
 	err := hub.Send(999, testMessage{Text: "miss"})
 
 	// Assert
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "cliente 999 no encontrado")
+	assert.ErrorIs(t, err, models.ErrClientNotConnected)
 }

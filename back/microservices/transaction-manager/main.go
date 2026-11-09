@@ -14,7 +14,7 @@ import (
 	"github.com/ismelen/inkomi/back/microservices/transaction-manager/internal/infra/queue"
 	"github.com/ismelen/inkomi/back/microservices/transaction-manager/internal/infra/repositories"
 	"github.com/ismelen/inkomi/back/microservices/transaction-manager/internal/infra/sockethub"
-	forwaredevents "github.com/ismelen/inkomi/back/microservices/transaction-manager/internal/usecases/forwardevents"
+	"github.com/ismelen/inkomi/back/microservices/transaction-manager/internal/usecases/forwardevents"
 	"github.com/ismelen/inkomi/back/microservices/transaction-manager/internal/usecases/getdownload"
 	"github.com/ismelen/inkomi/back/microservices/transaction-manager/internal/usecases/listuploads"
 	"github.com/ismelen/inkomi/back/microservices/transaction-manager/internal/usecases/newupload"
@@ -68,7 +68,7 @@ func main() {
 	uploadsHandler := handlers.NewUploadsHandler(newUploadRequestUC, uploadDoneUC, listUploadsUC, getDownloadUC)
 	routes.SetupUploadRoutes(api, uploadsHandler)
 
-	forwardEventsUc := forwaredevents.NewForwardEventsUC(sockethub, queue, sourceRepo)
+	forwardEventsUc := forwardevents.NewForwardEventsUC(sockethub, queue, sourceRepo)
 	if err := forwardEventsUc.Execute(); err != nil {
 		log.Fatal(err)
 	}

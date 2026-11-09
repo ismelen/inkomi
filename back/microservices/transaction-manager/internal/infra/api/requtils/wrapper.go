@@ -12,7 +12,7 @@ func Wrap[R any](f func(w http.ResponseWriter, r *http.Request) (*R, error)) htt
 		data, err := f(w, r)
 
 		if err != nil {
-			log.Println(err.Error())
+			log.Printf("%s %s: %v", r.Method, r.URL.Path, err)
 			status := 500
 			if apiErr, ok := err.(*ApiError); ok {
 				status = apiErr.Status

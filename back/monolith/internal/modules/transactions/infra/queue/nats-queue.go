@@ -3,6 +3,7 @@ package queue
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/transactions/domain/ports"
@@ -63,8 +64,9 @@ func (n *NatsQueue) Publish(ctx context.Context, subject jobs.Subject, payload [
 
 func (n *NatsQueue) Subscribe(subject jobs.Subject, handler ports.EventHandler) error {
 	sub, err := n.nc.Subscribe(string(subject), func(msg *nats.Msg) {
-		hCtx := context.Background()
-		_ = handler(hCtx, msg.Subject, msg.Data)
+		if err := handler(context.Background(), msg.Subject, msg.Data); err != nil {
+			log.Printf("nats: %s: %v", msg.Subject, err)
+		}
 	})
 
 	if err != nil {

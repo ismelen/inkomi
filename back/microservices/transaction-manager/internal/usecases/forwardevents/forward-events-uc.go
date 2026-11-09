@@ -1,9 +1,11 @@
-package forwaredevents
+package forwardevents
 
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"log"
 
 	"github.com/ismelen/inkomi/back/microservices/common/jobs"
 	"github.com/ismelen/inkomi/back/microservices/transaction-manager/internal/domain/models"
@@ -68,9 +70,27 @@ func (f *ForwardEventsUC) Execute() error {
 		if err != nil {
 			return err
 		}
+		logTransition(job, status)
 
-		return f.hub.Send(job.UserId, msg)
+		return f.send(job.UserId, msg)
 	})
+}
+
+func logTransition(job jobs.Msg, status models.SourceStatus) {
+	if job.ErrorMsg != "" {
+		log.Printf("source %s user %d: %s: %s", job.Id, job.UserId, status, job.ErrorMsg)
+		return
+	}
+	log.Printf("source %s user %d: %s", job.Id, job.UserId, status)
+}
+
+// send pushes msg to the user's socket; a user without the app open isn't an error, the app
+// catches up with GET /uploads.
+func (f *ForwardEventsUC) send(userId int, msg map[string]any) error {
+	if err := f.hub.Send(userId, msg); err != nil && !errors.Is(err, models.ErrClientNotConnected) {
+		return err
+	}
+	return nil
 }
 
 func (f *ForwardEventsUC) forwardResult(ctx context.Context, job jobs.Msg, status models.SourceStatus) error {
@@ -91,7 +111,8 @@ func (f *ForwardEventsUC) forwardResult(ctx context.Context, job jobs.Msg, statu
 	if result.ErrorMsg != nil {
 		msg["error"] = *result.ErrorMsg
 	}
-	if err := f.hub.Send(job.UserId, msg); err != nil {
+	logTransition(job, status)
+	if err := f.send(job.UserId, msg); err != nil {
 		return err
 	}
 
@@ -133,5 +154,5 @@ func (f *ForwardEventsUC) finishParent(ctx context.Context, job jobs.Msg) error 
 		return err
 	}
 
-	return f.hub.Send(job.UserId, msg)
+	return f.send(job.UserId, msg)
 }

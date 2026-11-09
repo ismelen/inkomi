@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/gorilla/websocket"
+	"github.com/ismelen/inkomi/back/monolith/internal/modules/transactions/domain/models"
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/transactions/domain/ports"
 	"github.com/ismelen/inkomi/back/monolith/internal/platform/httpauth"
 )
@@ -17,7 +18,8 @@ var upgrader = websocket.Upgrader{
 	// Browsers send the token as the subprotocol list "bearer, <token>" and need it echoed.
 	Subprotocols: []string{httpauth.WebSocketProtocol},
 	CheckOrigin: func(r *http.Request) bool {
-		return true // Permite cualquier origen por defecto
+		// the token, not the origin, authenticates the connection
+		return true
 	},
 }
 
@@ -37,7 +39,7 @@ var _ ports.ISocketHub = NewSocketHub()
 func (h *SocketHub) Register(id int, w http.ResponseWriter, r *http.Request) error {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("Error actualizando a websocket para el cliente %d: %v", id, err)
+		log.Printf("ws: user %d: upgrade: %v", id, err)
 		return err
 	}
 
@@ -52,6 +54,7 @@ func (h *SocketHub) Register(id int, w http.ResponseWriter, r *http.Request) err
 	}
 	h.clients[id] = client
 	h.mu.Unlock()
+	log.Printf("ws: user %d connected", id)
 
 	go h.readPump(client)
 	return nil
@@ -63,7 +66,7 @@ func (h *SocketHub) Send(id int, v any) error {
 	h.mu.RUnlock()
 
 	if !ok {
-		return fmt.Errorf("cliente %d no encontrado", id)
+		return fmt.Errorf("%w: user %d", models.ErrClientNotConnected, id)
 	}
 
 	client.mu.Lock()
@@ -80,9 +83,10 @@ func (h *SocketHub) readPump(c *client) {
 	for {
 		_, _, err := c.Conn.ReadMessage()
 		if err != nil {
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Printf("Error en conexión websocket del cliente %d: %v", c.Id, err)
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				log.Printf("ws: user %d: %v", c.Id, err)
 			}
+			log.Printf("ws: user %d disconnected", c.Id)
 			break
 		}
 	}

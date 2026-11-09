@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
+	"time"
 
 	"github.com/ismelen/inkomi/back/monolith/internal/platform/jobs"
 )
@@ -26,7 +28,15 @@ func Handle(pub IPublisher, h Handler) DeliveryHandler {
 		if err != nil {
 			err = Permanent(fmt.Errorf("parse job: %w", err))
 		} else {
+			log.Printf("job %s %s user %d: start %q", delivery.Subject, msg.Id, msg.UserId, msg.Filename)
+			start := time.Now()
 			err = h(ctx, msg, delivery)
+			if err == nil {
+				log.Printf("job %s %s user %d: done in %s", delivery.Subject, msg.Id, msg.UserId, time.Since(start).Round(time.Millisecond))
+			}
+		}
+		if err != nil {
+			log.Printf("job %s %s user %d: failed (last attempt %t): %v", delivery.Subject, msg.Id, msg.UserId, delivery.LastAttempt, err)
 		}
 		return report(ctx, pub, delivery, msg, err)
 	}

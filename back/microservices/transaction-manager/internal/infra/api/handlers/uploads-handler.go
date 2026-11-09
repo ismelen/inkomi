@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -48,15 +49,24 @@ func (u *UploadsHandler) HandleNewRequest(w http.ResponseWriter, r *http.Request
 	}
 
 	sources, err := u.newUploadUC.Execute(r.Context(), data, token.Id)
-	return &sources, err
+	if err != nil {
+		return nil, err
+	}
+	for _, source := range sources {
+		log.Printf("upload request user %d: %s %s %q with %d items", token.Id, source.Type, source.Id, source.Title, len(source.Items))
+	}
+	return &sources, nil
 }
 
 func (u *UploadsHandler) HandleOnComplete(w http.ResponseWriter, r *http.Request) (*any, error) {
 	token, _ := httpauth.GetUserClaims(r.Context())
 	sourceId := chi.URLParam(r, "sourceId")
 
-	err := u.uploadDoneUC.Execute(r.Context(), token.Id, sourceId)
-	return nil, err
+	if err := u.uploadDoneUC.Execute(r.Context(), token.Id, sourceId); err != nil {
+		return nil, err
+	}
+	log.Printf("upload done user %d: %s", token.Id, sourceId)
+	return nil, nil
 }
 
 func (u *UploadsHandler) HandleList(w http.ResponseWriter, r *http.Request) (*dtos.UploadListResponse, error) {

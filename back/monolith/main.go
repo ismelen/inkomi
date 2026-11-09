@@ -18,6 +18,7 @@ import (
 	"github.com/ismelen/inkomi/back/monolith/internal/config"
 	"github.com/ismelen/inkomi/back/monolith/internal/platform/cloud"
 	"github.com/ismelen/inkomi/back/monolith/internal/platform/httpauth"
+	"github.com/ismelen/inkomi/back/monolith/internal/platform/httplog"
 	"github.com/ismelen/inkomi/back/monolith/internal/platform/queue"
 )
 
@@ -79,7 +80,7 @@ func main() {
 	d := &deps{ctx: ctx, nc: nc, queue: jobQueue, cloud: cloudStorage, authMiddleware: authMiddleware}
 
 	router := chi.NewRouter()
-	router.Use(middleware.Recoverer)
+	router.Use(httplog.AccessLog("/healthz"), middleware.Recoverer)
 	router.Get("/healthz", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) })
 
 	// closers release the module databases once the server stopped, in reverse order

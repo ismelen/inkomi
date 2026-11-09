@@ -1,15 +1,16 @@
-package forwaredevents_test
+package forwardevents_test
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/ismelen/inkomi/back/microservices/common/jobs"
 	"github.com/ismelen/inkomi/back/microservices/transaction-manager/internal/domain/models"
 	"github.com/ismelen/inkomi/back/microservices/transaction-manager/internal/domain/ports"
-	forwaredevents "github.com/ismelen/inkomi/back/microservices/transaction-manager/internal/usecases/forwardevents"
+	"github.com/ismelen/inkomi/back/microservices/transaction-manager/internal/usecases/forwardevents"
 	"github.com/ismelen/inkomi/back/microservices/transaction-manager/internal/usecases/mocks"
 	"github.com/stretchr/testify/assert"
 )
@@ -40,7 +41,7 @@ func TestForwardEventsUC_Execute_SuccessfullyProcessesEventAndUpdatesStatus(t *t
 		},
 	}
 
-	uc := forwaredevents.NewForwardEventsUC(mockHub, mockQueue, mockRepo)
+	uc := forwardevents.NewForwardEventsUC(mockHub, mockQueue, mockRepo)
 
 	stepMsg := jobs.Msg{
 		Id:     "step-123",
@@ -94,7 +95,7 @@ func TestForwardEventsUC_Execute_ProcessesEventWithErrorMessage(t *testing.T) {
 		},
 	}
 
-	uc := forwaredevents.NewForwardEventsUC(mockHub, mockQueue, mockRepo)
+	uc := forwardevents.NewForwardEventsUC(mockHub, mockQueue, mockRepo)
 
 	stepMsg := jobs.Msg{
 		Id:       "step-123",
@@ -130,7 +131,7 @@ func TestForwardEventsUC_Execute_InvalidJsonPayload_ReturnsError(t *testing.T) {
 		},
 	}
 
-	uc := forwaredevents.NewForwardEventsUC(
+	uc := forwardevents.NewForwardEventsUC(
 		&mocks.MockSocketHub{},
 		mockQueue,
 		&mocks.MockSourceRepository{},
@@ -169,7 +170,7 @@ func TestForwardEventsUC_Execute_RepoUpdateStatusReturnsError_ReturnsError(t *te
 		},
 	}
 
-	uc := forwaredevents.NewForwardEventsUC(mockHub, mockQueue, mockRepo)
+	uc := forwardevents.NewForwardEventsUC(mockHub, mockQueue, mockRepo)
 
 	stepMsg := jobs.Msg{
 		Id:     "step-123",
@@ -184,4 +185,44 @@ func TestForwardEventsUC_Execute_RepoUpdateStatusReturnsError_ReturnsError(t *te
 	// Assert
 	assert.NotNil(t, capturedHandler)
 	assert.ErrorIs(t, err, repoErr)
+}
+
+func TestForwardEventsUC_Execute_UserNotConnected_StillSucceeds(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name    string
+		sendErr error
+		wantErr bool
+	}{
+		{"App closed", fmt.Errorf("%w: user 1", models.ErrClientNotConnected), false},
+		{"Socket write fails", errors.New("broken pipe"), true},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			// Arrange
+			var handler ports.EventHandler
+			queue := &mocks.MockQueue{SubscribeFn: func(subject jobs.Subject, h ports.EventHandler) error {
+				handler = h
+				return nil
+			}}
+			hub := &mocks.MockSocketHub{SendFn: func(id int, v any) error { return tc.sendErr }}
+			uc := forwardevents.NewForwardEventsUC(hub, queue, &mocks.MockSourceRepository{})
+			payload, _ := json.Marshal(jobs.Msg{Id: "step-1", UserId: 1})
+
+			// Act
+			_ = uc.Execute()
+			err := handler(context.Background(), string(jobs.SubjectKepub), payload)
+
+			// Assert
+			if tc.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
 }

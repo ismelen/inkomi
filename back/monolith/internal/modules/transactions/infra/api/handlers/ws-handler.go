@@ -17,9 +17,10 @@ func NewWSHandler(sockethub ports.ISocketHub) *WSHandler {
 	}
 }
 
-func (h *WSHandler) HandleConnect(w http.ResponseWriter, r *http.Request) (*any, error) {
-	token, _ := httpauth.GetUserClaims(r.Context())
-	err := h.sockethub.Register(token.Id, w, r)
-
-	return nil, err
+// HandleConnect upgrades the connection: the upgrader writes the response, also on failure, so
+// it isn't wrapped like the JSON handlers.
+func (h *WSHandler) HandleConnect(w http.ResponseWriter, r *http.Request) {
+	claims, _ := httpauth.GetUserClaims(r.Context())
+	// Register logs the failure and the upgrader already answered the client
+	_ = h.sockethub.Register(claims.Id, w, r)
 }
