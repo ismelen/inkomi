@@ -9,6 +9,7 @@
 # Variables:
 #   TS_AUTHKEY    Tailscale auth key (only the first time, while the node isn't in the tailnet)
 #   DOMAIN        public hostname served by Caddy with HTTPS (optional: without it Caddy is untouched)
+#   MONOLITH_DOMAIN  public hostname of the monolith stack (optional: back/monolith/docker-compose.yml)
 #   DEPLOY_USER   user of the pipeline (default deployer)
 #   SWAP_SIZE     swap file size when there's none (default 4G)
 #
@@ -74,23 +75,36 @@ prepare_env_dirs() {
   log "Env directories of $DEPLOY_USER"
   local home base
   home="$(getent passwd "$DEPLOY_USER" | cut -d: -f6)"
-  base="$home/inkomi/back"
+  base="$home/inkomi/back/microservices"
+  install -d -o "$DEPLOY_USER" -g "$DEPLOY_USER" -m 700 "$home/inkomi/back" "$base"
   for svc in "${SERVICES[@]}"; do
     install -d -o "$DEPLOY_USER" -g "$DEPLOY_USER" -m 700 "$base/$svc"
     if [[ -f "$base/$svc/.env" ]]; then
       chown "$DEPLOY_USER:$DEPLOY_USER" "$base/$svc/.env"
       chmod 600 "$base/$svc/.env"
     else
-      warn "missing $base/$svc/.env (template: back/$svc/.env.example)"
+      warn "missing $base/$svc/.env (template: back/microservices/$svc/.env.example)"
     fi
   done
   chown "$DEPLOY_USER:$DEPLOY_USER" "$home/inkomi" "$base"
   chmod 700 "$home/inkomi"
   [[ -f "$base/push-service/firebase.json" ]] && chmod 600 "$base/push-service/firebase.json" \
     || warn "missing $base/push-service/firebase.json"
+
+  if [[ -n "${MONOLITH_DOMAIN:-}" ]]; then
+    local monolith="$home/inkomi/back/monolith"
+    install -d -o "$DEPLOY_USER" -g "$DEPLOY_USER" -m 700 "$monolith"
+    # the container runs as uid 10001
+    install -d -o 10001 -g 10001 -m 700 "$monolith/data"
+    [[ -f "$monolith/.env" ]] && chmod 600 "$monolith/.env" \
+      || warn "missing $monolith/.env (template: back/monolith/.env.example)"
+    # deploy/monolith/deploy.sh runs docker compose as the deploy user
+    getent group docker >/dev/null && usermod -aG docker "$DEPLOY_USER"
+  fi
 }
 
-# Daily copy of the SQLite databases (users, transactions) kept 14 days in /var/backups/inkomi.
+# Daily copy of the SQLite databases (users, transactions) of k3s and of the monolith stack, kept
+# 14 days in /var/backups/inkomi.
 install_backups() {
   log "Daily SQLite backups"
   cat > /usr/local/bin/inkomi-backup <<'EOF'
@@ -101,6 +115,9 @@ dest=/var/backups/inkomi/$(date +%Y-%m-%d)
 mkdir -p "$dest"
 for db in $(find /var/lib/rancher/k3s/storage -path '*_inkomi_*' \( -name 'users.db' -o -name 'transactions.db' \)); do
   sqlite3 "$db" ".backup '$dest/$(basename "$db")'"
+done
+for db in /home/*/inkomi/back/monolith/data/users.db /home/*/inkomi/back/monolith/data/transactions.db; do
+  if [[ -f "$db" ]]; then sqlite3 "$db" ".backup '$dest/monolith-$(basename "$db")'"; fi
 done
 find /var/backups/inkomi -mindepth 1 -maxdepth 1 -type d -mtime +14 -exec rm -rf {} +
 EOF
@@ -117,10 +134,21 @@ configure_caddy() {
   local gateway
   gateway="$(caddy_gateway)" || true
   [[ -n "$gateway" ]] || { warn "docker network caddy_net not found: skipping Caddy"; return; }
+  local monolith=""
+  if [[ -n "${MONOLITH_DOMAIN:-}" ]]; then
+    # the monolith stack joins caddy_net with these aliases (back/monolith/docker-compose.yml)
+    monolith="
+$MONOLITH_DOMAIN {
+    @api path /auth/* /users/* /books/* /uploads /uploads/* /ws /ws/* /preview /preview/* /app/*
+    reverse_proxy @api inkomi-monolith:3000
+    reverse_proxy inkomi-web:8080
+}
+"
+  fi
   write_caddyfile "$DOMAIN {
     reverse_proxy $gateway:30080
 }
-
+$monolith
 :80 {
     respond \"Acceso denegado. Petición no reconocida.\" 403
 }"

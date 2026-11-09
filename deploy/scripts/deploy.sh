@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 # Deploys the Inkomi backend to the k3s cluster. Run over SSH on the k3s server node (the Oracle
-# instance) by .github/workflows/backend-k3s.yml, from a fresh copy of deploy/, after the
+# instance) by .github/workflows/deploy-microservices.yml, from a fresh copy of deploy/, after the
 # pipeline pushed the images to the registry.
 #
 #   deploy.sh --tag <tag> --services <all|svc,svc,...> --registry ghcr.io/<owner> [--run <id>]
 #   env: GHCR_USER / GHCR_TOKEN (optional) to create the image pull secret
 #
 # Steps:
-#   1. Syncs the Secret <svc>-env of each service from ~/inkomi/back/<svc>/.env on this server.
+#   1. Syncs the Secret <svc>-env of each service from ~/inkomi/back/microservices/<svc>/.env on this server
+#      (falls back to the old ~/inkomi/back/<svc>/.env layout).
 #   2. Uploads the manga-worker preview samples to R2 when they changed.
 #   3. Sandbox: deploys everything with the new images in a throwaway namespace (its own NATS,
 #      Redis and databases, on the same nodes as production) and runs the e2e/integration tests
@@ -18,7 +19,10 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-ENV_DIR="${ENV_DIR:-$HOME/inkomi/back}"
+if [[ -z "${ENV_DIR:-}" ]]; then
+  ENV_DIR="$HOME/inkomi/back/microservices"
+  [[ -d "$ENV_DIR" ]] || ENV_DIR="$HOME/inkomi/back"
+fi
 PROD_NS="${PROD_NS:-inkomi}"
 ALL_SERVICES=(auth-service library-service transaction-manager manga-worker epub-worker push-service release-service)
 

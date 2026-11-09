@@ -6,7 +6,7 @@ name: Deploy web (k3s)
 #   2. multi-arch nginx image pushed to ghcr.io
 #   3. on the k3s server: apply the manifest with the new image and wait for the rollout
 #
-# Secrets: the same as backend-k3s.yml (ORACLE_HOST, ORACLE_USERNAME, ORACLE_PRIVATE_KEY,
+# Secrets: the same as deploy-microservices.yml (ORACLE_HOST, ORACLE_USERNAME, ORACLE_PRIVATE_KEY,
 #          ORACLE_SSH_PORT). The pull secret "ghcr" is created by the backend deploy.
 # Variables (public, baked into the bundle): DROPBOX_APP_KEY, GOOGLE_WEB_CLIENT_ID.
 
@@ -67,7 +67,10 @@ jobs:
           build-args: |
             VITE_DROPBOX_API_KEY=${{ vars.DROPBOX_APP_KEY }}
             VITE_GOOGLE_WEB_CLIENT_ID=${{ vars.GOOGLE_WEB_CLIENT_ID }}
-          tags: ${{ steps.meta.outputs.registry }}/inkomi-web:${{ steps.meta.outputs.tag }}
+          # latest is the one the monolith stack (back/monolith/docker-compose.yml) runs
+          tags: |
+            ${{ steps.meta.outputs.registry }}/inkomi-web:${{ steps.meta.outputs.tag }}
+            ${{ steps.meta.outputs.registry }}/inkomi-web:latest
           cache-from: type=gha,scope=web
           cache-to: type=gha,mode=max,scope=web
 

@@ -1,6 +1,6 @@
 # Servidores: lo que hay que hacer a mano
 
-Guía de lo que **no** hace la pipeline (`.github/workflows/backend-k3s.yml`) y hay que preparar en las máquinas. Las máquinas base se configuran con el Ansible de `utils/server-config` (usuarios, SSH en 2222, UFW, fail2ban, Docker y Caddy). Esta guía va encima de eso.
+Guía de lo que **no** hacen las pipelines (`.github/workflows/deploy-microservices.yml` para k3s y `.github/workflows/deploy-monolith.yml` para el monolito, §12) y hay que preparar en las máquinas. Las máquinas base se configuran con el Ansible de `utils/server-config` (usuarios, SSH en 2222, UFW, fail2ban, Docker y Caddy). Esta guía va encima de eso.
 
 ## Arquitectura
 
@@ -26,6 +26,7 @@ Automatizan las secciones 2 a 8 y 10 de esta guía. Son idempotentes: si se vuel
 scp -P 2222 -r deploy <admin>@<ip-oracle>:~/
 ssh -p 2222 <admin>@<ip-oracle>
 sudo TS_AUTHKEY=tskey-auth-... DOMAIN=api.tudominio.com bash ~/deploy/servers/setup-oracle.sh
+#    con el monolito (§12): añade MONOLITH_DOMAIN=mono.tudominio.com
 #    → imprime la IP de Tailscale de Oracle y el token para unir nodos
 
 # 2. Móvil (agent) y nodos futuros
@@ -37,7 +38,7 @@ sudo TS_AUTHKEY=tskey-auth-... K3S_URL=https://<ip-tailscale-oracle>:6443 K3S_TO
 
 | Script | Qué hace |
 |---|---|
-| `setup-oracle.sh` | paquetes, quita los REJECT de OCI, swap, Tailscale, reglas UFW, k3s server con etiqueta `low`, carpetas de `.env` de `deployer`, copia diaria de las SQLite (`/var/backups/inkomi`, 14 días) y Caddy con HTTPS para `DOMAIN` |
+| `setup-oracle.sh` | paquetes, quita los REJECT de OCI, swap, Tailscale, reglas UFW, k3s server con etiqueta `low`, carpetas de `.env` de `deployer`, copia diaria de las SQLite (`/var/backups/inkomi`, 14 días) y Caddy con HTTPS para `DOMAIN` (y `MONOLITH_DOMAIN`, con su carpeta en `~/inkomi/back/monolith` y `deployer` en el grupo `docker`) |
 | `setup-mobile.sh` | paquetes, comprobaciones (arquitectura, disco, cgroups), desactiva la suspensión, Tailscale, reglas UFW, k3s agent con etiqueta `high` y, opcionalmente, Cloudflare Tunnel y su Caddy (`CF_TUNNEL_TOKEN`, `TUNNEL_HOSTNAME`) |
 
 Lo que sigue siendo manual: el cambio del Ansible (§1), la *Security List* de OCI, desactivar la expiración de clave en Tailscale, rellenar los `.env` (§6) y los secrets de GitHub (§9).
@@ -58,7 +59,7 @@ Cambios necesarios antes de aplicarlo a estas máquinas:
 2. **`config/general.yml`**
    - Oracle: comenta `allowed_web_ip` (servidor público).
    - Móvil: el tráfico web llega por el túnel (localhost). Ojo: los puertos que publica Docker (Caddy 80/443) se saltan UFW, así que en la LAN de casa siguen abiertos.
-3. **Usuario `deployer`**: es el de la pipeline. No necesita sudo (`deploy.sh` no lo usa) ni el grupo `docker`. Necesita que exista `~/inkomi/back/` con los `.env` (paso 6).
+3. **Usuario `deployer`**: es el de la pipeline. No necesita sudo (`deploy.sh` no lo usa). Para k3s no necesita el grupo `docker`; para el monolito sí (§12). Necesita que exista `~/inkomi/back/microservices/` con los `.env` (paso 6).
 4. **UFW** para el tráfico del clúster (en ambos nodos):
    ```bash
    sudo ufw allow in on tailscale0
@@ -75,7 +76,8 @@ Cambios necesarios antes de aplicarlo a estas máquinas:
   sudo fallocate -l 4G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
   echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
   ```
-- **La API antigua** (`back/api` con docker compose, más otel/prometheus/tempo/loki/grafana) no cabe junto a k3s en 2 GB. Cuando migres, para ese stack (`docker compose down` en `~/inkomi/back/api`).
+- **La API antigua** (`back/api`, ya eliminada del repo) no cabe junto a k3s en 2 GB: si sigue corriendo, para ese stack (`docker compose down` en `~/inkomi/back/api`).
+- **El monolito** (§12) junto a k3s y los microservicios también va justo en 2 GB: úsalo como alternativa (parando el namespace `inkomi`) o en otra máquina.
 
 ## 3. Móvil: comprobaciones previas
 
@@ -145,21 +147,21 @@ Con más nodos `high` puedes subir `replicas` de `manga-worker` y `epub-worker` 
 
 ## 6. Variables de entorno (en Oracle)
 
-La pipeline crea los Secrets a partir de estos ficheros. Cada servicio tiene su `back/<servicio>/.env.example` con todas las variables explicadas.
+La pipeline crea los Secrets a partir de estos ficheros. Cada servicio tiene su `back/microservices/<servicio>/.env.example` con todas las variables explicadas. Si vienes del layout anterior (`~/inkomi/back/<servicio>/.env`), muévelos: `deploy.sh` solo usa la ruta antigua si `~/inkomi/back/microservices` no existe.
 
 ```
-/home/deployer/inkomi/back/auth-service/.env
-/home/deployer/inkomi/back/library-service/.env
-/home/deployer/inkomi/back/transaction-manager/.env
-/home/deployer/inkomi/back/manga-worker/.env        ← también lo usan la subida de samples y los tests e2e (R2)
-/home/deployer/inkomi/back/epub-worker/.env
-/home/deployer/inkomi/back/push-service/.env
-/home/deployer/inkomi/back/push-service/firebase.json
-/home/deployer/inkomi/back/release-service/.env      ← opcional: todas las variables tienen valor por defecto
+/home/deployer/inkomi/back/microservices/auth-service/.env
+/home/deployer/inkomi/back/microservices/library-service/.env
+/home/deployer/inkomi/back/microservices/transaction-manager/.env
+/home/deployer/inkomi/back/microservices/manga-worker/.env        ← también lo usan la subida de samples y los tests e2e (R2)
+/home/deployer/inkomi/back/microservices/epub-worker/.env
+/home/deployer/inkomi/back/microservices/push-service/.env
+/home/deployer/inkomi/back/microservices/push-service/firebase.json
+/home/deployer/inkomi/back/microservices/release-service/.env      ← opcional: todas las variables tienen valor por defecto
 ```
 
 ```bash
-chmod 700 ~/inkomi && chmod 600 ~/inkomi/back/*/.env ~/inkomi/back/push-service/firebase.json
+chmod 700 ~/inkomi && chmod 600 ~/inkomi/back/microservices/*/.env ~/inkomi/back/microservices/push-service/firebase.json
 ```
 
 Claves que tienen que cuadrar entre servicios:
@@ -248,7 +250,7 @@ Secrets del repositorio (o del environment `production`, al que puedes poner apr
 | `ORACLE_PRIVATE_KEY` | clave privada SSH de `deployer` |
 | `GHCR_PULL_TOKEN` | PAT (classic) con `read:packages`, para que los nodos descarguen las imágenes privadas de ghcr.io. Si haces públicos los paquetes `inkomi-*`, no hace falta. |
 
-Primer despliegue: *Actions → Deploy backend (k3s) → Run workflow* con `all`. Después puedes desplegar solo algunos servicios (`manga-worker,epub-worker`).
+Primer despliegue: *Actions → Deploy microservices (k3s) → Run workflow* con `all`. Después puedes desplegar solo algunos servicios (`manga-worker,epub-worker`).
 
 ### Web (`front/web`)
 
@@ -279,3 +281,42 @@ kubectl get ns | grep sandbox              # vacío: la pipeline borra los sandb
 ```
 
 Si un despliegue falla en los tests e2e, producción no se toca. Si falla el rollout de producción, la pipeline hace `rollout undo` de los servicios desplegados. Los logs de los pods salen en el log del job de GitHub.
+
+## 12. Monolito (Docker Compose)
+
+`back/monolith` junta todos los microservicios en un proceso: mismas rutas y contratos (la web y la app no cambian), NATS embebido con JetStream en disco en vez de NATS y Redis, y las tres SQLite (`users.db`, `transactions.db`, `jobs.db`) en `data/`. Se despliega con *Actions → Deploy monolith (Docker Compose)* (`.github/workflows/deploy-monolith.yml`), con los mismos secrets que k3s (§9):
+
+1. Tests (con libvips) e imágenes `inkomi-monolith` e `inkomi-e2e` en ghcr.io.
+2. En Oracle, `deploy/monolith/deploy.sh`: sube los samples de la preview, arranca la imagen nueva como proyecto compose desechable (datos y red propios) y pasa los tests e2e contra él. Solo si pasan, actualiza producción, espera al healthcheck (`/healthz`) y, si falla, vuelve a la versión anterior (`.deployed-tag`).
+
+Preparación (una vez):
+
+```
+/home/deployer/inkomi/back/monolith/.env            ← plantilla: back/monolith/.env.example
+/home/deployer/inkomi/back/monolith/firebase.json
+/home/deployer/inkomi/back/monolith/data/           ← propiedad de uid 10001 (el usuario del contenedor)
+```
+
+```bash
+sudo install -d -o 10001 -g 10001 -m 700 ~deployer/inkomi/back/monolith/data
+sudo usermod -aG docker deployer        # deploy.sh usa docker compose (si no, prueba con sudo -n)
+```
+
+`setup-oracle.sh` con `MONOLITH_DOMAIN` hace estos pasos y añade al Caddyfile:
+
+```caddyfile
+mono.tudominio.com {
+    @api path /auth/* /users/* /books/* /uploads /uploads/* /ws /ws/* /preview /preview/* /app/*
+    reverse_proxy @api inkomi-monolith:3000
+    reverse_proxy inkomi-web:8080
+}
+```
+
+El compose une `monolith` y `web` a `caddy_net` con los alias `inkomi-monolith` e `inkomi-web`. La web es la imagen `inkomi-web:latest` que publica `deploy-web.yml`, así que despliega la web al menos una vez antes. Para que los tokens sigan valiendo al pasar de k3s al monolito, usa las mismas `JWT_*` y `TOKEN_ENCRYPTION_KEY` que auth-service. Para llevarte los datos, copia `users.db` y `transactions.db` de los volúmenes de k3s (§10) a `data/`.
+
+```bash
+cd ~/inkomi/back/monolith
+docker compose ps
+docker compose logs -f monolith
+curl -I https://mono.tudominio.com/healthz   # 200
+```
