@@ -1,4 +1,4 @@
-// Mirror of back/transaction-manager/internal/domain/models/ereader.go.
+// Mirror of back/microservices/transaction-manager/internal/domain/models/ereader.go.
 
 export interface EReader {
   key: string;

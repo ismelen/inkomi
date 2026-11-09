@@ -35,14 +35,14 @@ UploadDTO = SourceRow sin userId/configKey (mismos campos camelCase que el `resu
 - Se excluyen los árboles abandonados: ningún nodo ha salido de `pending_upload` (request hecho pero nunca confirmado). Ojo: la raíz de una carpeta sin fusión se queda en `pending_upload` para siempre, así que el filtro mira a los hijos.
 - Solo filas del usuario del token.
 
-**Ficheros** (`back/transaction-manager/`):
+**Ficheros** (`back/microservices/transaction-manager/`):
 - `internal/domain/models/source-tree.go` (`SourceTree{Source; Children []Source}`), `source-list-filter.go` (`SourceListFilter{Limit, Cursor *SourceCursor, UpdatedSince *time.Time}` con `NewSourceListFilter` que valida) y `source-cursor.go` (encode/decode); errores `ErrInvalidCursor`, `ErrInvalidLimit` en `errors.go`.
 - `internal/domain/ports/source-repository.go`: `ListTreesByUserId(ctx, userId, filter) ([]models.SourceTree, error)` y `Now(ctx) (time.Time, error)` (o reutilizar `CURRENT_TIMESTAMP` dentro de la misma consulta) + actualizar `usecases/mocks/mock-source-repository.go`.
 - `internal/infra/repositories/sqlite-sources-repository.go`: 1 consulta para las raíces paginadas (con `EXISTS` sobre hijos para `updatedSince` y el filtro de abandonados) + 1 consulta `WHERE parentId IN (...)` para los hijos; reutilizar `sourceColumns`/`sourceFields`. Índice nuevo en `migrations/`: `(userId, parentId, createdAt DESC)`.
 - Corregir de paso: `UpdateStatus`/`UpdateErrorMsg` no rellenan `completedAt` en estados terminales (`done|sent|failed`); hacerlo como ya hace `UpsertResult`, para que el historial muestre la hora de fin.
 - `internal/usecases/listuploads/list-uploads-uc.go` (`ListUploadsUC.Execute(ctx, userId, filter) (*models.SourcePage, error)` → árboles + `nextCursor` + `syncedAt`).
 - `internal/infra/api/dtos/upload-list-response.go` (`UploadListResponse`, `UploadResponse`, `NewUploadListResponse`), `handlers/uploads-handler.go` → `HandleList` (parsea query, mapea errores a 400), `routes/upload-routes.go` → `r.Get("/", ...)`; cablear el UC en `main.go`.
-- Tests: `list-uploads-uc_test.go` con mocks, test de repositorio (paginación, `updatedSince` disparado por un hijo, exclusión de abandonados, aislamiento por usuario, resultados de fusión como hijos) y ampliar `back/e2e/manga-flow_test.go` para comprobar que tras `sent` el envío aparece en `GET /uploads`.
+- Tests: `list-uploads-uc_test.go` con mocks, test de repositorio (paginación, `updatedSince` disparado por un hijo, exclusión de abandonados, aislamiento por usuario, resultados de fusión como hijos) y ampliar `back/microservices/e2e/manga-flow_test.go` para comprobar que tras `sent` el envío aparece en `GET /uploads`.
 - Documentar el endpoint en `docs/` si existe catálogo (el plan de migración) — solo una línea.
 
 ### `GET /uploads/{sourceId}/download` (enlace prefirmado para descargar/compartir)
@@ -64,20 +64,20 @@ GET /uploads/{sourceId}/download   (Bearer)
 
 Base `EXPO_PUBLIC_BACKEND_URL` (sin `/api`). Errores JSON `{error: string}`; 204 sin cuerpo; el middleware JWT responde 401 en **texto plano**.
 
-**auth-service** (`back/auth-service/internal/infra/api/routes/*`, DTOs en `.../dtos/`):
+**auth-service** (`back/microservices/auth-service/internal/infra/api/routes/*`, DTOs en `.../dtos/`):
 - `POST /auth/register|login {email,password,deviceId}`, `POST /auth/google {idToken,deviceId}`, `POST /auth/dropbox {refreshToken,deviceId}` → `TokensResponse {accessToken, accessTokenExpiresAt, refreshToken, refreshTokenExpiresAt}` (RFC3339).
 - `POST /auth/refresh {refreshToken}` (rotado, de un solo uso) · `POST /auth/logout {refreshToken}` → 204.
 - Bearer: `GET /users/me` → `{id, email?, emailVerified, hasPassword, providers: ('google'|'dropbox')[], dropbox: {linked, email?, folder}}`; `PUT /users/me/fcm-token {token}` (`""` = borrar); `PUT|DELETE /users/me/dropbox {refreshToken}`; `PUT /users/me/dropbox/folder {folder}` → `{folder}`.
-- Mensajes de error exactos en `back/auth-service/internal/infra/api/handlers/api-errors.go` → mapear a claves i18n.
+- Mensajes de error exactos en `back/microservices/auth-service/internal/infra/api/handlers/api-errors.go` → mapear a claves i18n.
 
 **library-service**: `GET /books/search?q&lang&fmt=epub,cbz,pdf` (Bearer) → `{title, author, pages, language, extension, md5, coverUrl}[]`; `md5` puede ser `""` (no añadible); 400 `empty query`, 503 `no libgen mirror available`. Sin paginación ni tamaño.
 
-**transaction-manager** (`back/transaction-manager/internal/infra/api/`):
+**transaction-manager** (`back/microservices/transaction-manager/internal/infra/api/`):
 - `POST /uploads/request` body `{ereader_key, sources: SourceDTO[], config: Record<key, ConfigDTO>}` → `SourceDTO[]` con `id` y `url` (solo `type:"file"`). SourceDTO snake_case: `title, type ('file'|'folder'|'library'), size?, filename, config_hash? (clave del mapa), reading_direction ('ltr'|'rtl'), to_cloud, should_join, items[]`. Hijos heredan dirección/to_cloud/config del padre.
 - `PUT <url>` bytes crudos (R2, caduca en 15 min) → `PATCH /uploads/done/{id}` (204) por cada file e item library. **Nunca** sobre una fila folder.
-- `ConfigDTO` camelCase (`config-dto.go`): `ereaderKey` (obligatorio), `rotateDoublePage, cropTolerance(-1|[0,1]), enlarge, embed, gamma[0.1,3], brightness[-1,1], contrast[0,2], grayscale, blackPointThreshold<whitePointThreshold, dithering, palette8bit, quality[1,100], sharpen{enabled,radius,x1,y2,y3,m1,m2}`. Validar en cliente con los rangos de `back/manga-worker/internal/domain/models/manga-config.go`.
+- `ConfigDTO` camelCase (`config-dto.go`): `ereaderKey` (obligatorio), `rotateDoublePage, cropTolerance(-1|[0,1]), enlarge, embed, gamma[0.1,3], brightness[-1,1], contrast[0,2], grayscale, blackPointThreshold<whitePointThreshold, dithering, palette8bit, quality[1,100], sharpen{enabled,radius,x1,y2,y3,m1,m2}`. Validar en cliente con los rangos de `back/microservices/manga-worker/internal/domain/models/manga-config.go`.
 - `GET /ws` con header `Authorization: Bearer` (RN: `new WebSocket(url, undefined, {headers})`). Una conexión por usuario, sin snapshot ni pings. Mensajes sin `type`: `{id,status,filename?,size?,error?}` · `{id,status,result: SourceRow}` (resultado de fusión) · `{id,status:'done'|'failed',error?}` (cierre de carpeta fusionada). Status: `pending_upload|queued|processing|joining|joined|kepubifying|done|sent|failed`.
-- EReaderKey: Kindle `K1 K2 KDX K34 K57 KPW KV KPW34 K810 KO K11 KPW5 KS KCS`; Kobo (kepubify) `KoMT KoG KoGHD KoA KoAHD KoAH2O KoAO KoN KoC KoCC KoL KoLC KoF KoS KoE` (`back/transaction-manager/internal/domain/models/ereader.go`, con resoluciones).
+- EReaderKey: Kindle `K1 K2 KDX K34 K57 KPW KV KPW34 K810 KO K11 KPW5 KS KCS`; Kobo (kepubify) `KoMT KoG KoGHD KoA KoAHD KoAH2O KoAO KoN KoC KoCC KoL KoLC KoF KoS KoE` (`back/microservices/transaction-manager/internal/domain/models/ereader.go`, con resoluciones).
 - FCM data: `{type:'sent', id, filename, toCloud, parentId?}`.
 - **Nuevo** `GET /uploads` (Parte 1) para sincronizar cola e historial, y `GET /uploads/{id}/download` para el enlace prefirmado de descarga.
 
@@ -127,7 +127,7 @@ En español, estilo de `back/CLAUDE.md` (reglas concisas): stack y comandos; lay
 
 ## Verificación
 
-0. Backend: `go test ./...` en `back/transaction-manager` y el e2e de `back/e2e` (requiere el stack local); `curl -H "Authorization: Bearer …" /uploads?limit=2` para ver paginación y `updatedSince`.
+0. Backend: `go test ./...` en `back/microservices/transaction-manager` y el e2e de `back/microservices/e2e` (requiere el stack local); `curl -H "Authorization: Bearer …" /uploads?limit=2` para ver paginación y `updatedSince`.
 1. `npx tsc --noEmit` y `npx prettier --check .` en `front/mobile`.
-2. Backend local (docker compose / e2e de `back/e2e`) y `npx expo run:android` (dev build; Google Sign-In y FCM no funcionan en Expo Go).
+2. Backend local (docker compose / e2e de `back/microservices/e2e`) y `npx expo run:android` (dev build; Google Sign-In y FCM no funcionan en Expo Go).
 3. Flujo manual: registro → login → `/users/me` en Ajustes; vincular Dropbox y cambiar carpeta; añadir cbz sueltos + carpeta como agrupación con "Fusionar", ajustar Opciones, reordenar, mover/borrar en modo selección; buscar "quijote", añadir resultado; SEND → modal Enviando → En curso actualizándose por WS hasta `sent`; Historial persistido tras reiniciar; borrar datos de la app / instalar en otro dispositivo y comprobar que cola e historial se reconstruyen; matar la app durante un procesado y al volver comprobar que la reconciliación trae los cambios perdidos; desde Historial descargar y compartir un envío simple y, desde Resultados, uno fusionado; push recibido con la app en segundo plano; expirar access token (15 min) y comprobar refresh transparente; Cerrar sesión vuelve a Login.

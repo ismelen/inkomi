@@ -37,7 +37,7 @@ src/services/ · src/stores/      como en móvil, con las adaptaciones de plataf
 ## Plataforma (diferencias con móvil)
 
 - Tokens y `deviceId` en `localStorage`; todas las pestañas comparten sesión (evento `storage`). El refresh, además de single-flight, va dentro de `navigator.locks` (`inkomi-refresh`) y relee el token: otra pestaña puede haberlo rotado ya.
-- WebSocket: el navegador no manda cabeceras, así que el token va como subprotocolo `['bearer', token]` (lo acepta `back/common/httpauth` y el upgrader del transaction-manager lo devuelve). Solo la pestaña con el lock `inkomi-ws` abre el WS y sincroniza; las demás ven los cambios por la BD compartida (`BroadcastChannel`). El backoff solo se reinicia si la conexión duró >30 s (el servidor admite una conexión por usuario).
+- WebSocket: el navegador no manda cabeceras, así que el token va como subprotocolo `['bearer', token]` (lo acepta `back/microservices/common/httpauth` y el upgrader del transaction-manager lo devuelve). Solo la pestaña con el lock `inkomi-ws` abre el WS y sincroniza; las demás ven los cambios por la BD compartida (`BroadcastChannel`). El backoff solo se reinicia si la conexión duró >30 s (el servidor admite una conexión por usuario).
 - Actividad en IndexedDB (`services/activity-db.ts`, misma API que la versión SQLite). El borrador de la lista se persiste en IndexedDB sin JSON para conservar los `File`. Preferencias en `localStorage` (el tema se aplica antes de React en `index.html`).
 - Subida: `PUT` con `XMLHttpRequest` (progreso y `abort`); `beforeunload` avisa mientras sube. Necesita CORS del bucket R2 (`deploy/SERVERS.md`).
 - Descarga: se pide el enlace en cada clic y se navega a él. No hay "Compartir".
