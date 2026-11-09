@@ -53,14 +53,15 @@ func (c *CloudSampleSource) Get(ctx context.Context, sample models.PreviewSample
 		return nil, models.ErrUnknownSample
 	}
 
-	c.mu.RLock()
-	data, ok := c.cache[sample]
-	c.mu.RUnlock()
-	if ok {
+	if data, ok := c.cached(sample); ok {
 		return data, nil
 	}
 
 	result, err, _ := c.group.Do(string(sample), func() (any, error) {
+		// a caller that missed the cache may arrive after the previous download finished
+		if data, ok := c.cached(sample); ok {
+			return data, nil
+		}
 		// shared by every concurrent caller, so it must not depend on the first one's request
 		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), downloadTimeout)
 		defer cancel()
@@ -77,6 +78,13 @@ func (c *CloudSampleSource) Get(ctx context.Context, sample models.PreviewSample
 		return nil, err
 	}
 	return result.([]byte), nil
+}
+
+func (c *CloudSampleSource) cached(sample models.PreviewSample) ([]byte, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	data, ok := c.cache[sample]
+	return data, ok
 }
 
 func (c *CloudSampleSource) download(ctx context.Context, filename string) ([]byte, error) {

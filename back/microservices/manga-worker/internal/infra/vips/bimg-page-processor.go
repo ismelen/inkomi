@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"image"
 	"image/png"
+	"math"
 
 	// decoders for the pages handed to the pure Go steps
 	_ "image/jpeg"
@@ -122,13 +123,17 @@ func processPart(part pagePart, cfg models.MangaConfig) (models.ProcessedPage, e
 		data = cropped
 	}
 
-	data, err := bimg.Resize(data, bimg.Options{
-		Width:        cfg.TargetWidth,
-		Height:       cfg.TargetHeight,
+	width, height, err := resizeTarget(data, cfg)
+	if err != nil {
+		return models.ProcessedPage{}, err
+	}
+	data, err = bimg.Resize(data, bimg.Options{
+		Width:        width,
+		Height:       height,
 		Enlarge:      cfg.Enlarge,
 		Embed:        cfg.Embed,
 		Extend:       bimg.ExtendWhite,
-		Interpolator: bimg.Lanczos3,
+		Interpolator: bimg.Bicubic,
 	})
 	if err != nil {
 		return models.ProcessedPage{}, fmt.Errorf("resize: %w", err)
@@ -175,6 +180,30 @@ func processPart(part pagePart, cfg models.MangaConfig) (models.ProcessedPage, e
 		Split:  part.split,
 		Format: format,
 	}, nil
+}
+
+// resizeTarget returns the size to resize to: the target itself when embedding (bimg fills the
+// blanks), otherwise the largest size that fits in it keeping the aspect ratio, since bimg
+// stretches the page to the exact size when it gets both dimensions.
+func resizeTarget(data []byte, cfg models.MangaConfig) (int, int, error) {
+	if cfg.Embed {
+		return cfg.TargetWidth, cfg.TargetHeight, nil
+	}
+	size, err := bimg.NewImage(data).Size()
+	if err != nil {
+		return 0, 0, fmt.Errorf("read page size: %w", err)
+	}
+	if size.Width == 0 || size.Height == 0 {
+		return cfg.TargetWidth, cfg.TargetHeight, nil
+	}
+
+	scale := math.Min(float64(cfg.TargetWidth)/float64(size.Width), float64(cfg.TargetHeight)/float64(size.Height))
+	if scale > 1 && !cfg.Enlarge {
+		scale = 1
+	}
+	width := max(1, int(math.Round(float64(size.Width)*scale)))
+	height := max(1, int(math.Round(float64(size.Height)*scale)))
+	return width, height, nil
 }
 
 func cropMargins(data []byte, tolerance float64) ([]byte, error) {
