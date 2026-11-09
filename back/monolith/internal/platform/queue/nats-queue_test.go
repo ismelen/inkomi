@@ -2,6 +2,7 @@ package queue_test
 
 import (
 	"context"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -131,5 +132,67 @@ func TestEmbeddedNATS_Restart_PendingMessage_IsRedelivered(t *testing.T) {
 		assert.JSONEq(t, `{"id":"1"}`, msg)
 	case <-time.After(2 * time.Second):
 		t.Fatal("timeout waiting for the persisted message")
+	}
+}
+
+func TestNatsQueue_SubscribeWith_Concurrency_RunsJobsAtOnce(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	q, err := queue.NewNatsQueue(connect(t, t.TempDir()), time.Minute, 3)
+	require.NoError(t, err)
+	defer q.Close()
+	started := make(chan struct{}, 2)
+	release := make(chan struct{})
+	require.NoError(t, q.SubscribeWith("test.parallel", queue.SubscribeOptions{Concurrency: 2}, func(ctx context.Context, d jobrun.Delivery) error {
+		started <- struct{}{}
+		<-release
+		return nil
+	}))
+
+	// Act
+	for i := range 2 {
+		require.NoError(t, q.Publish(context.Background(), "test.parallel", map[string]int{"n": i}))
+	}
+
+	// Assert
+	for range 2 {
+		select {
+		case <-started:
+		case <-time.After(2 * time.Second):
+			t.Fatal("the second job didn't start while the first one ran")
+		}
+	}
+	close(release)
+}
+
+func TestNatsQueue_SubscribeWith_NotReady_WaitsToStart(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	q, err := queue.NewNatsQueue(connect(t, t.TempDir()), time.Minute, 3)
+	require.NoError(t, err)
+	defer q.Close()
+	var ready atomic.Bool
+	started := make(chan struct{}, 1)
+	require.NoError(t, q.SubscribeWith("test.gate", queue.SubscribeOptions{Concurrency: 1, Ready: ready.Load}, func(ctx context.Context, d jobrun.Delivery) error {
+		started <- struct{}{}
+		return nil
+	}))
+
+	// Act
+	require.NoError(t, q.Publish(context.Background(), "test.gate", map[string]int{"n": 1}))
+
+	// Assert
+	select {
+	case <-started:
+		t.Fatal("the job started before the gate was ready")
+	case <-time.After(500 * time.Millisecond):
+	}
+	ready.Store(true)
+	select {
+	case <-started:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the job didn't start once the gate was ready")
 	}
 }

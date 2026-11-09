@@ -9,11 +9,12 @@ import (
 )
 
 const (
-	defaultJoinTTL        = 24 * time.Hour
-	defaultJoinLockTTL    = 30 * time.Minute
-	defaultNATSAckWait    = 30 * time.Minute
-	defaultNATSMaxDeliver = 3
-	defaultJoinMaxBlockMB = 200
+	defaultJoinTTL         = 24 * time.Hour
+	defaultJoinLockTTL     = 30 * time.Minute
+	defaultNATSAckWait     = 30 * time.Minute
+	defaultNATSMaxDeliver  = 3
+	defaultJoinMaxBlockMB  = 200
+	defaultMemoryReserveMB = 400
 )
 
 type AppConfig struct {
@@ -28,6 +29,8 @@ type AppConfig struct {
 	JoinTTL           time.Duration
 	JoinLockTTL       time.Duration
 	JoinMaxBlockSize  int64
+	// MemoryReserve is the free memory below which no new job starts.
+	MemoryReserve uint64
 }
 
 var Env AppConfig
@@ -47,6 +50,7 @@ func Load() {
 		JoinTTL:           durationOr(os.Getenv("JOIN_TTL"), defaultJoinTTL),
 		JoinLockTTL:       durationOr(os.Getenv("JOIN_LOCK_TTL"), defaultJoinLockTTL),
 		JoinMaxBlockSize:  intOr(os.Getenv("JOIN_MAX_BLOCK_MB"), defaultJoinMaxBlockMB) << 20,
+		MemoryReserve:     uint64(intOr(os.Getenv("MEMORY_RESERVE_MB"), defaultMemoryReserveMB)) << 20,
 	}
 }
 

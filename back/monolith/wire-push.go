@@ -11,6 +11,7 @@ import (
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/push/usecases/senddone"
 	"github.com/ismelen/inkomi/back/monolith/internal/platform/jobrun"
 	"github.com/ismelen/inkomi/back/monolith/internal/platform/jobs"
+	"github.com/ismelen/inkomi/back/monolith/internal/platform/queue"
 )
 
 func wirePush(d *deps, auth *authAPI) {
@@ -24,7 +25,8 @@ func wirePush(d *deps, auth *authAPI) {
 	userSettings := usersettings.NewAuthUserSettings(auth.getDropboxAccess, auth.getFCMToken)
 
 	sendDoneUC := senddone.NewSendDoneUC(d.queue, d.cloud, userSettings, cloudDrive, notifier)
-	if err := d.queue.Subscribe(string(jobs.SubjectDone), jobrun.Handle(d.queue, sendDoneUC.Execute)); err != nil {
+	// network bound: one job waiting on the network doesn't need to hold back the next one
+	if err := d.queue.SubscribeWith(string(jobs.SubjectDone), queue.SubscribeOptions{Concurrency: 2}, jobrun.Handle(d.queue, sendDoneUC.Execute)); err != nil {
 		log.Fatal(err)
 	}
 }

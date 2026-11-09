@@ -12,6 +12,8 @@ import (
 const (
 	defaultNATSAckWait          = 30 * time.Minute
 	defaultNATSMaxDeliver       = 3
+	defaultMangaJobMemoryMB     = 512
+	defaultMemoryReserveMB      = 400
 	defaultPort                 = "3003"
 	defaultPreviewSamplesId     = "samples"
 	defaultPreviewColorSample   = "color.jpg"
@@ -31,9 +33,15 @@ type AppConfig struct {
 	NATSUrl           string
 	NATSAckWait       time.Duration
 	NATSMaxDeliver    int
-	// Workers is how many pages are processed at once.
+	// Workers is how many pages are processed at once, across every job and the preview.
 	Workers int
-	Port    string
+	// MangaConcurrency is how many jobs run at once; 0 picks it from the CPUs and the free memory
+	// at startup, assuming MangaJobMemory per job.
+	MangaConcurrency int
+	MangaJobMemory   uint64
+	// MemoryReserve is the free memory below which no new job starts.
+	MemoryReserve uint64
+	Port          string
 
 	// The preview samples are stored as PreviewSamplesId/<filename> in cloud storage.
 	PreviewSamplesId     string
@@ -61,7 +69,10 @@ func Load() {
 		NATSUrl:           os.Getenv("NATS_URL"),
 		NATSAckWait:       durationOr(os.Getenv("NATS_ACK_WAIT"), defaultNATSAckWait),
 		NATSMaxDeliver:    intOr(os.Getenv("NATS_MAX_DELIVER"), defaultNATSMaxDeliver),
-		Workers:           intOr(os.Getenv("WORKERS"), max(1, runtime.NumCPU()*3/4)),
+		Workers:           intOr(os.Getenv("WORKERS"), runtime.NumCPU()),
+		MangaConcurrency:  intOr(os.Getenv("MANGA_CONCURRENCY"), 0),
+		MangaJobMemory:    uint64(intOr(os.Getenv("MANGA_JOB_MEMORY_MB"), defaultMangaJobMemoryMB)) << 20,
+		MemoryReserve:     uint64(intOr(os.Getenv("MEMORY_RESERVE_MB"), defaultMemoryReserveMB)) << 20,
 		Port:              stringOr(os.Getenv("PORT"), defaultPort),
 
 		PreviewSamplesId:     stringOr(os.Getenv("PREVIEW_SAMPLES_ID"), defaultPreviewSamplesId),

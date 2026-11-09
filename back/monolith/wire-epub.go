@@ -13,6 +13,7 @@ import (
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/epub/usecases/kepubify"
 	"github.com/ismelen/inkomi/back/monolith/internal/platform/jobrun"
 	"github.com/ismelen/inkomi/back/monolith/internal/platform/jobs"
+	"github.com/ismelen/inkomi/back/monolith/internal/platform/queue"
 	"github.com/ismelen/inkomi/back/monolith/internal/platform/sqlitedb"
 	"github.com/ismelen/inkomi/back/monolith/migrations"
 )
@@ -31,7 +32,8 @@ func wireEpub(d *deps) func() {
 		jobs.SubjectJoin:  joinEpubsUC.Execute,
 		jobs.SubjectKepub: kepubifyUC.Execute,
 	} {
-		if err := d.queue.Subscribe(string(subject), jobrun.Handle(d.queue, handler)); err != nil {
+		opts := queue.SubscribeOptions{Concurrency: 1, Ready: d.memoryGate.Ready}
+		if err := d.queue.SubscribeWith(string(subject), opts, jobrun.Handle(d.queue, handler)); err != nil {
 			log.Fatal(err)
 		}
 	}

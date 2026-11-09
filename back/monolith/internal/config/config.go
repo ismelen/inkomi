@@ -21,6 +21,9 @@ const (
 	defaultNATSAckWait    = 30 * time.Minute
 	defaultNATSMaxDeliver = 3
 
+	defaultMangaJobMemoryMB = 512
+	defaultMemoryReserveMB  = 400
+
 	defaultMirrorRefreshInterval = time.Hour
 	defaultMirrorRefreshCooldown = time.Minute
 
@@ -75,8 +78,14 @@ type AppConfig struct {
 	MirrorRefreshInterval time.Duration
 	MirrorRefreshCooldown time.Duration
 
-	// Workers is how many manga pages are processed at once.
+	// Workers is how many manga pages are processed at once, across every job and the preview.
 	Workers int
+	// MangaConcurrency is how many manga jobs run at once; 0 picks it from the CPUs and the free
+	// memory at startup, assuming MangaJobMemory per job.
+	MangaConcurrency int
+	MangaJobMemory   uint64
+	// MemoryReserve is the free memory below which no new heavy job (manga, join, kepub) starts.
+	MemoryReserve uint64
 	// The preview samples are stored as PreviewSamplesId/<filename> in cloud storage.
 	PreviewSamplesId     string
 	PreviewColorSample   string
@@ -136,7 +145,10 @@ func Load() {
 		MirrorRefreshInterval: durationOr(os.Getenv("MIRROR_REFRESH_INTERVAL"), defaultMirrorRefreshInterval),
 		MirrorRefreshCooldown: durationOr(os.Getenv("MIRROR_REFRESH_COOLDOWN"), defaultMirrorRefreshCooldown),
 
-		Workers:              intOr(os.Getenv("WORKERS"), max(1, runtime.NumCPU()*3/4)),
+		Workers:              intOr(os.Getenv("WORKERS"), runtime.NumCPU()),
+		MangaConcurrency:     intOr(os.Getenv("MANGA_CONCURRENCY"), 0),
+		MangaJobMemory:       uint64(intOr(os.Getenv("MANGA_JOB_MEMORY_MB"), defaultMangaJobMemoryMB)) << 20,
+		MemoryReserve:        uint64(intOr(os.Getenv("MEMORY_RESERVE_MB"), defaultMemoryReserveMB)) << 20,
 		PreviewSamplesId:     stringOr(os.Getenv("PREVIEW_SAMPLES_ID"), defaultPreviewSamplesId),
 		PreviewColorSample:   stringOr(os.Getenv("PREVIEW_COLOR_SAMPLE"), defaultPreviewColorSample),
 		PreviewBWSample:      stringOr(os.Getenv("PREVIEW_BW_SAMPLE"), defaultPreviewBWSample),

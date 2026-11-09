@@ -13,6 +13,7 @@ import (
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/library/usecases/searchbooks"
 	"github.com/ismelen/inkomi/back/monolith/internal/platform/jobrun"
 	"github.com/ismelen/inkomi/back/monolith/internal/platform/jobs"
+	"github.com/ismelen/inkomi/back/monolith/internal/platform/queue"
 )
 
 func wireLibrary(d *deps, r chi.Router) {
@@ -27,7 +28,8 @@ func wireLibrary(d *deps, r chi.Router) {
 	library.Start(d.ctx, config.Env.MirrorRefreshInterval)
 
 	downloadBookUC := downloadbook.NewDownloadBookUC(d.queue, library, d.cloud)
-	if err := d.queue.Subscribe(string(jobs.SubjectLibrary), jobrun.Handle(d.queue, downloadBookUC.Execute)); err != nil {
+	// network bound: one job waiting on the network doesn't need to hold back the next one
+	if err := d.queue.SubscribeWith(string(jobs.SubjectLibrary), queue.SubscribeOptions{Concurrency: 2}, jobrun.Handle(d.queue, downloadBookUC.Execute)); err != nil {
 		log.Fatal(err)
 	}
 

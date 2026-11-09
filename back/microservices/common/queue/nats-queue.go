@@ -85,11 +85,30 @@ func (n *NatsQueue) Publish(ctx context.Context, subject string, payload any) er
 	return nil
 }
 
+// admissionPoll is how often a job waiting for SubscribeOptions.Ready checks again.
+const admissionPoll = 2 * time.Second
+
+// SubscribeOptions tunes how many jobs of a subject run at once.
+type SubscribeOptions struct {
+	// Concurrency is how many messages are handled at once (1 when not positive). It also bounds
+	// how many are fetched ahead, so a message never waits in the client longer than a job while
+	// its ack wait runs.
+	Concurrency int
+	// Ready, when set, gates the start of every job (e.g. on free memory). A message waiting for
+	// it keeps reporting progress, so it isn't redelivered.
+	Ready func() bool
+}
+
 func (n *NatsQueue) Subscribe(subject string, handler jobrun.DeliveryHandler) error {
+	return n.SubscribeWith(subject, SubscribeOptions{Concurrency: 1}, handler)
+}
+
+func (n *NatsQueue) SubscribeWith(subject string, opts SubscribeOptions, handler jobrun.DeliveryHandler) error {
 	ctx := context.Background()
 	if err := n.ensureStream(ctx, subject); err != nil {
 		return err
 	}
+	concurrency := max(1, opts.Concurrency)
 
 	name := streamName(subject)
 	consumer, err := n.js.CreateOrUpdateConsumer(ctx, name, jetstream.ConsumerConfig{
@@ -102,34 +121,50 @@ func (n *NatsQueue) Subscribe(subject string, handler jobrun.DeliveryHandler) er
 		return fmt.Errorf("failed to create consumer for %s: %w", subject, err)
 	}
 
+	slots := make(chan struct{}, concurrency)
 	subCtx, err := consumer.Consume(func(msg jetstream.Msg) {
-		attempt := uint64(1)
-		if meta, err := msg.Metadata(); err == nil {
-			attempt = meta.NumDelivered
+		// blocking here stops the delivery of more messages until a job ends
+		slots <- struct{}{}
+		for opts.Ready != nil && !opts.Ready() {
+			if err := msg.InProgress(); err != nil {
+				log.Printf("nats: %s in progress: %v", msg.Subject(), err)
+			}
+			time.Sleep(admissionPoll)
 		}
-
-		err := handler(context.Background(), jobrun.Delivery{
-			Subject:     msg.Subject(),
-			Payload:     msg.Data(),
-			LastAttempt: attempt >= uint64(n.maxDeliver),
-		})
-		var ackErr error
-		if err != nil {
-			log.Printf("nats: %s attempt %d failed: %v", msg.Subject(), attempt, err)
-			ackErr = msg.NakWithDelay(time.Duration(attempt) * retryDelay)
-		} else {
-			ackErr = msg.Ack()
-		}
-		if ackErr != nil {
-			log.Printf("nats: %s ack: %v", msg.Subject(), ackErr)
-		}
-	})
+		go func() {
+			defer func() { <-slots }()
+			n.handle(msg, handler)
+		}()
+	}, jetstream.PullMaxMessages(concurrency))
 	if err != nil {
 		return fmt.Errorf("failed to subscribe to %s: %w", subject, err)
 	}
 
 	n.subs = append(n.subs, subCtx)
 	return nil
+}
+
+func (n *NatsQueue) handle(msg jetstream.Msg, handler jobrun.DeliveryHandler) {
+	attempt := uint64(1)
+	if meta, err := msg.Metadata(); err == nil {
+		attempt = meta.NumDelivered
+	}
+
+	err := handler(context.Background(), jobrun.Delivery{
+		Subject:     msg.Subject(),
+		Payload:     msg.Data(),
+		LastAttempt: attempt >= uint64(n.maxDeliver),
+	})
+	var ackErr error
+	if err != nil {
+		log.Printf("nats: %s attempt %d failed: %v", msg.Subject(), attempt, err)
+		ackErr = msg.NakWithDelay(time.Duration(attempt) * retryDelay)
+	} else {
+		ackErr = msg.Ack()
+	}
+	if ackErr != nil {
+		log.Printf("nats: %s ack: %v", msg.Subject(), ackErr)
+	}
 }
 
 func (n *NatsQueue) Close() error {

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"runtime"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -12,7 +13,8 @@ import (
 	"github.com/ismelen/inkomi/back/microservices/common/cloud"
 	"github.com/ismelen/inkomi/back/microservices/common/jobrun"
 	"github.com/ismelen/inkomi/back/microservices/common/jobs"
-	"github.com/ismelen/inkomi/back/microservices/common/queue"
+	commonqueue "github.com/ismelen/inkomi/back/microservices/common/queue"
+	"github.com/ismelen/inkomi/back/microservices/common/resources"
 	"github.com/ismelen/inkomi/back/microservices/manga-worker/internal/config"
 	"github.com/ismelen/inkomi/back/microservices/manga-worker/internal/domain/models"
 	"github.com/ismelen/inkomi/back/microservices/manga-worker/internal/domain/ports"
@@ -32,7 +34,7 @@ func main() {
 	config.Load()
 	ctx := context.Background()
 
-	queue, err := queue.NewNatsQueue(config.Env.NATSUrl, config.Env.NATSAckWait, config.Env.NATSMaxDeliver)
+	queue, err := commonqueue.NewNatsQueue(config.Env.NATSUrl, config.Env.NATSAckWait, config.Env.NATSMaxDeliver)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -63,7 +65,18 @@ func main() {
 		config.Env.Workers,
 	)
 
-	if err := queue.Subscribe(string(jobs.SubjectManga), jobrun.Handle(queue, convertMangaUC.Execute)); err != nil {
+	memory := resources.NewMemory()
+	concurrency := config.Env.MangaConcurrency
+	if concurrency <= 0 {
+		available, ok := memory.Available()
+		concurrency = resources.Concurrency(runtime.NumCPU(), available, ok, config.Env.MangaJobMemory)
+	}
+	log.Printf("manga: %d jobs at once, %d page workers", concurrency, config.Env.Workers)
+	opts := commonqueue.SubscribeOptions{
+		Concurrency: concurrency,
+		Ready:       resources.NewMemoryGate(memory, config.Env.MemoryReserve).Ready,
+	}
+	if err := queue.SubscribeWith(string(jobs.SubjectManga), opts, jobrun.Handle(queue, convertMangaUC.Execute)); err != nil {
 		log.Fatal(err)
 	}
 

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"golang.org/x/sync/errgroup"
 
@@ -91,6 +92,7 @@ func (c *ConvertMangaUC) Execute(ctx context.Context, msg jobs.Msg, _ jobrun.Del
 		_ = os.RemoveAll(dir)
 	}()
 
+	start := time.Now()
 	srcPath := filepath.Join(dir, "source"+filepath.Ext(msg.Filename))
 	if err := c.cloudStorage.DownloadFile(ctx, msg.Id, msg.Filename, srcPath); err != nil {
 		if c.alreadyConverted(ctx, msg.Id, epubName) {
@@ -99,10 +101,12 @@ func (c *ConvertMangaUC) Execute(ctx context.Context, msg jobs.Msg, _ jobrun.Del
 		return err
 	}
 
+	downloaded := time.Now()
 	pages, err := c.convert(ctx, extractor, srcPath, dir, cfg, rtl)
 	if err != nil {
 		return err
 	}
+	converted := time.Now()
 
 	epubPath := filepath.Join(dir, "book.epub")
 	meta := models.EpubMeta{Title: title, RTL: rtl, Width: cfg.TargetWidth, Height: cfg.TargetHeight}
@@ -110,10 +114,14 @@ func (c *ConvertMangaUC) Execute(ctx context.Context, msg jobs.Msg, _ jobrun.Del
 		return jobrun.Permanent(fmt.Errorf("build epub: %w", err))
 	}
 
+	built := time.Now()
 	size, err := c.cloudStorage.UploadFile(ctx, msg.Id, epubName, epubPath)
 	if err != nil {
 		return err
 	}
+	log.Printf("convert manga %s: %d pages, download %s, process %s, epub %s, upload %s",
+		msg.Id, len(pages), round(downloaded.Sub(start)), round(converted.Sub(downloaded)),
+		round(built.Sub(converted)), round(time.Since(built)))
 
 	original := msg.Filename
 	msg.Filename, msg.Size, msg.Manga = epubName, size, nil
@@ -216,4 +224,8 @@ func permanentUnlessCanceled(err error) error {
 		return err
 	}
 	return jobrun.Permanent(err)
+}
+
+func round(d time.Duration) time.Duration {
+	return d.Round(10 * time.Millisecond)
 }

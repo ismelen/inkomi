@@ -110,3 +110,34 @@ func TestNatsQueue_Subscribe_FirstDelivery_ReportsLastAttempt(t *testing.T) {
 		})
 	}
 }
+
+func TestNatsQueue_SubscribeWith_Concurrency_RunsJobsAtOnce(t *testing.T) {
+	// Arrange
+	s := runJetStreamServer(t)
+	defer s.Shutdown()
+	q, err := queue.NewNatsQueue(s.ClientURL(), time.Minute, 3)
+	require.NoError(t, err)
+	defer q.Close()
+	started := make(chan struct{}, 2)
+	release := make(chan struct{})
+	require.NoError(t, q.SubscribeWith("test.parallel", queue.SubscribeOptions{Concurrency: 2}, func(ctx context.Context, d jobrun.Delivery) error {
+		started <- struct{}{}
+		<-release
+		return nil
+	}))
+
+	// Act
+	for i := range 2 {
+		require.NoError(t, q.Publish(context.Background(), "test.parallel", map[string]int{"n": i}))
+	}
+
+	// Assert
+	for range 2 {
+		select {
+		case <-started:
+		case <-time.After(2 * time.Second):
+			t.Fatal("the second job didn't start while the first one ran")
+		}
+	}
+	close(release)
+}

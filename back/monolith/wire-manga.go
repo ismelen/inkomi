@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"runtime"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -21,6 +22,8 @@ import (
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/manga/usecases/previewpage"
 	"github.com/ismelen/inkomi/back/monolith/internal/platform/jobrun"
 	"github.com/ismelen/inkomi/back/monolith/internal/platform/jobs"
+	"github.com/ismelen/inkomi/back/monolith/internal/platform/queue"
+	"github.com/ismelen/inkomi/back/monolith/internal/platform/resources"
 )
 
 func wireManga(d *deps, router chi.Router) {
@@ -37,7 +40,14 @@ func wireManga(d *deps, router chi.Router) {
 		epub.NewFixedLayoutBuilder(),
 		config.Env.Workers,
 	)
-	if err := d.queue.Subscribe(string(jobs.SubjectManga), jobrun.Handle(d.queue, convertMangaUC.Execute)); err != nil {
+	concurrency := config.Env.MangaConcurrency
+	if concurrency <= 0 {
+		available, ok := d.memory.Available()
+		concurrency = resources.Concurrency(runtime.NumCPU(), available, ok, config.Env.MangaJobMemory)
+	}
+	log.Printf("manga: %d jobs at once, %d page workers", concurrency, config.Env.Workers)
+	opts := queue.SubscribeOptions{Concurrency: concurrency, Ready: d.memoryGate.Ready}
+	if err := d.queue.SubscribeWith(string(jobs.SubjectManga), opts, jobrun.Handle(d.queue, convertMangaUC.Execute)); err != nil {
 		log.Fatal(err)
 	}
 

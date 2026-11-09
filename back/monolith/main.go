@@ -20,6 +20,7 @@ import (
 	"github.com/ismelen/inkomi/back/monolith/internal/platform/httpauth"
 	"github.com/ismelen/inkomi/back/monolith/internal/platform/httplog"
 	"github.com/ismelen/inkomi/back/monolith/internal/platform/queue"
+	"github.com/ismelen/inkomi/back/monolith/internal/platform/resources"
 )
 
 // timeoutMiddleware bounds every route except the WebSocket, which is long-lived, and the preview,
@@ -33,6 +34,9 @@ type deps struct {
 	queue          *queue.NatsQueue
 	cloud          *cloud.CloudflareR2Storage
 	authMiddleware func(http.Handler) http.Handler
+	memory         *resources.Memory
+	// memoryGate holds back heavy jobs while the free memory is below the reserve.
+	memoryGate *resources.MemoryGate
 }
 
 func main() {
@@ -77,7 +81,16 @@ func main() {
 		log.Fatal(err)
 	}
 
-	d := &deps{ctx: ctx, nc: nc, queue: jobQueue, cloud: cloudStorage, authMiddleware: authMiddleware}
+	memory := resources.NewMemory()
+	d := &deps{
+		ctx:            ctx,
+		nc:             nc,
+		queue:          jobQueue,
+		cloud:          cloudStorage,
+		authMiddleware: authMiddleware,
+		memory:         memory,
+		memoryGate:     resources.NewMemoryGate(memory, config.Env.MemoryReserve),
+	}
 
 	router := chi.NewRouter()
 	router.Use(httplog.AccessLog("/healthz"), middleware.Recoverer)
