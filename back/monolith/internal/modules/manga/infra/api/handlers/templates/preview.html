@@ -5,15 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Inkomi - Vista previa</title>
 <style>
-body { margin: 0; padding: 12px; background: #fff; color: #000; font-family: serif; font-size: 18px; }
-h1 { font-size: 22px; margin: 0 0 12px; }
-h2 { font-size: 18px; margin: 16px 0 6px; }
-img { display: block; max-width: 100%; height: auto; border: 1px solid #000; }
-.error { border: 2px solid #000; padding: 8px; margin-bottom: 12px; font-weight: bold; }
-label { display: block; margin: 8px 0 2px; }
-input[type=text], select { width: 100%; max-width: 320px; font-size: 18px; padding: 4px; border: 1px solid #000; }
-input[type=checkbox] { width: 22px; height: 22px; vertical-align: middle; }
-button { font-size: 20px; padding: 8px 20px; margin-top: 16px; border: 2px solid #000; background: #fff; }
+/* Plain CSS for e-reader browsers (old WebKit, e-ink): tables and inline-block, no flex or grid. */
+body { margin: 0; padding: 10px; background: #fff; color: #000; font-family: serif; font-size: 18px; }
+h1 { font-size: 22px; margin: 0 0 10px; }
+.error { border: 2px solid #000; padding: 8px; margin-bottom: 10px; font-weight: bold; }
+table.images { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 12px; }
+table.images th { font-size: 16px; text-align: left; padding: 0 4px 4px; }
+table.images td { width: 50%; padding: 0 4px; vertical-align: top; }
+img { display: block; width: 100%; height: auto; border: 1px solid #000; }
+fieldset { border: 1px solid #000; margin: 0 0 10px; padding: 4px 6px 8px; }
+legend { font-weight: bold; padding: 0 4px; }
+.field { display: inline-block; width: 48%; margin: 4px 1% 0 0; vertical-align: top; }
+.field label { display: block; font-size: 16px; margin-bottom: 2px; }
+.field.check label { padding-top: 6px; }
+input[type=text], select { width: 100%; font-size: 18px; padding: 4px; border: 1px solid #000; box-sizing: border-box; -webkit-box-sizing: border-box; }
+input[type=checkbox] { width: 22px; height: 22px; vertical-align: middle; margin: 0 6px 0 0; }
+button { width: 100%; font-size: 20px; padding: 10px; border: 2px solid #000; background: #fff; }
 </style>
 </head>
 <body>
@@ -21,28 +28,31 @@ button { font-size: 20px; padding: 8px 20px; margin-top: 16px; border: 2px solid
 
 {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
 
-<h2>Original</h2>
-<img src="{{.OriginalURL}}" alt="Original">
+<table class="images">
+<tr><th>Original</th>{{if .ProcessedURL}}<th>Procesada</th>{{end}}</tr>
+<tr>
+<td><img src="{{.OriginalURL}}" alt="Original"></td>
+{{if .ProcessedURL}}<td><img src="{{.ProcessedURL}}" alt="Procesada"></td>{{end}}
+</tr>
+</table>
 
-{{if .ProcessedURL}}
-<h2>Procesada</h2>
-<img src="{{.ProcessedURL}}" alt="Procesada">
-{{end}}
-
-<h2>Ajustes</h2>
 <form method="get" action="/preview">
 <input type="hidden" name="submitted" value="1">
-<label for="sample">Imagen</label>
+<fieldset>
+<legend>Imagen</legend>
+<div class="field">
+<label for="sample">Muestra</label>
 <select id="sample" name="sample">
 {{range .Samples}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>
 {{end}}</select>
-{{range .Form.Fields}}
-{{if .Bool}}
-<label><input type="checkbox" name="{{.Name}}" value="1"{{if .Checked}} checked{{end}}> {{.Label}}</label>
-{{else}}
-<label for="{{.Name}}">{{.Label}}</label>
-<input type="text" id="{{.Name}}" name="{{.Name}}" value="{{.Value}}">
-{{end}}
+</div>
+</fieldset>
+{{range .Form.Groups}}
+<fieldset>
+<legend>{{.Title}}</legend>
+{{range .Fields}}{{if .Bool}}<div class="field check"><label><input type="checkbox" name="{{.Name}}" value="1"{{if .Checked}} checked{{end}}>{{.Label}}</label></div>
+{{else}}<div class="field"><label for="{{.Name}}">{{.Label}}</label><input type="text" id="{{.Name}}" name="{{.Name}}" value="{{.Value}}"></div>
+{{end}}{{end}}</fieldset>
 {{end}}
 <button type="submit">Aplicar</button>
 </form>

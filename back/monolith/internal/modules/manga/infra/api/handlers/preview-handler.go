@@ -84,7 +84,7 @@ func (p *PreviewHandler) HandlePage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := previewTemplate.Execute(w, data); err != nil {
+	if err := previewTemplate.Execute(w, &data); err != nil {
 		log.Printf("render preview page: %v", err)
 	}
 }

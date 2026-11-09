@@ -16,48 +16,75 @@ const submittedParam = "submitted"
 type previewField struct {
 	name  string // query param
 	label string
+	group string   // fieldset of the form
 	path  []string // path in the MangaConfig JSON
 	bool  bool
 }
 
-// previewFields are the MangaConfig fields the preview can tune. RotateDoublePage is left out
-// because the preview never splits or rotates.
+const (
+	groupSize    = "Tamaño"
+	groupTone    = "Tono"
+	groupOutput  = "Salida"
+	groupSharpen = "Enfoque"
+)
+
+// previewFields are the MangaConfig fields the preview can tune, in form order. RotateDoublePage
+// is left out because the preview never splits or rotates.
 var previewFields = []previewField{
-	{name: "targetWidth", label: "Ancho (px)", path: []string{"targetWidth"}},
-	{name: "targetHeight", label: "Alto (px)", path: []string{"targetHeight"}},
-	{name: "cropTolerance", label: "Recorte de márgenes [0-1], -1 desactivado", path: []string{"cropTolerance"}},
-	{name: "enlarge", label: "Ampliar imágenes pequeñas", path: []string{"enlarge"}, bool: true},
-	{name: "embed", label: "Rellenar hasta el tamaño", path: []string{"embed"}, bool: true},
-	{name: "gamma", label: "Gamma [0.1-3]", path: []string{"gamma"}},
-	{name: "brightness", label: "Brillo [-1-1]", path: []string{"brightness"}},
-	{name: "contrast", label: "Contraste [0-2]", path: []string{"contrast"}},
-	{name: "grayscale", label: "Escala de grises", path: []string{"grayscale"}, bool: true},
-	{name: "blackPointThreshold", label: "Punto negro [0-1]", path: []string{"blackPointThreshold"}},
-	{name: "whitePointThreshold", label: "Punto blanco [0-1]", path: []string{"whitePointThreshold"}},
-	{name: "dithering", label: "Dithering", path: []string{"dithering"}, bool: true},
-	{name: "palette8bit", label: "Paleta de 8 bits (PNG)", path: []string{"palette8bit"}, bool: true},
-	{name: "quality", label: "Calidad [1-100]", path: []string{"quality"}},
-	{name: "sharpenEnabled", label: "Enfoque", path: []string{"sharpen", "enabled"}, bool: true},
-	{name: "sharpenRadius", label: "Enfoque: radio [1-5]", path: []string{"sharpen", "radius"}},
-	{name: "sharpenX1", label: "Enfoque: x1 [1-3]", path: []string{"sharpen", "x1"}},
-	{name: "sharpenY2", label: "Enfoque: y2 [0-50]", path: []string{"sharpen", "y2"}},
-	{name: "sharpenY3", label: "Enfoque: y3 [0-50]", path: []string{"sharpen", "y3"}},
-	{name: "sharpenM1", label: "Enfoque: m1 [0-]", path: []string{"sharpen", "m1"}},
-	{name: "sharpenM2", label: "Enfoque: m2 [1-5]", path: []string{"sharpen", "m2"}},
+	{name: "targetWidth", label: "Ancho (px)", group: groupSize, path: []string{"targetWidth"}},
+	{name: "targetHeight", label: "Alto (px)", group: groupSize, path: []string{"targetHeight"}},
+	{name: "cropTolerance", label: "Recorte márgenes [0-1], -1 no", group: groupSize, path: []string{"cropTolerance"}},
+	{name: "enlarge", label: "Ampliar pequeñas", group: groupSize, path: []string{"enlarge"}, bool: true},
+	{name: "embed", label: "Rellenar hasta el tamaño", group: groupSize, path: []string{"embed"}, bool: true},
+	{name: "gamma", label: "Gamma [0.1-3]", group: groupTone, path: []string{"gamma"}},
+	{name: "brightness", label: "Brillo [-1-1]", group: groupTone, path: []string{"brightness"}},
+	{name: "contrast", label: "Contraste [0-2]", group: groupTone, path: []string{"contrast"}},
+	{name: "blackPointThreshold", label: "Punto negro [0-1]", group: groupTone, path: []string{"blackPointThreshold"}},
+	{name: "whitePointThreshold", label: "Punto blanco [0-1]", group: groupTone, path: []string{"whitePointThreshold"}},
+	{name: "grayscale", label: "Escala de grises", group: groupTone, path: []string{"grayscale"}, bool: true},
+	{name: "quality", label: "Calidad [1-100]", group: groupOutput, path: []string{"quality"}},
+	{name: "dithering", label: "Dithering", group: groupOutput, path: []string{"dithering"}, bool: true},
+	{name: "palette8bit", label: "Paleta 8 bits (PNG)", group: groupOutput, path: []string{"palette8bit"}, bool: true},
+	{name: "sharpenEnabled", label: "Activar enfoque", group: groupSharpen, path: []string{"sharpen", "enabled"}, bool: true},
+	{name: "sharpenRadius", label: "Radio [1-5]", group: groupSharpen, path: []string{"sharpen", "radius"}},
+	{name: "sharpenX1", label: "x1 [1-3]", group: groupSharpen, path: []string{"sharpen", "x1"}},
+	{name: "sharpenY2", label: "y2 [0-50]", group: groupSharpen, path: []string{"sharpen", "y2"}},
+	{name: "sharpenY3", label: "y3 [0-50]", group: groupSharpen, path: []string{"sharpen", "y3"}},
+	{name: "sharpenM1", label: "m1 [0-]", group: groupSharpen, path: []string{"sharpen", "m1"}},
+	{name: "sharpenM2", label: "m2 [1-5]", group: groupSharpen, path: []string{"sharpen", "m2"}},
 }
 
 type PreviewFormField struct {
 	Name    string
 	Label   string
+	Group   string
 	Value   string
 	Bool    bool
 	Checked bool
+}
+
+type PreviewFieldGroup struct {
+	Title  string
+	Fields []PreviewFormField
 }
 
 // PreviewForm holds the values to repaint the form as the user sent them.
 type PreviewForm struct {
 	Sample string
 	Fields []PreviewFormField
+}
+
+// Groups splits the fields into the fieldsets of the form, keeping their order.
+func (f *PreviewForm) Groups() []PreviewFieldGroup {
+	var groups []PreviewFieldGroup
+	for _, field := range f.Fields {
+		if len(groups) == 0 || groups[len(groups)-1].Title != field.Group {
+			groups = append(groups, PreviewFieldGroup{Title: field.Group})
+		}
+		last := &groups[len(groups)-1]
+		last.Fields = append(last.Fields, field)
+	}
+	return groups
 }
 
 type PreviewRequest struct {
@@ -111,7 +138,7 @@ func newPreviewForm(values url.Values) PreviewForm {
 		form.Sample = string(models.PreviewSampleBW)
 	}
 	for i, f := range previewFields {
-		field := PreviewFormField{Name: f.name, Label: f.label, Bool: f.bool}
+		field := PreviewFormField{Name: f.name, Label: f.label, Group: f.group, Bool: f.bool}
 		value := strings.TrimSpace(values.Get(f.name))
 		switch {
 		case f.bool && submitted:

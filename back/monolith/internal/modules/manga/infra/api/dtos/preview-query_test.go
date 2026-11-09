@@ -135,3 +135,28 @@ func TestPreviewForm_Query_RoundTrip_KeepsConfig(t *testing.T) {
 	assert.Equal(t, first.Sample, second.Sample)
 	assert.Equal(t, first.Config, second.Config)
 }
+
+func TestPreviewForm_Groups_DefaultForm_KeepsFieldOrderByFieldset(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	req, err := dtos.ParsePreviewQuery(url.Values{})
+	require.NoError(t, err)
+
+	// Act
+	groups := req.Form.Groups()
+
+	// Assert
+	titles := make([]string, len(groups))
+	total := 0
+	for i, group := range groups {
+		titles[i] = group.Title
+		total += len(group.Fields)
+		for _, field := range group.Fields {
+			assert.Equal(t, group.Title, field.Group)
+		}
+	}
+	assert.Equal(t, []string{"Tamaño", "Tono", "Salida", "Enfoque"}, titles)
+	assert.Equal(t, len(req.Form.Fields), total)
+	assert.Equal(t, "sharpenEnabled", groups[3].Fields[0].Name)
+}
