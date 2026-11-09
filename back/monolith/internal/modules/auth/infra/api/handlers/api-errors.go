@@ -23,6 +23,8 @@ var errorStatus = []struct {
 	{models.ErrInvalidExternalToken, http.StatusUnauthorized},
 	{models.ErrEmailTaken, http.StatusConflict},
 	{models.ErrDropboxAccountTaken, http.StatusConflict},
+	{models.ErrDropboxFolderExists, http.StatusConflict},
+	{models.ErrDropboxFolderMissing, http.StatusNotFound},
 	{models.ErrUserNotFound, http.StatusNotFound},
 	{models.ErrDropboxNotLinked, http.StatusNotFound},
 	{models.ErrFCMTokenNotFound, http.StatusNotFound},

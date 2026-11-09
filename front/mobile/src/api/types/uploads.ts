@@ -37,6 +37,12 @@ export interface SourceDTO extends NoItemsSourceDTO {
   items: NoItemsSourceDTO[];
 }
 
+/** POST /uploads/{id}/retry: a new presigned PUT url for a file whose upload failed. */
+export interface RetryUploadResponse {
+  id: string;
+  url: string;
+}
+
 export interface UploadRequestDTO {
   ereader_key: string;
   sources: SourceDTO[];

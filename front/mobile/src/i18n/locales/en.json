@@ -126,7 +126,9 @@
     "keepOpen": "Don't close the app until the upload ends",
     "viewQueue": "View queue",
     "finished": "Upload finished",
-    "notification": "Uploading files…"
+    "notification": "Uploading files…",
+    "retry": "Retry failed",
+    "retryHint": "Failed files are uploaded again into their original folder, also when they were going to be joined. If you close, they stay in the list and are retried when you press Send."
   },
   "activity": {
     "title": "In progress",
@@ -189,7 +191,16 @@
     "notificationsDenied": "Allow Inkomi notifications in the system settings",
     "language": "Language",
     "defaultManga": "Default manga",
-    "version": "v{{version}}"
+    "version": "v{{version}}",
+    "change": "Change",
+    "folderPicker": {
+      "title": "Dropbox folder",
+      "root": "Dropbox root",
+      "empty": "No subfolders",
+      "newName": "New folder name",
+      "create": "Create",
+      "select": "Use “{{folder}}”"
+    }
   },
   "languages": {
     "es": "Español",
@@ -220,7 +231,10 @@
     "ereaderNotAvailable": "The selected reader is not valid",
     "invalidRequest": "Invalid request",
     "noRelease": "No version has been published",
-    "releaseUnavailable": "Updates can't be checked right now"
+    "releaseUnavailable": "Updates can't be checked right now",
+    "sourceNotRetryable": "This file can no longer be retried",
+    "dropboxFolderMissing": "The Dropbox folder does not exist",
+    "dropboxFolderExists": "A folder with that name already exists"
   },
   "update": {
     "title": "New version {{version}}",

@@ -18,6 +18,7 @@ import (
 	"github.com/ismelen/inkomi/back/microservices/transaction-manager/internal/usecases/getdownload"
 	"github.com/ismelen/inkomi/back/microservices/transaction-manager/internal/usecases/listuploads"
 	"github.com/ismelen/inkomi/back/microservices/transaction-manager/internal/usecases/newupload"
+	"github.com/ismelen/inkomi/back/microservices/transaction-manager/internal/usecases/retryupload"
 	"github.com/ismelen/inkomi/back/microservices/transaction-manager/internal/usecases/uploaddone"
 )
 
@@ -65,7 +66,7 @@ func main() {
 	uploadDoneUC := uploaddone.NewUploadDoneUC(sourceRepo, cloudStorage, queue)
 	listUploadsUC := listuploads.NewListUploadsUC(sourceRepo)
 	getDownloadUC := getdownload.NewGetDownloadUC(sourceRepo, cloudStorage)
-	uploadsHandler := handlers.NewUploadsHandler(newUploadRequestUC, uploadDoneUC, listUploadsUC, getDownloadUC)
+	uploadsHandler := handlers.NewUploadsHandler(newUploadRequestUC, uploadDoneUC, listUploadsUC, getDownloadUC, retryupload.NewRetryUploadUC(sourceRepo, cloudStorage))
 	routes.SetupUploadRoutes(api, uploadsHandler)
 
 	forwardEventsUc := forwardevents.NewForwardEventsUC(sockethub, queue, sourceRepo)

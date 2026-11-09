@@ -39,11 +39,20 @@ const messageKeys: Record<string, string> = {
   'source not ready': 'sourceNotReady',
   'file not available': 'fileNotAvailable',
   'source not uploaded': 'sourceNotUploaded',
+  'source not retryable': 'sourceNotRetryable',
+  'dropbox folder not found': 'dropboxFolderMissing',
+  'dropbox folder already exists': 'dropboxFolderExists',
   'e-reader not available': 'ereaderNotAvailable',
   'invalid format': 'invalidRequest',
   'no release available': 'noRelease',
   'release source unavailable': 'releaseUnavailable',
 };
+
+/** Raw message of an error without a translation, to show next to errors.unknown. */
+export function errorDetail(err: unknown): string | undefined {
+  if (errorKey(err) !== 'errors.unknown') return undefined;
+  return err instanceof Error ? err.message : String(err);
+}
 
 /** i18n key that describes err for the user. */
 export function errorKey(err: unknown): string {

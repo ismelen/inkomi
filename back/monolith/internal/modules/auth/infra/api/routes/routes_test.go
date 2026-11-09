@@ -18,10 +18,13 @@ import (
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/auth/infra/api/handlers"
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/auth/infra/api/routes"
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/auth/infra/security"
+	"github.com/ismelen/inkomi/back/monolith/internal/modules/auth/usecases/createdropboxfolder"
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/auth/usecases/dropboxlogin"
+	"github.com/ismelen/inkomi/back/monolith/internal/modules/auth/usecases/getdropboxaccess"
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/auth/usecases/getprofile"
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/auth/usecases/googlelogin"
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/auth/usecases/linkdropbox"
+	"github.com/ismelen/inkomi/back/monolith/internal/modules/auth/usecases/listdropboxfolders"
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/auth/usecases/login"
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/auth/usecases/logout"
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/auth/usecases/mocks"
@@ -116,6 +119,8 @@ func newServer(t *testing.T) *server {
 		linkdropbox.NewLinkDropboxUC(oauth, identities, links),
 		updatedropboxfolder.NewUpdateDropboxFolderUC(links),
 		unlinkdropbox.NewUnlinkDropboxUC(links),
+		listdropboxfolders.NewListDropboxFoldersUC(getdropboxaccess.NewGetDropboxAccessUC(links, oauth), &mocks.MockDropboxFiles{}),
+		createdropboxfolder.NewCreateDropboxFolderUC(getdropboxaccess.NewGetDropboxAccessUC(links, oauth), &mocks.MockDropboxFiles{}),
 	)
 
 	authMiddleware, err := httpauth.NewAuthMiddleware(userKeys.publicPEM)
@@ -171,6 +176,9 @@ func TestRoutes_Requests_Status(t *testing.T) {
 		{"Update fcm token", http.MethodPut, "/users/me/fcm-token", func(s *server) string { return s.userToken }, `{"token":"new"}`, http.StatusNoContent},
 		{"Folder invalid", http.MethodPut, "/users/me/dropbox/folder", func(s *server) string { return s.userToken }, `{"folder":"/a/../b"}`, http.StatusBadRequest},
 		{"Folder not linked", http.MethodPut, "/users/me/dropbox/folder", func(s *server) string { return s.userToken }, `{"folder":"/a"}`, http.StatusNotFound},
+		{"List folders not linked", http.MethodGet, "/users/me/dropbox/folders?path=/a", func(s *server) string { return s.userToken }, "", http.StatusNotFound},
+		{"List folders invalid path", http.MethodGet, "/users/me/dropbox/folders?path=/a/../b", func(s *server) string { return s.userToken }, "", http.StatusBadRequest},
+		{"Create folder root", http.MethodPost, "/users/me/dropbox/folders", func(s *server) string { return s.userToken }, `{"path":"/"}`, http.StatusBadRequest},
 		{"Unlink dropbox", http.MethodDelete, "/users/me/dropbox", func(s *server) string { return s.userToken }, "", http.StatusNoContent},
 	}
 

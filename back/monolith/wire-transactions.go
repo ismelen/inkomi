@@ -18,6 +18,7 @@ import (
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/transactions/usecases/getdownload"
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/transactions/usecases/listuploads"
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/transactions/usecases/newupload"
+	"github.com/ismelen/inkomi/back/monolith/internal/modules/transactions/usecases/retryupload"
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/transactions/usecases/uploaddone"
 	"github.com/ismelen/inkomi/back/monolith/migrations"
 )
@@ -52,6 +53,7 @@ func wireTransactions(d *deps, router chi.Router) func() {
 		uploaddone.NewUploadDoneUC(sourceRepo, cloudStorage, eventQueue),
 		listuploads.NewListUploadsUC(sourceRepo),
 		getdownload.NewGetDownloadUC(sourceRepo, cloudStorage),
+		retryupload.NewRetryUploadUC(sourceRepo, cloudStorage),
 	)
 
 	if err := forwardevents.NewForwardEventsUC(hub, eventQueue, sourceRepo).Execute(); err != nil {

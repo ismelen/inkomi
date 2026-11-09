@@ -39,6 +39,7 @@ export function UploadProgressRow({ file }: { file: UploadFile }) {
       {file.state === 'failed' && !!file.error && (
         <SText variant="small" tone="danger">
           {t(file.error)}
+          {file.detail ? ` (${file.detail})` : ''}
         </SText>
       )}
     </View>

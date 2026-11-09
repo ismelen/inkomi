@@ -15,6 +15,8 @@ var (
 	ErrIdentityNotFound     = errors.New("identity not found")
 	ErrDropboxNotLinked     = errors.New("dropbox account not linked")
 	ErrDropboxAccountTaken  = errors.New("dropbox account linked to another user")
+	ErrDropboxFolderMissing = errors.New("dropbox folder not found")
+	ErrDropboxFolderExists  = errors.New("dropbox folder already exists")
 	ErrFCMTokenNotFound     = errors.New("fcm token not found")
 	ErrInvalidFCMToken      = errors.New("invalid fcm token")
 )

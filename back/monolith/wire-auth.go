@@ -15,12 +15,14 @@ import (
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/auth/infra/google"
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/auth/infra/repositories"
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/auth/infra/security"
+	"github.com/ismelen/inkomi/back/monolith/internal/modules/auth/usecases/createdropboxfolder"
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/auth/usecases/dropboxlogin"
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/auth/usecases/getdropboxaccess"
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/auth/usecases/getfcmtoken"
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/auth/usecases/getprofile"
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/auth/usecases/googlelogin"
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/auth/usecases/linkdropbox"
+	"github.com/ismelen/inkomi/back/monolith/internal/modules/auth/usecases/listdropboxfolders"
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/auth/usecases/login"
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/auth/usecases/logout"
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/auth/usecases/refreshsession"
@@ -77,19 +79,23 @@ func wireAuth(d *deps, r chi.Router) (func(), *authAPI) {
 		refreshsession.NewRefreshSessionUC(sessions, users, issuer, config.Env.RefreshTokenTTL),
 		logout.NewLogoutUC(sessions, issuer),
 	)
+	getDropboxAccessUC := getdropboxaccess.NewGetDropboxAccessUC(dropboxLinks, dropboxOAuth)
+	dropboxFiles := dropbox.NewHTTPDropboxFiles(externalClient, dropbox.APIURL)
 	usersHandler := handlers.NewUsersHandler(
 		getprofile.NewGetProfileUC(users, identities, dropboxLinks),
 		updatefcmtoken.NewUpdateFCMTokenUC(users),
 		linkdropbox.NewLinkDropboxUC(dropboxOAuth, identities, dropboxLinks),
 		updatedropboxfolder.NewUpdateDropboxFolderUC(dropboxLinks),
 		unlinkdropbox.NewUnlinkDropboxUC(dropboxLinks),
+		listdropboxfolders.NewListDropboxFoldersUC(getDropboxAccessUC, dropboxFiles),
+		createdropboxfolder.NewCreateDropboxFolderUC(getDropboxAccessUC, dropboxFiles),
 	)
 
 	routes.SetupAuthRoutes(r, authHandler)
 	routes.SetupUserRoutes(r, usersHandler, d.authMiddleware)
 
 	api := &authAPI{
-		getDropboxAccess: getdropboxaccess.NewGetDropboxAccessUC(dropboxLinks, dropboxOAuth),
+		getDropboxAccess: getDropboxAccessUC,
 		getFCMToken:      getfcmtoken.NewGetFCMTokenUC(users),
 	}
 	return closeLogged("users.db", db.Close), api

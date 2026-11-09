@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, View } from 'react-native';
+import React, { useState } from 'react';
+import { ActivityIndicator, Alert, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { errorKey } from '../../src/api/api-error';
+import { DropboxFolderPicker } from '../../src/components/settings/dropbox-folder-picker';
 import { EReaderPicker } from '../../src/components/settings/ereader-picker';
 import { Header } from '../../src/components/ui/header';
 import { Screen } from '../../src/components/ui/screen';
@@ -10,7 +11,6 @@ import { SButton } from '../../src/components/ui/s-button';
 import { SSegmented } from '../../src/components/ui/s-segmented';
 import { SSwitch } from '../../src/components/ui/s-switch';
 import { SText } from '../../src/components/ui/s-text';
-import { STextInput } from '../../src/components/ui/s-text-input';
 import { SectionTitle, SettingRow } from '../../src/components/ui/setting-row';
 import { appVersion } from '../../src/config';
 import { supportedLanguages } from '../../src/i18n/i18n';
@@ -29,12 +29,8 @@ export default function SettingsScreen() {
   const settings = useSettings();
   const ereader = findEReader(settings.ereaderKey);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [folder, setFolder] = useState(profile?.dropbox.folder ?? '');
+  const [folderPickerOpen, setFolderPickerOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
-
-  useEffect(() => {
-    setFolder(profile?.dropbox.folder ?? '');
-  }, [profile?.dropbox.folder]);
 
   const attempt = async (key: string, action: () => Promise<unknown>) => {
     setBusy(key);
@@ -45,19 +41,6 @@ export default function SettingsScreen() {
     } finally {
       setBusy(null);
     }
-  };
-
-  const saveFolder = () => {
-    const next = folder.trim();
-    if (!profile || next === profile.dropbox.folder) return;
-    void attempt('folder', async () => {
-      try {
-        await setDropboxFolder(next);
-      } catch (err) {
-        setFolder(profile.dropbox.folder);
-        throw err;
-      }
-    });
   };
 
   const toggleNotifications = (value: boolean) =>
@@ -131,18 +114,20 @@ export default function SettingsScreen() {
                 />
               }
             />
-            <View style={{ marginVertical: spacing.sm }}>
-              <STextInput
-                label={t('settings.folder')}
-                value={folder}
-                onChangeText={setFolder}
-                onBlur={saveFolder}
-                onSubmitEditing={saveFolder}
-                autoCapitalize="none"
-                autoCorrect={false}
-                right={busy === 'folder' ? <ActivityIndicator color={colors.primary} /> : undefined}
-              />
-            </View>
+            <SettingRow
+              label={t('settings.folder')}
+              description={dropbox.folder || t('settings.folderPicker.root')}
+              right={
+                <SButton
+                  variant="secondary"
+                  compact
+                  icon="folder"
+                  label={t('settings.change')}
+                  onPress={() => setFolderPickerOpen(true)}
+                />
+              }
+              onPress={() => setFolderPickerOpen(true)}
+            />
             <SettingRow
               label={t('settings.toCloudDefault')}
               right={
@@ -210,6 +195,12 @@ export default function SettingsScreen() {
           }
         />
       </ScrollView>
+      <DropboxFolderPicker
+        visible={folderPickerOpen}
+        initial={profile?.dropbox.folder ?? ''}
+        onSelect={setDropboxFolder}
+        onClose={() => setFolderPickerOpen(false)}
+      />
       <EReaderPicker
         visible={pickerOpen}
         title={t('settings.reader')}

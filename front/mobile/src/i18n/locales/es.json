@@ -126,7 +126,9 @@
     "keepOpen": "No cierres la app hasta terminar la subida",
     "viewQueue": "Ver en cola",
     "finished": "Subida terminada",
-    "notification": "Subiendo archivos…"
+    "notification": "Subiendo archivos…",
+    "retry": "Reintentar fallidos",
+    "retryHint": "Los archivos con error se vuelven a subir en su carpeta original, también si se iban a unir. Si cierras, siguen en la lista y se reintentan al pulsar Enviar."
   },
   "activity": {
     "title": "En curso",
@@ -189,7 +191,16 @@
     "notificationsDenied": "Activa las notificaciones de Inkomi en los ajustes del sistema",
     "language": "Idioma",
     "defaultManga": "Manga por defecto",
-    "version": "v{{version}}"
+    "version": "v{{version}}",
+    "change": "Cambiar",
+    "folderPicker": {
+      "title": "Carpeta de Dropbox",
+      "root": "Raíz de Dropbox",
+      "empty": "No hay subcarpetas",
+      "newName": "Nombre de la carpeta nueva",
+      "create": "Crear",
+      "select": "Usar «{{folder}}»"
+    }
   },
   "languages": {
     "es": "Español",
@@ -220,7 +231,10 @@
     "ereaderNotAvailable": "El lector seleccionado no es válido",
     "invalidRequest": "Petición no válida",
     "noRelease": "No hay ninguna versión publicada",
-    "releaseUnavailable": "No se pueden comprobar las actualizaciones ahora mismo"
+    "releaseUnavailable": "No se pueden comprobar las actualizaciones ahora mismo",
+    "sourceNotRetryable": "Este archivo ya no se puede reintentar",
+    "dropboxFolderMissing": "La carpeta de Dropbox no existe",
+    "dropboxFolderExists": "Ya existe una carpeta con ese nombre"
   },
   "update": {
     "title": "Nueva versión {{version}}",

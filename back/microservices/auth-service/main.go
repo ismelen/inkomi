@@ -16,12 +16,14 @@ import (
 	"github.com/ismelen/inkomi/back/microservices/auth-service/internal/infra/google"
 	"github.com/ismelen/inkomi/back/microservices/auth-service/internal/infra/repositories"
 	"github.com/ismelen/inkomi/back/microservices/auth-service/internal/infra/security"
+	"github.com/ismelen/inkomi/back/microservices/auth-service/internal/usecases/createdropboxfolder"
 	"github.com/ismelen/inkomi/back/microservices/auth-service/internal/usecases/dropboxlogin"
 	"github.com/ismelen/inkomi/back/microservices/auth-service/internal/usecases/getdropboxaccess"
 	"github.com/ismelen/inkomi/back/microservices/auth-service/internal/usecases/getfcmtoken"
 	"github.com/ismelen/inkomi/back/microservices/auth-service/internal/usecases/getprofile"
 	"github.com/ismelen/inkomi/back/microservices/auth-service/internal/usecases/googlelogin"
 	"github.com/ismelen/inkomi/back/microservices/auth-service/internal/usecases/linkdropbox"
+	"github.com/ismelen/inkomi/back/microservices/auth-service/internal/usecases/listdropboxfolders"
 	"github.com/ismelen/inkomi/back/microservices/auth-service/internal/usecases/login"
 	"github.com/ismelen/inkomi/back/microservices/auth-service/internal/usecases/logout"
 	"github.com/ismelen/inkomi/back/microservices/auth-service/internal/usecases/refreshsession"
@@ -77,15 +79,19 @@ func main() {
 		refreshsession.NewRefreshSessionUC(sessions, users, issuer, config.Env.RefreshTokenTTL),
 		logout.NewLogoutUC(sessions, issuer),
 	)
+	getDropboxAccessUC := getdropboxaccess.NewGetDropboxAccessUC(dropboxLinks, dropboxOAuth)
+	dropboxFiles := dropbox.NewHTTPDropboxFiles(externalClient, dropbox.APIURL)
 	usersHandler := handlers.NewUsersHandler(
 		getprofile.NewGetProfileUC(users, identities, dropboxLinks),
 		updatefcmtoken.NewUpdateFCMTokenUC(users),
 		linkdropbox.NewLinkDropboxUC(dropboxOAuth, identities, dropboxLinks),
 		updatedropboxfolder.NewUpdateDropboxFolderUC(dropboxLinks),
 		unlinkdropbox.NewUnlinkDropboxUC(dropboxLinks),
+		listdropboxfolders.NewListDropboxFoldersUC(getDropboxAccessUC, dropboxFiles),
+		createdropboxfolder.NewCreateDropboxFolderUC(getDropboxAccessUC, dropboxFiles),
 	)
 	internalHandler := handlers.NewInternalHandler(
-		getdropboxaccess.NewGetDropboxAccessUC(dropboxLinks, dropboxOAuth),
+		getDropboxAccessUC,
 		getfcmtoken.NewGetFCMTokenUC(users),
 	)
 

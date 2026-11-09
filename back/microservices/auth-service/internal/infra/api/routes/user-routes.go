@@ -17,5 +17,7 @@ func SetupUserRoutes(api chi.Router, handler *handlers.UsersHandler, authMiddlew
 		r.Put("/dropbox", requtil.Wrap(handler.HandleLinkDropbox))
 		r.Delete("/dropbox", requtil.Wrap(handler.HandleUnlinkDropbox))
 		r.Put("/dropbox/folder", requtil.Wrap(handler.HandleUpdateDropboxFolder))
+		r.Get("/dropbox/folders", requtil.Wrap(handler.HandleListDropboxFolders))
+		r.Post("/dropbox/folders", requtil.Wrap(handler.HandleCreateDropboxFolder))
 	})
 }

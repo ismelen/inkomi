@@ -15,6 +15,7 @@ import (
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/transactions/usecases/getdownload"
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/transactions/usecases/listuploads"
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/transactions/usecases/newupload"
+	"github.com/ismelen/inkomi/back/monolith/internal/modules/transactions/usecases/retryupload"
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/transactions/usecases/uploaddone"
 	"github.com/ismelen/inkomi/back/monolith/internal/platform/httpauth"
 )
@@ -24,6 +25,7 @@ type UploadsHandler struct {
 	uploadDoneUC  *uploaddone.UploadDoneUC
 	listUploadsUC *listuploads.ListUploadsUC
 	getDownloadUC *getdownload.GetDownloadUC
+	retryUploadUC *retryupload.RetryUploadUC
 }
 
 func NewUploadsHandler(
@@ -31,12 +33,14 @@ func NewUploadsHandler(
 	uploadDoneUC *uploaddone.UploadDoneUC,
 	listUploadsUC *listuploads.ListUploadsUC,
 	getDownloadUC *getdownload.GetDownloadUC,
+	retryUploadUC *retryupload.RetryUploadUC,
 ) *UploadsHandler {
 	return &UploadsHandler{
 		newUploadUC:   newUploadUC,
 		uploadDoneUC:  uploadDoneUC,
 		listUploadsUC: listUploadsUC,
 		getDownloadUC: getDownloadUC,
+		retryUploadUC: retryUploadUC,
 	}
 }
 
@@ -119,4 +123,23 @@ func (u *UploadsHandler) HandleDownload(w http.ResponseWriter, r *http.Request) 
 	}
 
 	return dtos.NewDownloadResponse(download), nil
+}
+
+// HandleRetry serves POST /uploads/{sourceId}/retry: a new upload url for a file whose upload
+// failed, keeping it in its folder.
+func (u *UploadsHandler) HandleRetry(w http.ResponseWriter, r *http.Request) (*dtos.RetryUploadResponse, error) {
+	token, _ := httpauth.GetUserClaims(r.Context())
+	sourceId := chi.URLParam(r, "sourceId")
+
+	url, err := u.retryUploadUC.Execute(r.Context(), token.Id, sourceId)
+	switch {
+	case errors.Is(err, models.ErrSourceNotFound):
+		return nil, requtil.NewError(http.StatusNotFound, err.Error())
+	case errors.Is(err, models.ErrSourceNotRetryable):
+		return nil, requtil.NewError(http.StatusConflict, err.Error())
+	case err != nil:
+		return nil, err
+	}
+	log.Printf("upload retry user %d: %s", token.Id, sourceId)
+	return &dtos.RetryUploadResponse{Id: sourceId, Url: url}, nil
 }

@@ -1,5 +1,10 @@
 import { http } from './http-client';
-import { DropboxFolderResponse, ProfileResponse } from './types/users';
+import {
+  DropboxFolderEntry,
+  DropboxFolderResponse,
+  DropboxFoldersResponse,
+  ProfileResponse,
+} from './types/users';
 
 export const usersApi = {
   me: () => http.get<ProfileResponse>('/users/me'),
@@ -9,4 +14,9 @@ export const usersApi = {
   unlinkDropbox: () => http.delete<void>('/users/me/dropbox'),
   setDropboxFolder: (folder: string) =>
     http.put<DropboxFolderResponse>('/users/me/dropbox/folder', { folder }),
+  /** Subfolders of path in the user's Dropbox, for the folder picker. */
+  listDropboxFolders: (path: string) =>
+    http.get<DropboxFoldersResponse>('/users/me/dropbox/folders', { query: { path } }),
+  createDropboxFolder: (path: string) =>
+    http.post<DropboxFolderEntry>('/users/me/dropbox/folders', { path }),
 };

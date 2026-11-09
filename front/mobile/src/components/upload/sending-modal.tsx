@@ -10,8 +10,9 @@ import { UploadProgressRow } from './upload-progress-row';
 
 export function SendingModal() {
   const { t } = useTranslation();
-  const { visible, phase, files, error, cancel, close } = useUpload();
+  const { visible, phase, files, error, cancel, close, retryFailed } = useUpload();
   const busy = phase === 'requesting' || phase === 'uploading';
+  const canRetry = phase === 'failed' && files.some((f) => f.state === 'failed');
 
   const viewQueue = () => {
     close();
@@ -28,7 +29,9 @@ export function SendingModal() {
         busy
           ? { label: t('common.cancel'), onPress: cancel, variant: 'secondary' }
           : { label: t('common.close'), onPress: close, variant: 'secondary' },
-        { label: t('sending.viewQueue'), onPress: viewQueue, disabled: phase === 'requesting' },
+        canRetry
+          ? { label: t('sending.retry'), onPress: () => void retryFailed() }
+          : { label: t('sending.viewQueue'), onPress: viewQueue, disabled: phase === 'requesting' },
       ]}
     >
       {phase === 'requesting' && (
@@ -44,6 +47,11 @@ export function SendingModal() {
           <UploadProgressRow key={file.sourceId} file={file} />
         ))}
       </ScrollView>
+      {canRetry && (
+        <SText variant="small" tone="textSecondary" style={{ textAlign: 'center' }}>
+          {t('sending.retryHint')}
+        </SText>
+      )}
       {busy && (
         <SText variant="small" tone="textSecondary" style={{ textAlign: 'center' }}>
           {t('sending.keepOpen')}

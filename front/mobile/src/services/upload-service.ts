@@ -281,11 +281,43 @@ export class UploadRun {
     this.tasks.forEach((task) => void task.cancelAsync());
   }
 
+  /**
+   * Uploads again jobs that failed in a previous run: each file gets a new PUT url for the same
+   * source, so it stays in its folder and a join still gets all its children. Returns the list
+   * item ids that were confirmed.
+   */
+  async retry(jobs: UploadJob[]): Promise<string[]> {
+    this.handlers.onJobs(jobs);
+    const confirmed: string[] = [];
+    const queue = [...jobs];
+    const worker = async () => {
+      for (let job = queue.shift(); job && !this.cancelled; job = queue.shift()) {
+        try {
+          if (job.item.kind === 'file') {
+            job = { ...job, url: (await uploadsApi.retry(job.sourceId)).url };
+          }
+          await this.process(job);
+          confirmed.push(job.listItemId);
+          this.handlers.onConfirmed(job);
+        } catch (err) {
+          if (!this.cancelled) this.handlers.onFailed(job, err);
+        }
+      }
+    };
+    await Promise.all(Array.from({ length: concurrency }, worker));
+    return confirmed;
+  }
+
   private async process(job: UploadJob) {
     if (job.url && job.item.kind === 'file') await this.put(job, job.item);
     if (this.cancelled) throw new Error('cancelled');
     await uploadsApi.done(job.sourceId);
-    await advanceStatus([job.sourceId], 'queued');
+    try {
+      await advanceStatus([job.sourceId], 'queued');
+    } catch (err) {
+      // the server already has it queued; the next sync fixes the local row
+      console.warn('advance local status', job.sourceId, err);
+    }
   }
 
   private async put(job: UploadJob, item: ListItem & { kind: 'file' }) {

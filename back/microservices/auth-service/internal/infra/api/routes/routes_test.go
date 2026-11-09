@@ -18,12 +18,14 @@ import (
 	"github.com/ismelen/inkomi/back/microservices/auth-service/internal/infra/api/handlers"
 	"github.com/ismelen/inkomi/back/microservices/auth-service/internal/infra/api/routes"
 	"github.com/ismelen/inkomi/back/microservices/auth-service/internal/infra/security"
+	"github.com/ismelen/inkomi/back/microservices/auth-service/internal/usecases/createdropboxfolder"
 	"github.com/ismelen/inkomi/back/microservices/auth-service/internal/usecases/dropboxlogin"
 	"github.com/ismelen/inkomi/back/microservices/auth-service/internal/usecases/getdropboxaccess"
 	"github.com/ismelen/inkomi/back/microservices/auth-service/internal/usecases/getfcmtoken"
 	"github.com/ismelen/inkomi/back/microservices/auth-service/internal/usecases/getprofile"
 	"github.com/ismelen/inkomi/back/microservices/auth-service/internal/usecases/googlelogin"
 	"github.com/ismelen/inkomi/back/microservices/auth-service/internal/usecases/linkdropbox"
+	"github.com/ismelen/inkomi/back/microservices/auth-service/internal/usecases/listdropboxfolders"
 	"github.com/ismelen/inkomi/back/microservices/auth-service/internal/usecases/login"
 	"github.com/ismelen/inkomi/back/microservices/auth-service/internal/usecases/logout"
 	"github.com/ismelen/inkomi/back/microservices/auth-service/internal/usecases/mocks"
@@ -119,6 +121,8 @@ func newServer(t *testing.T) *server {
 		linkdropbox.NewLinkDropboxUC(oauth, identities, links),
 		updatedropboxfolder.NewUpdateDropboxFolderUC(links),
 		unlinkdropbox.NewUnlinkDropboxUC(links),
+		listdropboxfolders.NewListDropboxFoldersUC(getdropboxaccess.NewGetDropboxAccessUC(links, oauth), &mocks.MockDropboxFiles{}),
+		createdropboxfolder.NewCreateDropboxFolderUC(getdropboxaccess.NewGetDropboxAccessUC(links, oauth), &mocks.MockDropboxFiles{}),
 	)
 	internalHandler := handlers.NewInternalHandler(getdropboxaccess.NewGetDropboxAccessUC(links, oauth), getfcmtoken.NewGetFCMTokenUC(users))
 
@@ -179,6 +183,9 @@ func TestRoutes_Requests_Status(t *testing.T) {
 		{"Update fcm token", false, http.MethodPut, "/users/me/fcm-token", func(s *server) string { return s.userToken }, `{"token":"new"}`, http.StatusNoContent},
 		{"Folder invalid", false, http.MethodPut, "/users/me/dropbox/folder", func(s *server) string { return s.userToken }, `{"folder":"/a/../b"}`, http.StatusBadRequest},
 		{"Folder not linked", false, http.MethodPut, "/users/me/dropbox/folder", func(s *server) string { return s.userToken }, `{"folder":"/a"}`, http.StatusNotFound},
+		{"List folders not linked", false, http.MethodGet, "/users/me/dropbox/folders?path=/a", func(s *server) string { return s.userToken }, "", http.StatusNotFound},
+		{"List folders invalid path", false, http.MethodGet, "/users/me/dropbox/folders?path=/a/../b", func(s *server) string { return s.userToken }, "", http.StatusBadRequest},
+		{"Create folder root", false, http.MethodPost, "/users/me/dropbox/folders", func(s *server) string { return s.userToken }, `{"path":"/"}`, http.StatusBadRequest},
 		{"Unlink dropbox", false, http.MethodDelete, "/users/me/dropbox", func(s *server) string { return s.userToken }, "", http.StatusNoContent},
 		{"Internal not exposed publicly", false, http.MethodGet, "/internal/users/7/fcm-token", func(s *server) string { return s.serviceToken }, "", http.StatusNotFound},
 		{"Internal without token", true, http.MethodGet, "/internal/users/7/fcm-token", nil, "", http.StatusUnauthorized},

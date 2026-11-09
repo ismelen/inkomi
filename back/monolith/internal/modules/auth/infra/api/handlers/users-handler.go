@@ -5,8 +5,10 @@ import (
 
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/auth/infra/api/dtos"
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/auth/infra/api/requtil"
+	"github.com/ismelen/inkomi/back/monolith/internal/modules/auth/usecases/createdropboxfolder"
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/auth/usecases/getprofile"
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/auth/usecases/linkdropbox"
+	"github.com/ismelen/inkomi/back/monolith/internal/modules/auth/usecases/listdropboxfolders"
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/auth/usecases/unlinkdropbox"
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/auth/usecases/updatedropboxfolder"
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/auth/usecases/updatefcmtoken"
@@ -18,6 +20,8 @@ type UsersHandler struct {
 	linkDropboxUC         *linkdropbox.LinkDropboxUC
 	updateDropboxFolderUC *updatedropboxfolder.UpdateDropboxFolderUC
 	unlinkDropboxUC       *unlinkdropbox.UnlinkDropboxUC
+	listDropboxFoldersUC  *listdropboxfolders.ListDropboxFoldersUC
+	createDropboxFolderUC *createdropboxfolder.CreateDropboxFolderUC
 }
 
 func NewUsersHandler(
@@ -26,6 +30,8 @@ func NewUsersHandler(
 	linkDropboxUC *linkdropbox.LinkDropboxUC,
 	updateDropboxFolderUC *updatedropboxfolder.UpdateDropboxFolderUC,
 	unlinkDropboxUC *unlinkdropbox.UnlinkDropboxUC,
+	listDropboxFoldersUC *listdropboxfolders.ListDropboxFoldersUC,
+	createDropboxFolderUC *createdropboxfolder.CreateDropboxFolderUC,
 ) *UsersHandler {
 	return &UsersHandler{
 		getProfileUC:          getProfileUC,
@@ -33,6 +39,8 @@ func NewUsersHandler(
 		linkDropboxUC:         linkDropboxUC,
 		updateDropboxFolderUC: updateDropboxFolderUC,
 		unlinkDropboxUC:       unlinkDropboxUC,
+		listDropboxFoldersUC:  listDropboxFoldersUC,
+		createDropboxFolderUC: createDropboxFolderUC,
 	}
 }
 
@@ -101,4 +109,38 @@ func (u *UsersHandler) HandleUnlinkDropbox(r *http.Request) (*struct{}, error) {
 		return nil, err
 	}
 	return nil, apiError(u.unlinkDropboxUC.Execute(r.Context(), id))
+}
+
+// HandleListDropboxFolders serves GET /users/me/dropbox/folders?path=, the subfolders of path
+// (the root when empty) for the folder picker.
+func (u *UsersHandler) HandleListDropboxFolders(r *http.Request) (*dtos.DropboxFoldersResponse, error) {
+	id, err := userId(r)
+	if err != nil {
+		return nil, err
+	}
+
+	path, folders, err := u.listDropboxFoldersUC.Execute(r.Context(), id, r.URL.Query().Get("path"))
+	if err != nil {
+		return nil, apiError(err)
+	}
+	return dtos.NewDropboxFoldersResponse(path, folders), nil
+}
+
+// HandleCreateDropboxFolder serves POST /users/me/dropbox/folders.
+func (u *UsersHandler) HandleCreateDropboxFolder(r *http.Request) (*dtos.DropboxFolderEntry, error) {
+	id, err := userId(r)
+	if err != nil {
+		return nil, err
+	}
+	req, err := requtil.DecodeJSON[dtos.CreateDropboxFolderRequest](r)
+	if err != nil {
+		return nil, err
+	}
+
+	folder, err := u.createDropboxFolderUC.Execute(r.Context(), id, req.Path)
+	if err != nil {
+		return nil, apiError(err)
+	}
+	entry := dtos.NewDropboxFolderEntry(*folder)
+	return &entry, nil
 }

@@ -32,3 +32,14 @@ export interface DropboxFolderRequest {
 export interface DropboxFolderResponse {
   folder: string;
 }
+
+export interface DropboxFolderEntry {
+  name: string;
+  path: string;
+}
+
+/** GET /users/me/dropbox/folders: the subfolders of path ("" is the root). */
+export interface DropboxFoldersResponse {
+  path: string;
+  folders: DropboxFolderEntry[];
+}
