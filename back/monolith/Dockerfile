@@ -1,5 +1,5 @@
 # Build context: back/monolith/. cgo + libvips (manga module) can't cross-compile, so every stage
-# runs on the target platform (emulated with QEMU in the pipeline).
+# runs on the target platform: the pipeline builds linux/arm64 on an ARM runner.
 FROM golang:1.26.2-alpine AS deps
 RUN apk add --no-cache gcc musl-dev pkgconf vips-dev
 WORKDIR /src

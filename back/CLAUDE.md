@@ -117,7 +117,7 @@ Workers: los UCs exponen `Execute(ctx, msg jobs.Msg, delivery jobrun.Delivery) e
 
 ## Despliegue del monolito (Docker Compose)
 
-- `back/monolith/Dockerfile` (contexto `back/monolith/`, cgo + libvips, multi-arch con QEMU) con las etapas `test` y `runtime`; `back/monolith/.env.example` con todas las variables (una variable nueva va también ahí).
+- `back/monolith/Dockerfile` (contexto `back/monolith/`, cgo + libvips; la pipeline solo construye `linux/arm64`, en un runner ARM nativo, porque el servidor es ARM) con las etapas `test` y `runtime`; `back/monolith/.env.example` con todas las variables (una variable nueva va también ahí).
 - `back/monolith/docker-compose.yml` (monolith + web en la red `caddy_net`, perfil `e2e`), desplegado por `deploy/monolith/deploy.sh` desde `.github/workflows/deploy-monolith.yml`: e2e en un proyecto compose desechable y, si pasan, producción con healthcheck y rollback. Servidor: `deploy/SERVERS.md` §12.
 - Desarrollo local: `go run .` (o `air`) en `back/monolith` con libvips instalado, y la web con `DEV_BACKEND=http://localhost:3000`.
 

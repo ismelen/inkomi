@@ -3,7 +3,8 @@ name: Deploy monolith (Docker Compose)
 # Manual only. Deploys the monolith (back/monolith: every microservice in one process, with an
 # embedded NATS and SQLite) to the Oracle server with Docker Compose:
 #   1. unit tests (gofmt + go vet + go test -race, with libvips)
-#   2. multi-arch images (amd64 + arm64) of the monolith and the e2e tests pushed to ghcr.io
+#   2. linux/arm64 images (the server is ARM) of the monolith and the e2e tests pushed to ghcr.io,
+#      built natively on an ARM runner: cgo + libvips can't cross-compile and QEMU took ~20 min
 #   3. on the server: preview samples to R2, e2e tests against a throwaway compose project and,
 #      only if they pass, the production rollout with rollback (deploy/monolith/deploy.sh)
 #
@@ -83,12 +84,11 @@ jobs:
 
   images:
     needs: [plan, unit-tests, e2e-compile]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     strategy:
       fail-fast: true
       matrix:
         include:
-          # cgo + libvips: builds under emulation
           - image: monolith
             context: back/monolith
             file: back/monolith/Dockerfile
@@ -97,9 +97,6 @@ jobs:
             file: back/microservices/e2e/Dockerfile
     steps:
       - uses: actions/checkout@v4
-
-      - uses: docker/setup-qemu-action@v3
-        if: matrix.image == 'monolith'
 
       - uses: docker/setup-buildx-action@v3
 
@@ -114,11 +111,11 @@ jobs:
           context: ${{ matrix.context }}
           file: ${{ matrix.file }}
           target: runtime
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/arm64
           push: true
           tags: ${{ needs.plan.outputs.registry }}/inkomi-${{ matrix.image }}:${{ needs.plan.outputs.tag }}
-          cache-from: type=gha,scope=${{ matrix.image }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+          cache-from: type=gha,scope=${{ matrix.image }}-arm64
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}-arm64
 
   deploy:
     needs: [plan, images]
