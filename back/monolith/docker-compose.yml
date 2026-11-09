@@ -1,0 +1,57 @@
+# Monolith deployment on the Oracle server, run by deploy/monolith/deploy.sh. Caddy (another
+# compose project on the caddy_net network) serves MONOLITH_DOMAIN: the API paths go to
+# inkomi-monolith:3000 and the rest to inkomi-web:8080 (their aliases on that network).
+#
+#   REGISTRY=ghcr.io/<owner> TAG=<sha> docker compose up -d
+#
+# CADDY_NETWORK lets the sandbox of the pipeline use a throwaway network instead of caddy_net.
+# The e2e profile runs the end-to-end tests against this stack:
+#   docker compose --profile e2e run --rm e2e
+
+name: inkomi-monolith
+
+services:
+  monolith:
+    image: ${REGISTRY:-ghcr.io/ismelen}/inkomi-monolith:${TAG:?TAG is required}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PORT: "3000"
+      DATA_DIR: /app/data
+      FIREBASE_CREDENTIALS_FILE: /app/firebase.json
+    volumes:
+      - ${DATA_PATH:-./data}:/app/data
+      - ./firebase.json:/app/firebase.json:ro
+    networks:
+      default:
+      caddy:
+        aliases: [inkomi-monolith]
+
+  web:
+    image: ${REGISTRY:-ghcr.io/ismelen}/inkomi-web:${WEB_TAG:-latest}
+    restart: unless-stopped
+    networks:
+      default:
+      caddy:
+        aliases: [inkomi-web]
+
+  e2e:
+    profiles: [e2e]
+    image: ${REGISTRY:-ghcr.io/ismelen}/inkomi-e2e:${E2E_TAG:-${TAG}}
+    depends_on:
+      monolith:
+        condition: service_healthy
+    environment:
+      AUTH_URL: http://monolith:3000
+      LIBRARY_URL: http://monolith:3000
+      TM_URL: http://monolith:3000
+      PREVIEW_URL: http://monolith:3000
+      RELEASE_URL: http://monolith:3000
+    volumes:
+      # R2 credentials to check and clean up what the tests store, and for upload-samples
+      - ./.env:/app/.env:ro
+
+networks:
+  caddy:
+    name: ${CADDY_NETWORK:-caddy_net}
+    external: true

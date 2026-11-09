@@ -1,5 +1,12 @@
 # Backend (`back/`) — reglas para Go
 
+El backend existe en dos versiones con la misma funcionalidad, rutas y contratos:
+
+- `microservices/`: un módulo Go por servicio (`auth-service`, `library-service`, `transaction-manager`, `manga-worker`, `epub-worker`, `push-service`, `release-service`), más `common` y `e2e`. Se despliega en k3s.
+- `monolith/`: un solo módulo y un solo proceso con los mismos servicios como módulos internos. Se despliega con Docker Compose.
+
+Son **copias independientes**: el monolito no importa nada de `microservices/`. Un cambio de comportamiento se hace en las dos (y el e2e de `microservices/e2e` se pasa contra las dos).
+
 ## Arquitectura
 
 - Hexagonal. Dependencias solo `infra → usecases → domain`; `shared` lo usa cualquiera. `usecases` nunca importa `infra`.
@@ -7,10 +14,10 @@
 - Toda dependencia externa (BD, cola, cloud, push, HTTP externo) va detrás de un puerto (interface) en el dominio.
 - Un tipo / caso de uso / helper por fichero.
 
-## Layout (servicios nuevos; `api/` usa `domain/<contexto>/` con los puertos junto a las entidades)
+## Layout de un microservicio
 
 ```
-main.go · go.mod (github.com/ismelen/inkomi/back/<svc>) · Dockerfile · migrations/
+main.go · go.mod (github.com/ismelen/inkomi/back/microservices/<svc>) · Dockerfile · migrations/
 internal/config/            config.Load() → config.Env (AppConfig tipado, godotenv). No usar os.Getenv fuera de aquí.
 internal/domain/models/     entidades, enums, errores centinela (errors.go)
 internal/domain/ports/      interfaces, una por fichero
@@ -20,13 +27,28 @@ internal/infra/<adaptador>/ queue, cloud, repositories, datasources, sockethub�
 internal/shared/            utilidades sin lógica de negocio
 ```
 
-## Módulo compartido (`back/common`)
+## Layout del monolito (`back/monolith`, módulo `github.com/ismelen/inkomi/back/monolith`)
 
-- Módulo `github.com/ismelen/inkomi/back/common`: cualquier código que necesiten varios servicios. Contiene los mensajes y subjects de la cola (`jobs.Msg`, `jobs.Subject`), el consumo de jobs (`jobrun`: `Delivery`, `DeliveryHandler`, `Handle`, `Permanent`/`For`) y lo compartido de infraestructura: `queue` (`IQueue` + `NatsQueue` sobre JetStream), `cloud` (`ICloudStorage` + `CloudflareR2Storage` con claves `id/filename`; además de los streams expone `UploadFile`/`DownloadFile` para ficheros locales), `httpauth` (JWT RS*), `fsutil`. Las dependencias externas solo en esos subpaquetes de adaptador; lo específico de un servicio vive en ese servicio.
+```
+main.go, wire-<módulo>.go       composition root: un fichero por módulo; deps compartidas en main.go
+migrations/                     users.sql, transactions.sql, joins.sql (embed)
+internal/config/                config.Load() → config.Env único (la unión de variables, ver .env.example)
+internal/platform/              equivalente a common: jobs, jobrun, queue (+ NATS embebido), cloud, httpauth, fsutil, sqlitedb
+internal/modules/<módulo>/      auth, library, transactions, manga, epub, push, release; cada uno con el layout de un microservicio (domain, usecases, infra, shared) sin config
+```
+
+- La cola es un NATS con JetStream embebido en el proceso (`platform/queue.StartEmbeddedNATS`, sin puertos, store en `DATA_DIR/nats`); los adaptadores reciben la `*nats.Conn` y no la cierran.
+- Sin Redis: el estado de los joins de epub va en SQLite (`SQLiteJoinStore`, `jobs.db`).
+- Un módulo usa otro en proceso a través de un adaptador en su `infra` que implementa su propio puerto (p. ej. `push/infra/usersettings` llama a los UCs de auth). Nada de HTTP interno ni tokens de servicio.
+- Un único router chi en `PORT` con las mismas rutas que el Ingress, más `GET /healthz`.
+
+## Módulo compartido de los microservicios (`back/microservices/common`)
+
+- Módulo `github.com/ismelen/inkomi/back/microservices/common`: cualquier código que necesiten varios servicios. Contiene los mensajes y subjects de la cola (`jobs.Msg`, `jobs.Subject`), el consumo de jobs (`jobrun`: `Delivery`, `DeliveryHandler`, `Handle`, `Permanent`/`For`) y lo compartido de infraestructura: `queue` (`IQueue` + `NatsQueue` sobre JetStream), `cloud` (`ICloudStorage` + `CloudflareR2Storage` con claves `id/filename`; además de los streams expone `UploadFile`/`DownloadFile` para ficheros locales), `httpauth` (JWT RS*), `fsutil`. Las dependencias externas solo en esos subpaquetes de adaptador; lo específico de un servicio vive en ese servicio.
 - Los adaptadores de `common` reciben su configuración por parámetro (nunca leen el `config.Env` de un servicio). Las interfaces de `common` (`IQueue`, `ICloudStorage`) son los puertos de cola y storage de los servicios: se usan directamente, sin redeclararlas en `domain/ports`. Cada paquete comprueba su implementación con `var _ IX = (*Impl)(nil)`.
-- Cada servicio lo importa con `require github.com/ismelen/inkomi/back/common v0.0.0` + `replace github.com/ismelen/inkomi/back/common => ../common`. Sin `go.work`.
+- Cada servicio lo importa con `require github.com/ismelen/inkomi/back/microservices/common v0.0.0` + `replace github.com/ismelen/inkomi/back/microservices/common => ../common`. Sin `go.work`.
 - La traducción a tipos propios del servicio (p. ej. subject → `SourceStatus`) vive en el servicio, no en `common`.
-- El Dockerfile de un servicio que lo use se construye con contexto `back/` para poder copiar `common/`.
+- El Dockerfile de un servicio que lo use se construye con contexto `back/microservices/` para poder copiar `common/`.
 
 ## Nombres
 
@@ -73,7 +95,7 @@ Workers: los UCs exponen `Execute(ctx, msg jobs.Msg, delivery jobrun.Delivery) e
 - Mensajes de error en minúscula y sin punto final. Nunca ignorar errores en silencio: `_ = f()` con un comentario.
 - Estado compartido con `atomic`, `sync.Map` o `RWMutex` + `defer Unlock()`. No llamar callbacks con un lock tomado. Los getters devuelven copias (`slices.Clone`).
 - Las goroutines largas y los `select` sobre canales respetan `ctx.Done()`. Los procesos periódicos usan `Start(ctx, interval)` con `time.Ticker`.
-- OTel solo en `api/`; los servicios nuevos no usan tracing. En `api/`, cada `Execute`/`Process` abre un span `"<Tipo>.<Método>"` con `defer span.End()`. El tracer name va en una constante del servicio. En caso de error: `span.RecordError(err)` + `span.SetStatus(codes.Error, err.Error())`.
+- Sin tracing (OTel) en ninguna de las dos versiones.
 
 ## Tests
 
@@ -84,32 +106,24 @@ Workers: los UCs exponen `Execute(ctx, msg jobs.Msg, delivery jobrun.Delivery) e
 - Todo UC nuevo lleva tests. Los adaptadores se prueban con dependencias embebidas (SQLite, NATS embebido, ficheros reales).
 - Antes de terminar: `gofmt -l .`, `go vet ./...` y `go test ./... -race` en el servicio tocado.
 
-## Deuda conocida en `api/` (no copiar; corregir al tocar)
+## Despliegue de los microservicios (k3s)
 
-- `usecases` importa `infra/epub` (hay que crear un puerto).
-- `panic` en `NewTransactionHandler`.
-- Strings mágicos `"md5"/"epub"/"cbz"`.
-- `otel.Tracer("inkomi-api")` repetido en cada UC.
-- Errores ignorados.
-- `fmt.Errorf` sin `%w`, con mensajes en mayúscula o en español.
-- Receptores valor/puntero mezclados.
-- `AtomicList.GetAll` expone el slice interno.
-- `MAX_CHUNK_SIZE`, el alias de paquete `booksFilter` y el tipo `TransactionsV2Handler`.
-- Structs inicializados por posición.
-- Reintentos por recursión.
-
-## Despliegue (k3s)
-
-- Cada servicio tiene su `Dockerfile` (contexto `back/`, multi-arch amd64/arm64) con las etapas `test` (vet + tests) y `runtime` (alpine, usuario sin root, `/app/.env` montado desde el Secret `<svc>-env`), y su `.env.example` con todas las variables. Una variable nueva va también al `.env.example`.
-- Manifiestos en `deploy/k8s/` (renderizados con envsubst por `deploy/scripts/deploy.sh`); pipeline manual en `.github/workflows/backend-k3s.yml`; preparación de los nodos en `deploy/SERVERS.md`.
+- Cada servicio tiene su `Dockerfile` (contexto `back/microservices/`, multi-arch amd64/arm64) con las etapas `test` (vet + tests) y `runtime` (alpine, usuario sin root, `/app/.env` montado desde el Secret `<svc>-env`), y su `.env.example` con todas las variables. Una variable nueva va también al `.env.example`.
+- Manifiestos en `deploy/k8s/` (renderizados con envsubst por `deploy/scripts/deploy.sh`); pipeline manual en `.github/workflows/deploy-microservices.yml`; preparación de los nodos en `deploy/SERVERS.md`.
 - Los nodos llevan la etiqueta `inkomi.io/capacity` (`high`/`low`): los servicios que procesan imágenes prefieren `high` y el resto `low` (siempre `preferredDuringScheduling`, nunca obligatorio, para que se coloquen donde quepan).
 - Un servicio nuevo: añadirlo a `ALL_SERVICES` en `deploy/scripts/deploy.sh`, a la lista del job `plan` del workflow, un fichero `deploy/k8s/app/<servicio>.yaml` (y una ruta en `ingress.yaml` si es público).
 - Las direcciones dentro del clúster (NATS, Redis, auth-service interno, rutas de BD) se fijan como `env` en el manifiesto; godotenv no sobrescribe el entorno, así que mandan sobre el `.env`.
-- Los tests e2e/integración viven en `back/e2e` (build tag `e2e`) y se ejecutan como Job en un namespace sandbox del clúster antes de tocar producción.
+- Los tests e2e/integración viven en `back/microservices/e2e` (build tag `e2e`) y se ejecutan como Job en un namespace sandbox del clúster antes de tocar producción.
+
+## Despliegue del monolito (Docker Compose)
+
+- `back/monolith/Dockerfile` (contexto `back/monolith/`, cgo + libvips, multi-arch con QEMU) con las etapas `test` y `runtime`; `back/monolith/.env.example` con todas las variables (una variable nueva va también ahí).
+- `back/monolith/docker-compose.yml` (monolith + web en la red `caddy_net`, perfil `e2e`), desplegado por `deploy/monolith/deploy.sh` desde `.github/workflows/deploy-monolith.yml`: e2e en un proyecto compose desechable y, si pasan, producción con healthcheck y rollback. Servidor: `deploy/SERVERS.md` §12.
+- Desarrollo local: `go run .` (o `air`) en `back/monolith` con libvips instalado, y la web con `DEV_BACKEND=http://localhost:3000`.
 
 ## Commits
 
-Conventional Commits con el servicio como scope: `feat(epub-worker): ...`, `fix(transaction-manager): ...`.
+Conventional Commits con el servicio como scope: `feat(epub-worker): ...`, `fix(transaction-manager): ...`, `feat(monolith): ...`.
 
 ## Comments
 

@@ -1,0 +1,17 @@
+# Hot reload for local development: air (needs libvips and a C compiler for cgo).
+root = "."
+tmp_dir = "tmp"
+
+[build]
+  cmd = "go build -o ./tmp/monolith ."
+  bin = "./tmp/monolith"
+  include_ext = ["go", "sql", "html"]
+  exclude_dir = ["tmp", "data"]
+  delay = 500
+  stop_on_error = true
+
+[log]
+  time = false
+
+[misc]
+  clean_on_exit = true

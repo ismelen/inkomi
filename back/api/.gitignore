@@ -1,6 +1,0 @@
-/tests/datasource/
-.env
-/transactions
-/tmp
-/resources
-firebase.json

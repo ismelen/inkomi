@@ -1,0 +1,10 @@
+.env
+firebase.json
+data/
+tmp/
+*.exe
+*.db
+*.db-shm
+*.db-wal
+.deployed-tag
+.deploy.env

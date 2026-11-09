@@ -1,3 +1,6 @@
 .env
 firebase.json
 *.db
+
+# leftovers of the removed back/api (runtime output, credentials)
+api/

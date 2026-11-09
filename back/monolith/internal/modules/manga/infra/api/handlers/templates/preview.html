@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inkomi - Vista previa</title>
+<style>
+body { margin: 0; padding: 12px; background: #fff; color: #000; font-family: serif; font-size: 18px; }
+h1 { font-size: 22px; margin: 0 0 12px; }
+h2 { font-size: 18px; margin: 16px 0 6px; }
+img { display: block; max-width: 100%; height: auto; border: 1px solid #000; }
+.error { border: 2px solid #000; padding: 8px; margin-bottom: 12px; font-weight: bold; }
+label { display: block; margin: 8px 0 2px; }
+input[type=text], select { width: 100%; max-width: 320px; font-size: 18px; padding: 4px; border: 1px solid #000; }
+input[type=checkbox] { width: 22px; height: 22px; vertical-align: middle; }
+button { font-size: 20px; padding: 8px 20px; margin-top: 16px; border: 2px solid #000; background: #fff; }
+</style>
+</head>
+<body>
+<h1>Vista previa del procesado</h1>
+
+{{if .Error}}<div class="error">{{.Error}}</div>{{end}}
+
+<h2>Original</h2>
+<img src="{{.OriginalURL}}" alt="Original">
+
+{{if .ProcessedURL}}
+<h2>Procesada</h2>
+<img src="{{.ProcessedURL}}" alt="Procesada">
+{{end}}
+
+<h2>Ajustes</h2>
+<form method="get" action="/preview">
+<input type="hidden" name="submitted" value="1">
+<label for="sample">Imagen</label>
+<select id="sample" name="sample">
+{{range .Samples}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>
+{{end}}</select>
+{{range .Form.Fields}}
+{{if .Bool}}
+<label><input type="checkbox" name="{{.Name}}" value="1"{{if .Checked}} checked{{end}}> {{.Label}}</label>
+{{else}}
+<label for="{{.Name}}">{{.Label}}</label>
+<input type="text" id="{{.Name}}" name="{{.Name}}" value="{{.Value}}">
+{{end}}
+{{end}}
+<button type="submit">Aplicar</button>
+</form>
+</body>
+</html>

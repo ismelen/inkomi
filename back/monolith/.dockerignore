@@ -1,0 +1,9 @@
+.env
+*.env
+firebase.json
+data/
+tmp/
+*.exe
+*.db*
+docker-compose.yml
+.air.toml
