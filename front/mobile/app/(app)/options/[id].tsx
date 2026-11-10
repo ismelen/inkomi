@@ -4,9 +4,11 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { MangaOptionsForm } from '../../../src/components/options/manga-options-form';
+import { MangaProfileSheet } from '../../../src/components/options/manga-profile-sheet';
 import { Header } from '../../../src/components/ui/header';
 import { Screen } from '../../../src/components/ui/screen';
 import { SButton } from '../../../src/components/ui/s-button';
+import { SModal } from '../../../src/components/ui/s-modal';
 import { SSegmented } from '../../../src/components/ui/s-segmented';
 import { SText } from '../../../src/components/ui/s-text';
 import { STextInput } from '../../../src/components/ui/s-text-input';
@@ -16,6 +18,7 @@ import {
   MangaConfig,
   validateMangaConfig,
 } from '../../../src/models/manga-config';
+import { matchingProfile } from '../../../src/models/manga-profile';
 import { useList } from '../../../src/stores/use-list';
 import { useSettings } from '../../../src/stores/use-settings';
 import { spacing } from '../../../src/theme';
@@ -29,7 +32,7 @@ export default function OptionsScreen() {
   const group = useList((s) => s.groups[id]);
   const parent = useList((s) => (item?.groupId ? s.groups[item.groupId] : undefined));
   const { updateItem, updateGroup } = useList.getState();
-  const { defaultManga, setDefaultManga } = useSettings();
+  const { defaultManga, setDefaultManga, mangaProfiles, saveMangaProfile } = useSettings();
 
   // What the target uses when it has no options of its own.
   const inherited = useMemo<MangaConfig>(() => {
@@ -43,6 +46,9 @@ export default function OptionsScreen() {
   const [touched, setTouched] = useState(!!own);
   const [title, setTitle] = useState(item?.title ?? '');
   const [rtl, setRtl] = useState(item?.rtl ?? false);
+  const [profilesOpen, setProfilesOpen] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileName, setProfileName] = useState('');
 
   if (id !== 'default' && !item && !group) {
     return (
@@ -60,6 +66,21 @@ export default function OptionsScreen() {
       : group
         ? t('options.groupTitle', { title: group.title })
         : t('options.title');
+
+  const profile = matchingProfile(mangaProfiles, config);
+  const nameTaken = mangaProfiles.some((p) => p.name === profileName.trim());
+
+  const openSaveProfile = () => {
+    setProfileName(profile?.name ?? '');
+    setSavingProfile(true);
+  };
+
+  const saveProfile = () => {
+    const name = profileName.trim();
+    if (!name) return;
+    saveMangaProfile(name, config);
+    setSavingProfile(false);
+  };
 
   const change = (next: MangaConfig) => {
     setConfig(next);
@@ -115,7 +136,35 @@ export default function OptionsScreen() {
           </>
         )}
         {showManga ? (
-          <MangaOptionsForm config={config} onChange={change} />
+          <>
+            <SText variant="section" style={{ marginTop: spacing.sm }}>
+              {t('profiles.title')}
+            </SText>
+            <SText variant="small" tone="textSecondary">
+              {profile ? t('profiles.current', { name: profile.name }) : t('profiles.none')}
+            </SText>
+            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+              <SButton
+                variant="secondary"
+                compact
+                icon="folder"
+                label={t('profiles.load')}
+                disabled={mangaProfiles.length === 0}
+                onPress={() => setProfilesOpen(true)}
+                style={{ flex: 1 }}
+              />
+              <SButton
+                variant="secondary"
+                compact
+                icon="add"
+                label={t('profiles.saveAs')}
+                disabled={!!error}
+                onPress={openSaveProfile}
+                style={{ flex: 1 }}
+              />
+            </View>
+            <MangaOptionsForm config={config} onChange={change} />
+          </>
         ) : (
           <SText variant="small" tone="textSecondary" style={{ marginTop: spacing.md }}>
             {t('options.epubHint')}
@@ -137,6 +186,38 @@ export default function OptionsScreen() {
         )}
         <SButton label={t('common.save')} onPress={save} disabled={!!error} />
       </View>
+      <MangaProfileSheet
+        visible={profilesOpen}
+        currentId={profile?.id}
+        onPick={change}
+        onClose={() => setProfilesOpen(false)}
+      />
+      <SModal
+        visible={savingProfile}
+        title={t('profiles.saveAs')}
+        message={nameTaken ? t('profiles.overwrite') : undefined}
+        onClose={() => setSavingProfile(false)}
+        actions={[
+          {
+            label: t('common.cancel'),
+            onPress: () => setSavingProfile(false),
+            variant: 'secondary',
+          },
+          {
+            label: nameTaken ? t('profiles.replace') : t('common.save'),
+            onPress: saveProfile,
+            disabled: !profileName.trim(),
+          },
+        ]}
+      >
+        <STextInput
+          value={profileName}
+          onChangeText={setProfileName}
+          placeholder={t('profiles.namePlaceholder')}
+          autoFocus
+          onSubmitEditing={saveProfile}
+        />
+      </SModal>
     </Screen>
   );
 }

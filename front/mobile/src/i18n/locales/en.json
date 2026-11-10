@@ -255,5 +255,20 @@
     "section": "Updates",
     "check": "Check for updates",
     "upToDate": "You have the latest version"
+  },
+  "profiles": {
+    "title": "Manga profiles",
+    "empty": "You have no saved profiles yet",
+    "load": "Load profile",
+    "saveAs": "Save as profile",
+    "current": "Profile: {{name}}",
+    "none": "No profile (own settings)",
+    "rename": "Rename",
+    "deleteTitle": "Delete the profile “{{name}}”?",
+    "overwrite": "A profile with that name exists: it will be replaced",
+    "replace": "Replace",
+    "namePlaceholder": "Profile name",
+    "count_one": "{{count}} profile",
+    "count_other": "{{count}} profiles"
   }
 }

@@ -255,5 +255,20 @@
     "section": "Actualizaciones",
     "check": "Buscar actualizaciones",
     "upToDate": "Ya tienes la última versión"
+  },
+  "profiles": {
+    "title": "Perfiles de manga",
+    "empty": "Aún no has guardado ningún perfil",
+    "load": "Cargar perfil",
+    "saveAs": "Guardar como perfil",
+    "current": "Perfil: {{name}}",
+    "none": "Sin perfil (configuración propia)",
+    "rename": "Renombrar",
+    "deleteTitle": "¿Borrar el perfil «{{name}}»?",
+    "overwrite": "Ya hay un perfil con ese nombre: se reemplazará",
+    "replace": "Reemplazar",
+    "namePlaceholder": "Nombre del perfil",
+    "count_one": "{{count}} perfil",
+    "count_other": "{{count}} perfiles"
   }
 }

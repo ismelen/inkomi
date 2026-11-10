@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { errorKey } from '../../src/api/api-error';
 import { DropboxFolderPicker } from '../../src/components/settings/dropbox-folder-picker';
 import { EReaderPicker } from '../../src/components/settings/ereader-picker';
+import { MangaProfileSheet } from '../../src/components/options/manga-profile-sheet';
 import { Header } from '../../src/components/ui/header';
 import { Screen } from '../../src/components/ui/screen';
 import { SButton } from '../../src/components/ui/s-button';
@@ -30,6 +31,7 @@ export default function SettingsScreen() {
   const ereader = findEReader(settings.ereaderKey);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [folderPickerOpen, setFolderPickerOpen] = useState(false);
+  const [profilesOpen, setProfilesOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
 
   const attempt = async (key: string, action: () => Promise<unknown>) => {
@@ -180,6 +182,11 @@ export default function SettingsScreen() {
           label={t('settings.defaultManga')}
           onPress={() => router.push({ pathname: '/options/[id]', params: { id: 'default' } })}
         />
+        <SettingRow
+          label={t('profiles.title')}
+          description={t('profiles.count', { count: settings.mangaProfiles.length })}
+          onPress={() => setProfilesOpen(true)}
+        />
 
         <SectionTitle>{t('update.section')}</SectionTitle>
         <SettingRow
@@ -195,6 +202,7 @@ export default function SettingsScreen() {
           }
         />
       </ScrollView>
+      <MangaProfileSheet visible={profilesOpen} onClose={() => setProfilesOpen(false)} />
       <DropboxFolderPicker
         visible={folderPickerOpen}
         initial={profile?.dropbox.folder ?? ''}
