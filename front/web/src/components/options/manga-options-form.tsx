@@ -10,7 +10,14 @@ interface Props {
   onChange: (config: MangaConfig) => void;
 }
 
-type BoolKey = 'rotateDoublePage' | 'enlarge' | 'embed' | 'grayscale' | 'dithering' | 'palette8bit';
+type BoolKey =
+  | 'rotateDoublePage'
+  | 'enlarge'
+  | 'embed'
+  | 'grayscale'
+  | 'dithering'
+  | 'palette8bit'
+  | 'removeRainbow';
 type SharpenKey = 'radius' | 'x1' | 'y2' | 'y3' | 'm1' | 'm2';
 
 // The design shows these; "Mostrar todas las opciones" adds the rest.
@@ -18,6 +25,7 @@ const mainToggles: { key: BoolKey; label: string }[] = [
   { key: 'rotateDoublePage', label: 'options.rotateDoublePage' },
   { key: 'grayscale', label: 'options.grayscale' },
   { key: 'dithering', label: 'options.dithering' },
+  { key: 'removeRainbow', label: 'options.removeRainbow' },
 ];
 
 const moreToggles: { key: BoolKey; label: string }[] = [

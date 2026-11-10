@@ -25,6 +25,8 @@ export interface ConfigDTO {
   whitePointThreshold: number;
   dithering: boolean;
   palette8bit: boolean;
+  /** Blurs the chroma, keeping the luma, against the colour fringes of colour e-ink. */
+  removeRainbow: boolean;
   quality: number;
   sharpen: SharpenDTO;
 }

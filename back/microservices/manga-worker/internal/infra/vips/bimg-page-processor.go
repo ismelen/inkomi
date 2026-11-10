@@ -231,6 +231,9 @@ func adjustLevels(data []byte, cfg models.MangaConfig) ([]byte, error) {
 	}
 
 	rgba := imaging.ToRGBA(img)
+	if cfg.RemoveRainbow && !cfg.Grayscale {
+		imaging.RemoveRainbow(rgba, imaging.RainbowRadius)
+	}
 	imaging.ApplyLevels(rgba, imaging.Levels{
 		Gamma:      cfg.Gamma,
 		BlackPoint: cfg.BlackPointThreshold,

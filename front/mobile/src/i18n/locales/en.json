@@ -108,7 +108,8 @@
     "sharpenM2": "Edge slope (m2)",
     "epubHint": "Epub files only use the title and the reading direction.",
     "blackAboveWhite": "The black point must be lower than the white point",
-    "outOfRange": "Some values are out of range"
+    "outOfRange": "Some values are out of range",
+    "removeRainbow": "Reduce rainbow effect"
   },
   "search": {
     "placeholder": "Search by title or author",

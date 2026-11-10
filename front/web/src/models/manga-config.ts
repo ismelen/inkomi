@@ -19,6 +19,7 @@ export const defaultMangaConfig: MangaConfig = {
   whitePointThreshold: 0.95,
   dithering: false,
   palette8bit: false,
+  removeRainbow: false,
   quality: 90,
   sharpen: { enabled: false, radius: 1, x1: 1.5, y2: 20, y3: 50, m1: 0, m2: 3 },
 };

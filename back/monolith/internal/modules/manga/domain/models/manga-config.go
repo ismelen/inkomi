@@ -8,22 +8,24 @@ import (
 
 // MangaConfig is the image processing config of a manga job (jobs.Manga.MangaCfg).
 type MangaConfig struct {
-	RotateDoublePage    bool           `json:"rotateDoublePage"`
-	TargetWidth         int            `json:"targetWidth"`
-	TargetHeight        int            `json:"targetHeight"`
-	CropTolerance       float64        `json:"cropTolerance"` // [0.0, 1.0] or -1 to disable cropping
-	Enlarge             bool           `json:"enlarge"`       // upscale small images to the target size
-	Embed               bool           `json:"embed"`         // fill blanks to fit the target size
-	Gamma               float64        `json:"gamma"`
-	Brightness          float64        `json:"brightness"`
-	Contrast            float64        `json:"contrast"`
-	Grayscale           bool           `json:"grayscale"`
-	BlackPointThreshold float64        `json:"blackPointThreshold"`
-	WhitePointThreshold float64        `json:"whitePointThreshold"`
-	Dithering           bool           `json:"dithering"`
-	Palette8bit         bool           `json:"palette8bit"` // 8-bit palette PNG instead of 24-bit JPEG
-	Quality             int            `json:"quality"`
-	Sharpen             SharpenOptions `json:"sharpen"`
+	RotateDoublePage    bool    `json:"rotateDoublePage"`
+	TargetWidth         int     `json:"targetWidth"`
+	TargetHeight        int     `json:"targetHeight"`
+	CropTolerance       float64 `json:"cropTolerance"` // [0.0, 1.0] or -1 to disable cropping
+	Enlarge             bool    `json:"enlarge"`       // upscale small images to the target size
+	Embed               bool    `json:"embed"`         // fill blanks to fit the target size
+	Gamma               float64 `json:"gamma"`
+	Brightness          float64 `json:"brightness"`
+	Contrast            float64 `json:"contrast"`
+	Grayscale           bool    `json:"grayscale"`
+	BlackPointThreshold float64 `json:"blackPointThreshold"`
+	WhitePointThreshold float64 `json:"whitePointThreshold"`
+	Dithering           bool    `json:"dithering"`
+	Palette8bit         bool    `json:"palette8bit"` // 8-bit palette PNG instead of 24-bit JPEG
+	// RemoveRainbow blurs the chroma, keeping the luma, against the colour fringes of colour e-ink.
+	RemoveRainbow bool           `json:"removeRainbow"`
+	Quality       int            `json:"quality"`
+	Sharpen       SharpenOptions `json:"sharpen"`
 }
 
 type SharpenOptions struct {

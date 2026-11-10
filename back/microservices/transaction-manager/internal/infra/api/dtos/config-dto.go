@@ -21,8 +21,9 @@ type ConfigDTO struct {
 	BlackPointThreshold float32                `json:"blackPointThreshold"` // [0.0, 1.0]; def=0.06
 	WhitePointThreshold float32                `json:"whitePointThreshold"` // [0.0, 1.0]; def=0.95
 	Dithering           bool                   `json:"dithering"`
-	Palette8bit         bool                   `json:"palette8bit"` // convert to 8-bit palette instead of 24-bit
-	Quality             int8                   `json:"quality"`     // [1, 100]; def=90
+	Palette8bit         bool                   `json:"palette8bit"`   // convert to 8-bit palette instead of 24-bit
+	RemoveRainbow       bool                   `json:"removeRainbow"` // blur the chroma against colour e-ink fringes
+	Quality             int8                   `json:"quality"`       // [1, 100]; def=90
 	Sharpen             MangaSharpenOptionsDTO `json:"sharpen"`
 	Kepubify            bool                   `json:"-"`
 }

@@ -108,7 +108,8 @@
     "sharpenM2": "Pendiente bordes (m2)",
     "epubHint": "Los epub solo usan el título y la dirección de lectura.",
     "blackAboveWhite": "El punto negro tiene que ser menor que el punto blanco",
-    "outOfRange": "Hay valores fuera de rango"
+    "outOfRange": "Hay valores fuera de rango",
+    "removeRainbow": "Reducir efecto arcoíris"
   },
   "search": {
     "placeholder": "Buscar por título o autor",

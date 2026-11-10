@@ -114,7 +114,8 @@
     "showLess": "Show fewer options",
     "defaultHint": "Image options applied when a manga is added.",
     "edit": "Edit options",
-    "groupOptions": "Options · {{title}}"
+    "groupOptions": "Options · {{title}}",
+    "removeRainbow": "Reduce rainbow effect"
   },
   "search": {
     "placeholder": "Search by title or author",

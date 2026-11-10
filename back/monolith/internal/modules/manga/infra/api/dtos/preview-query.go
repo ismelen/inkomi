@@ -42,6 +42,7 @@ var previewFields = []previewField{
 	{name: "blackPointThreshold", label: "Punto negro [0-1]", group: groupTone, path: []string{"blackPointThreshold"}},
 	{name: "whitePointThreshold", label: "Punto blanco [0-1]", group: groupTone, path: []string{"whitePointThreshold"}},
 	{name: "grayscale", label: "Escala de grises", group: groupTone, path: []string{"grayscale"}, bool: true},
+	{name: "removeRainbow", label: "Reducir efecto arcoíris", group: groupTone, path: []string{"removeRainbow"}, bool: true},
 	{name: "quality", label: "Calidad [1-100]", group: groupOutput, path: []string{"quality"}},
 	{name: "dithering", label: "Dithering", group: groupOutput, path: []string{"dithering"}, bool: true},
 	{name: "palette8bit", label: "Paleta 8 bits (PNG)", group: groupOutput, path: []string{"palette8bit"}, bool: true},
