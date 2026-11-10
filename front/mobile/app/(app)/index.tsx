@@ -1,5 +1,13 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Alert, BackHandler, FlatList, Pressable, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  BackHandler,
+  FlatList,
+  Modal,
+  Pressable,
+  View,
+} from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -18,7 +26,7 @@ import { SSwitch } from '../../src/components/ui/s-switch';
 import { SText } from '../../src/components/ui/s-text';
 import { Group } from '../../src/models/group';
 import { ListItem } from '../../src/models/list-item';
-import { pickBookFiles, pickBookFolder } from '../../src/services/file-picker';
+import { nextFrame, pickBookFiles, pickBookFolder } from '../../src/services/file-picker';
 import { useActivity } from '../../src/stores/use-activity';
 import { useList } from '../../src/stores/use-list';
 import { useProfile } from '../../src/stores/use-profile';
@@ -51,6 +59,8 @@ export default function HomeScreen() {
   const [editingGroup, setEditingGroup] = useState<Group | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
+  /** Reading the picked files, which blocks the app for a while: shown as a loading overlay. */
+  const [loading, setLoading] = useState<{ read: number; total: number } | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -113,21 +123,29 @@ export default function HomeScreen() {
   const addFiles = async () => {
     setAddOpen(false);
     try {
-      list.addFiles(await pickBookFiles());
+      const files = await pickBookFiles();
+      if (files.length === 0) return;
+      setLoading({ read: 0, total: files.length });
+      await nextFrame();
+      list.addFiles(files);
     } catch (err) {
       showError(t('add.files'), err, t);
+    } finally {
+      setLoading(null);
     }
   };
 
   const addFolder = async () => {
     setAddOpen(false);
     try {
-      const folder = await pickBookFolder();
+      const folder = await pickBookFolder((read, total) => setLoading({ read, total }));
       if (!folder) return;
       if (folder.files.length === 0) Alert.alert(t('add.folder'), t('add.emptyFolder'));
       else list.addFolder(folder);
     } catch (err) {
       showError(t('add.folder'), err, t);
+    } finally {
+      setLoading(null);
     }
   };
 
@@ -309,6 +327,35 @@ export default function HomeScreen() {
         )}
       </View>
 
+      <Modal visible={!!loading} transparent animationType="fade" onRequestClose={() => {}}>
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: colors.scrim,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: colors.background,
+              borderRadius: radii.lg,
+              padding: spacing.lg,
+              alignItems: 'center',
+              gap: spacing.md,
+              minWidth: 220,
+            }}
+          >
+            <ActivityIndicator size="large" color={colors.primary} />
+            <SText variant="body">{t('add.loading')}</SText>
+            {!!loading?.total && (
+              <SText variant="small" tone="textSecondary">
+                {t('add.loadingCount', { read: loading.read, total: loading.total })}
+              </SText>
+            )}
+          </View>
+        </View>
+      </Modal>
       <AddSheet
         visible={addOpen}
         onClose={() => setAddOpen(false)}

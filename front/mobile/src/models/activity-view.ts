@@ -23,6 +23,8 @@ export type ActivityLine =
 
 export interface ActivityView {
   counter?: { done: number; total: number };
+  /** Titles of the items being converted right now. */
+  current?: string;
   line: ActivityLine;
   tone: Tone;
   steps: Record<StepKey, StepState>;
@@ -140,8 +142,14 @@ export function activityView(tree: UploadTree): ActivityView {
     progress = Math.max(progress, (settled / items.length) * 0.8);
   }
 
+  const busy = folder
+    ? items.filter((i) => i.status === 'processing' || i.status === 'kepubifying')
+    : [];
+  const current = busy.map((i) => i.title).join(' · ') || undefined;
+
   return {
     counter: folder ? { done: settled, total: items.length } : undefined,
+    current,
     line,
     tone: toneOf[line.key],
     steps,

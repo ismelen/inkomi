@@ -53,6 +53,11 @@ export function ActivityCard({ tree }: { tree: UploadTree }) {
       <SText variant="small" style={{ color: toneColor }} numberOfLines={2}>
         {lineText(view.line)}
       </SText>
+      {!!view.current && (
+        <SText variant="small" tone="textSecondary" numberOfLines={1}>
+          {view.current}
+        </SText>
+      )}
       <View style={{ height: 4, borderRadius: radii.pill, backgroundColor: colors.surface }}>
         <View
           style={{

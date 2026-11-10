@@ -33,8 +33,14 @@ export function isFolder(tree: UploadTree): boolean {
 }
 
 /** Items of a folder that finished their part: terminal, or merged into a result. */
+/**
+ * Items that need nothing else on their own: finished, or converted and waiting for (or already
+ * part of) the join of their folder.
+ */
 export function settledItems(tree: UploadTree): LocalSource[] {
-  return itemsOf(tree).filter((i) => isTerminal(i.status) || i.status === 'joined');
+  return itemsOf(tree).filter(
+    (i) => isTerminal(i.status) || i.status === 'joining' || i.status === 'joined'
+  );
 }
 
 /**

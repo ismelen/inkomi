@@ -50,7 +50,9 @@
     "filesHint": "epub, cbz, pdf",
     "folder": "Carpeta",
     "folderHint": "Todos los archivos de una carpeta",
-    "emptyFolder": "La carpeta no tiene archivos epub, cbz ni pdf"
+    "emptyFolder": "La carpeta no tiene archivos epub, cbz ni pdf",
+    "loading": "Leyendo archivos…",
+    "loadingCount": "{{read}} de {{total}}"
   },
   "group": {
     "title": "Agrupación",

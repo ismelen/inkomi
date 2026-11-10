@@ -50,7 +50,9 @@
     "filesHint": "epub, cbz, pdf",
     "folder": "Folder",
     "folderHint": "Every file in a folder",
-    "emptyFolder": "The folder has no epub, cbz or pdf files"
+    "emptyFolder": "The folder has no epub, cbz or pdf files",
+    "loading": "Reading files…",
+    "loadingCount": "{{read}} of {{total}}"
   },
   "group": {
     "title": "Group",

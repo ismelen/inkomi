@@ -41,8 +41,21 @@ export async function pickBookFiles(): Promise<PickedFile[]> {
   }
 }
 
-/** Every supported file directly inside a folder, sorted by name. Null when cancelled. */
-export async function pickBookFolder(): Promise<PickedFolder | null> {
+/** Lets the UI paint (e.g. a loading indicator) before the next blocking native call. */
+export const nextFrame = () => new Promise<void>((resolve) => setTimeout(resolve, 16));
+
+/** Files whose metadata is read between two frames: each read is a blocking native call. */
+const filesPerFrame = 8;
+
+/**
+ * Every supported file directly inside a folder, sorted by name. Null when cancelled.
+ * onLoading is called once the user picked the folder, before the slow part (listing it and
+ * reading every file's size, which on Android goes through the storage provider), and then with
+ * the progress of that read.
+ */
+export async function pickBookFolder(
+  onLoading?: (read: number, total: number) => void
+): Promise<PickedFolder | null> {
   let uri: string;
   try {
     uri = (await pickDirectory()).uri;
@@ -51,23 +64,28 @@ export async function pickBookFolder(): Promise<PickedFolder | null> {
     throw err;
   }
 
+  onLoading?.(0, 0);
+  await nextFrame();
   const name = decodeURIComponent(uri).split(/[/:]/).filter(Boolean).pop() ?? '';
-  const files = new Directory(uri)
+  const entries = new Directory(uri)
     .list()
-    .filter((entry): entry is File => entry instanceof File)
-    .map((file): PickedFile | null => {
-      const ext = formatOf(file.name);
-      return ext
-        ? {
-            uri: file.uri,
-            name: file.name,
-            size: file.size ?? 0,
-            mime: file.type ?? undefined,
-            ext,
-          }
-        : null;
-    })
-    .filter((f): f is PickedFile => f !== null)
-    .sort(byName);
-  return { name, files };
+    .filter((entry): entry is File => entry instanceof File && formatOf(entry.name) !== null);
+
+  const files: PickedFile[] = [];
+  for (let i = 0; i < entries.length; i++) {
+    if (i % filesPerFrame === 0) {
+      onLoading?.(i, entries.length);
+      await nextFrame();
+    }
+    const file = entries[i];
+    files.push({
+      uri: file.uri,
+      name: file.name,
+      size: file.size ?? 0,
+      mime: file.type ?? undefined,
+      ext: formatOf(file.name)!,
+    });
+  }
+  onLoading?.(entries.length, entries.length);
+  return { name, files: files.sort(byName) };
 }
