@@ -11,7 +11,8 @@ export type SourceStatus =
   | 'kepubifying'
   | 'done'
   | 'sent'
-  | 'failed';
+  | 'failed'
+  | 'cancelled';
 
 export type SourceType = 'file' | 'folder' | 'library';
 export type ReadingDirection = 'ltr' | 'rtl';

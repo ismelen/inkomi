@@ -17,6 +17,7 @@ const (
 	SourceStatusKepubifying   SourceStatus = "kepubifying"
 	SourceStatusSent          SourceStatus = "sent"
 	SourceStatusFailed        SourceStatus = "failed"
+	SourceStatusCancelled     SourceStatus = "cancelled"
 	SourceStatusDone          SourceStatus = "done"
 )
 
@@ -69,7 +70,7 @@ func (s *Source) IsLibrary() bool {
 // IsFinished reports whether the source reached a terminal status.
 func (s *Source) IsFinished() bool {
 	switch s.Status {
-	case SourceStatusDone, SourceStatusSent, SourceStatusFailed:
+	case SourceStatusDone, SourceStatusSent, SourceStatusFailed, SourceStatusCancelled:
 		return true
 	default:
 		return false

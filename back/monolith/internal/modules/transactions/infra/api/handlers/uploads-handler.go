@@ -12,6 +12,7 @@ import (
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/transactions/domain/models"
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/transactions/infra/api/dtos"
 	requtil "github.com/ismelen/inkomi/back/monolith/internal/modules/transactions/infra/api/requtils"
+	"github.com/ismelen/inkomi/back/monolith/internal/modules/transactions/usecases/canceltransaction"
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/transactions/usecases/getdownload"
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/transactions/usecases/listuploads"
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/transactions/usecases/newupload"
@@ -26,6 +27,7 @@ type UploadsHandler struct {
 	listUploadsUC *listuploads.ListUploadsUC
 	getDownloadUC *getdownload.GetDownloadUC
 	retryUploadUC *retryupload.RetryUploadUC
+	cancelUC      *canceltransaction.CancelTransactionUC
 }
 
 func NewUploadsHandler(
@@ -34,6 +36,7 @@ func NewUploadsHandler(
 	listUploadsUC *listuploads.ListUploadsUC,
 	getDownloadUC *getdownload.GetDownloadUC,
 	retryUploadUC *retryupload.RetryUploadUC,
+	cancelUC *canceltransaction.CancelTransactionUC,
 ) *UploadsHandler {
 	return &UploadsHandler{
 		newUploadUC:   newUploadUC,
@@ -41,6 +44,7 @@ func NewUploadsHandler(
 		listUploadsUC: listUploadsUC,
 		getDownloadUC: getDownloadUC,
 		retryUploadUC: retryUploadUC,
+		cancelUC:      cancelUC,
 	}
 }
 
@@ -145,4 +149,20 @@ func (u *UploadsHandler) HandleRetry(w http.ResponseWriter, r *http.Request) (*d
 	}
 	log.Printf("upload retry user %d: %s", token.Id, sourceId)
 	return &dtos.RetryUploadResponse{Id: sourceId, Url: url}, nil
+}
+
+// HandleCancel serves POST /uploads/{sourceId}/cancel on the root of an upload: what wasn't
+// finished stops and is marked as cancelled.
+func (u *UploadsHandler) HandleCancel(w http.ResponseWriter, r *http.Request) (*any, error) {
+	token, _ := httpauth.GetUserClaims(r.Context())
+	sourceId := chi.URLParam(r, "sourceId")
+
+	err := u.cancelUC.Execute(r.Context(), token.Id, sourceId)
+	switch {
+	case errors.Is(err, models.ErrSourceNotFound):
+		return nil, requtil.NewError(http.StatusNotFound, err.Error())
+	case errors.Is(err, models.ErrSourceNotCancellable):
+		return nil, requtil.NewError(http.StatusConflict, err.Error())
+	}
+	return nil, err
 }

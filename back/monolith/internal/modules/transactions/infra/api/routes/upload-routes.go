@@ -16,4 +16,5 @@ func SetupUploadRoutes(api chi.Router, handler *handlers.UploadsHandler) {
 	r.Patch("/done/{sourceId}", requtil.Wrap(handler.HandleOnComplete))
 	r.Get("/{sourceId}/download", requtil.Wrap(handler.HandleDownload))
 	r.Post("/{sourceId}/retry", requtil.Wrap(handler.HandleRetry))
+	r.Post("/{sourceId}/cancel", requtil.Wrap(handler.HandleCancel))
 }

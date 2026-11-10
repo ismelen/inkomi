@@ -9,6 +9,7 @@ import (
 
 type MockSourceRepository struct {
 	CreateFn                         func(ctx context.Context, source *models.Source) (string, error)
+	CancelTreeFn                     func(ctx context.Context, rootId string, userId int) ([]string, error)
 	GetByIdAndUserIdFn               func(ctx context.Context, id string, userId int) (*models.Source, error)
 	GetDetailByIdAndUserIdFn         func(ctx context.Context, id string, userId int) (*models.SourceDetail, error)
 	ListTreesByUserIdFn              func(ctx context.Context, userId int, filter models.SourceListFilter) ([]models.SourceTree, error)
@@ -96,4 +97,11 @@ func (m *MockSourceRepository) Now(ctx context.Context) (time.Time, error) {
 		return m.NowFn(ctx)
 	}
 	return time.Now().UTC().Truncate(time.Second), nil
+}
+
+func (m *MockSourceRepository) CancelTree(ctx context.Context, rootId string, userId int) ([]string, error) {
+	if m.CancelTreeFn != nil {
+		return m.CancelTreeFn(ctx, rootId, userId)
+	}
+	return nil, nil
 }

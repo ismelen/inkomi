@@ -40,6 +40,7 @@ const messageKeys: Record<string, string> = {
   'file not available': 'fileNotAvailable',
   'source not uploaded': 'sourceNotUploaded',
   'insufficient storage': 'insufficientStorage',
+  'source not cancellable': 'sourceNotCancellable',
   'source not retryable': 'sourceNotRetryable',
   'dropbox folder not found': 'dropboxFolderMissing',
   'dropbox folder already exists': 'dropboxFolderExists',

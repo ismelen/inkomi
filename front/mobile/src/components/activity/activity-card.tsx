@@ -1,9 +1,14 @@
-import React from 'react';
-import { View } from 'react-native';
+import React, { useState } from 'react';
+import { Alert, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { colors, radii, spacing } from '../../theme';
+import { errorKey } from '../../api/api-error';
+import { uploadsApi } from '../../api/uploads-api';
 import { ActivityLine, activityView } from '../../models/activity-view';
-import { UploadTree } from '../../models/upload-tree';
+import { unfinishedIds, UploadTree } from '../../models/upload-tree';
+import { advanceStatus } from '../../services/activity-db';
+import { SButton } from '../ui/s-button';
+import { SModal } from '../ui/s-modal';
 import { SText } from '../ui/s-text';
 import { StepChips } from './step-chips';
 
@@ -26,9 +31,26 @@ function useLineText() {
 }
 
 export function ActivityCard({ tree }: { tree: UploadTree }) {
+  const { t } = useTranslation();
   const lineText = useLineText();
   const view = activityView(tree);
   const toneColor = colors[view.tone];
+  const [confirming, setConfirming] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+
+  const cancel = async () => {
+    setConfirming(false);
+    setCancelling(true);
+    try {
+      await uploadsApi.cancel(tree.root.id);
+      // the websocket brings the same statuses; this shows them right away
+      await advanceStatus(unfinishedIds(tree), 'cancelled');
+    } catch (err) {
+      Alert.alert(t('errors.title'), t(errorKey(err)));
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   return (
     <View
@@ -68,7 +90,33 @@ export function ActivityCard({ tree }: { tree: UploadTree }) {
           }}
         />
       </View>
-      <StepChips steps={view.steps} tone={view.tone} />
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+        <View style={{ flex: 1 }}>
+          <StepChips steps={view.steps} tone={view.tone} />
+        </View>
+        <SButton
+          variant="secondary"
+          compact
+          icon="close"
+          label={t('activity.cancel')}
+          loading={cancelling}
+          onPress={() => setConfirming(true)}
+        />
+      </View>
+      <SModal
+        visible={confirming}
+        title={t('activity.cancelTitle')}
+        message={t('activity.cancelMessage')}
+        onClose={() => setConfirming(false)}
+        actions={[
+          {
+            label: t('activity.cancelKeep'),
+            onPress: () => setConfirming(false),
+            variant: 'secondary',
+          },
+          { label: t('activity.cancel'), onPress: () => void cancel(), variant: 'danger' },
+        ]}
+      />
     </View>
   );
 }

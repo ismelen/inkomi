@@ -18,6 +18,7 @@ import (
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/transactions/infra/repositories"
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/transactions/infra/sockethub"
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/transactions/infra/storagequota"
+	"github.com/ismelen/inkomi/back/monolith/internal/modules/transactions/usecases/canceltransaction"
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/transactions/usecases/forwardevents"
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/transactions/usecases/getdownload"
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/transactions/usecases/listuploads"
@@ -56,6 +57,10 @@ func wireTransactions(d *deps, router chi.Router) func() {
 		listuploads.NewListUploadsUC(sourceRepo),
 		getdownload.NewGetDownloadUC(sourceRepo, cloudStorage),
 		retryupload.NewRetryUploadUC(sourceRepo, cloudStorage),
+		canceltransaction.NewCancelTransactionUC(
+			db, sourceRepo, repositories.NewSQLiteStorageReservationRepository(db.DB),
+			d.cancels, fileCleaner(d), d.joinStore, hub,
+		),
 	)
 
 	if err := forwardevents.NewForwardEventsUC(hub, eventQueue, sourceRepo, quota).Execute(); err != nil {
@@ -102,4 +107,16 @@ func transactionsStorage(d *deps, db *datasources.SQLiteDatasource) (ports.IClou
 	)
 	quota.Start(d.ctx, 5*time.Minute)
 	return cloud.NewLocalSignedStorage(d.local, d.signer), quota
+}
+
+// noFiles cleans nothing: R2 objects expire through the bucket's lifecycle.
+type noFiles struct{}
+
+func (noFiles) DeleteAll(string) error { return nil }
+
+func fileCleaner(d *deps) ports.IFileCleaner {
+	if d.local == nil {
+		return noFiles{}
+	}
+	return d.local
 }

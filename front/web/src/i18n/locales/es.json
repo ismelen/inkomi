@@ -167,10 +167,15 @@
       "joining": "Fusionando",
       "kepub": "Kepubify",
       "uploading": "Enviando",
-      "failed": "Error: {{error}}"
+      "failed": "Error: {{error}}",
+      "cancelled": "Cancelado"
     },
     "pageTitle": "Actividad",
-    "offline": "Sin conexión en tiempo real"
+    "offline": "Sin conexión en tiempo real",
+    "cancel": "Cancelar",
+    "cancelTitle": "¿Cancelar el envío?",
+    "cancelMessage": "Se detiene lo que quede por procesar y se borran sus archivos del servidor. Lo ya enviado a Dropbox se queda.",
+    "cancelKeep": "Seguir"
   },
   "history": {
     "title": "Historial",
@@ -189,7 +194,8 @@
     "share": "Compartir",
     "saved": "Guardado",
     "results": "Resultados",
-    "loadingMore": "Cargando más…"
+    "loadingMore": "Cargando más…",
+    "cancelled": "Cancelado"
   },
   "settings": {
     "title": "Ajustes",
@@ -260,7 +266,8 @@
     "invalidRequest": "Petición no válida",
     "noRelease": "No hay ninguna versión publicada",
     "releaseUnavailable": "No se pueden comprobar las actualizaciones ahora mismo",
-    "insufficientStorage": "Ahora mismo no hay espacio en el servidor. Inténtalo más tarde"
+    "insufficientStorage": "Ahora mismo no hay espacio en el servidor. Inténtalo más tarde",
+    "sourceNotCancellable": "Este envío ya ha terminado"
   },
   "nav": {
     "list": "Lista",

@@ -40,7 +40,7 @@ func wireManga(d *deps, router chi.Router) {
 	)
 	log.Printf("manga: %d jobs at once, %d page workers", d.mangaConcurrency, config.Env.Workers)
 	opts := queue.SubscribeOptions{Concurrency: d.mangaConcurrency, Ready: d.ready}
-	if err := d.queue.SubscribeWith(string(jobs.SubjectManga), opts, jobrun.Handle(d.queue, convertMangaUC.Execute)); err != nil {
+	if err := d.queue.SubscribeWith(string(jobs.SubjectManga), opts, jobrun.Handle(d.queue, convertMangaUC.Execute, jobrun.WithCancellations(d.cancels))); err != nil {
 		log.Fatal(err)
 	}
 

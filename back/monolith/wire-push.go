@@ -26,7 +26,7 @@ func wirePush(d *deps, auth *authAPI) {
 
 	sendDoneUC := senddone.NewSendDoneUC(d.queue, d.cloud, userSettings, cloudDrive, notifier)
 	// network bound: one job waiting on the network doesn't need to hold back the next one
-	if err := d.queue.SubscribeWith(string(jobs.SubjectDone), queue.SubscribeOptions{Concurrency: 2}, jobrun.Handle(d.queue, sendDoneUC.Execute)); err != nil {
+	if err := d.queue.SubscribeWith(string(jobs.SubjectDone), queue.SubscribeOptions{Concurrency: 2}, jobrun.Handle(d.queue, sendDoneUC.Execute, jobrun.WithCancellations(d.cancels))); err != nil {
 		log.Fatal(err)
 	}
 }

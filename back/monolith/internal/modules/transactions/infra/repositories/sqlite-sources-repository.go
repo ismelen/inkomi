@@ -23,7 +23,11 @@ const sourceColumns = `
 const sqliteTimeLayout = "2006-01-02 15:04:05"
 
 // completedAtOnTerminal expects the new status as its argument.
-const completedAtOnTerminal = `CASE WHEN ? IN ('done', 'sent', 'failed') THEN CURRENT_TIMESTAMP ELSE completedAt END`
+const completedAtOnTerminal = `CASE WHEN ? IN ('done', 'sent', 'failed', 'cancelled') THEN CURRENT_TIMESTAMP ELSE completedAt END`
+
+// notCancelled keeps the late events of a job that was already running from overwriting a
+// cancellation.
+const notCancelled = ` AND status != 'cancelled'`
 
 type SQLiteSourceRepository struct {
 	db *sql.DB
@@ -233,7 +237,7 @@ func (r *SQLiteSourceRepository) UpdateStatus(ctx context.Context, id string, us
 			status = ?,
 			updatedAt = CURRENT_TIMESTAMP,
 			completedAt = ` + completedAtOnTerminal + `
-		WHERE id = ? AND userId = ?
+		WHERE id = ? AND userId = ?` + notCancelled + `
 	`
 	_, err := datasources.GetDB(ctx, r.db).ExecContext(ctx, query, status, status, id, userId)
 	return err
@@ -258,7 +262,7 @@ func (r *SQLiteSourceRepository) UpdateErrorMsg(ctx context.Context, id string, 
 			errorMsg = ?,
 			updatedAt = CURRENT_TIMESTAMP,
 			completedAt = CURRENT_TIMESTAMP
-		WHERE id = ? AND userId = ?
+		WHERE id = ? AND userId = ?` + notCancelled + `
 	`
 	_, err := datasources.GetDB(ctx, r.db).ExecContext(ctx, query, models.SourceStatusFailed, errorMsg, id, userId)
 	return err
@@ -272,7 +276,7 @@ func (r *SQLiteSourceRepository) UpsertResult(ctx context.Context, result *model
 		) VALUES (
 			?, ?, ?, ?, ?, ?,
 			?, ?, ?, TRUE, ?, ?, TRUE,
-			CASE WHEN ? IN ('done', 'sent', 'failed') THEN CURRENT_TIMESTAMP END
+			CASE WHEN ? IN ('done', 'sent', 'failed', 'cancelled') THEN CURRENT_TIMESTAMP END
 		)
 		ON CONFLICT (id, userId) DO UPDATE SET
 			filename = COALESCE(NULLIF(excluded.filename, ''), source.filename),
@@ -281,6 +285,7 @@ func (r *SQLiteSourceRepository) UpsertResult(ctx context.Context, result *model
 			size = COALESCE(excluded.size, source.size),
 			updatedAt = CURRENT_TIMESTAMP,
 			completedAt = COALESCE(excluded.completedAt, source.completedAt)
+		WHERE source.status != 'cancelled'
 	`
 	_, err := datasources.GetDB(ctx, r.db).ExecContext(ctx, query,
 		result.Id,
@@ -340,4 +345,42 @@ func sourceFields(s *models.Source) []any {
 		&s.IsRTL, &s.Join, &s.Status, &s.ErrorMsg, &s.Size, &s.IsFile,
 		&s.CreatedAt, &s.UpdatedAt, &s.CompletedAt, &s.ParentId, &s.Position, &s.IsResult,
 	}
+}
+
+// CancelTree marks as cancelled the root and every source under it that hadn't finished, and
+// returns their ids.
+func (r *SQLiteSourceRepository) CancelTree(ctx context.Context, rootId string, userId int) ([]string, error) {
+	db := datasources.GetDB(ctx, r.db)
+	rows, err := db.QueryContext(ctx, `
+		SELECT id FROM source
+		WHERE (id = ? OR parentId = ?) AND userId = ?
+			AND status NOT IN ('done', 'sent', 'failed', 'cancelled')`,
+		rootId, rootId, userId,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list unfinished sources of %s: %w", rootId, err)
+	}
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			return nil, fmt.Errorf("scan source id: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+		return nil, fmt.Errorf("list unfinished sources of %s: %w", rootId, err)
+	}
+
+	_, err = db.ExecContext(ctx, `
+		UPDATE source SET status = 'cancelled', updatedAt = CURRENT_TIMESTAMP, completedAt = CURRENT_TIMESTAMP
+		WHERE (id = ? OR parentId = ?) AND userId = ?
+			AND status NOT IN ('done', 'sent', 'failed', 'cancelled')`,
+		rootId, rootId, userId,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("cancel tree %s: %w", rootId, err)
+	}
+	return ids, nil
 }

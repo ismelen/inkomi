@@ -153,8 +153,13 @@
       "joining": "Fusionando",
       "kepub": "Kepubify",
       "uploading": "Enviando",
-      "failed": "Error: {{error}}"
-    }
+      "failed": "Error: {{error}}",
+      "cancelled": "Cancelado"
+    },
+    "cancel": "Cancelar",
+    "cancelTitle": "¿Cancelar el envío?",
+    "cancelMessage": "Se detiene lo que quede por procesar y se borran sus archivos del servidor. Lo ya enviado a Dropbox se queda.",
+    "cancelKeep": "Seguir"
   },
   "history": {
     "title": "Historial",
@@ -172,7 +177,8 @@
     "download": "Descargar",
     "share": "Compartir",
     "saved": "Guardado",
-    "results": "Resultados"
+    "results": "Resultados",
+    "cancelled": "Cancelado"
   },
   "settings": {
     "title": "Ajustes",
@@ -237,7 +243,8 @@
     "sourceNotRetryable": "Este archivo ya no se puede reintentar",
     "dropboxFolderMissing": "La carpeta de Dropbox no existe",
     "dropboxFolderExists": "Ya existe una carpeta con ese nombre",
-    "insufficientStorage": "Ahora mismo no hay espacio en el servidor. Inténtalo más tarde"
+    "insufficientStorage": "Ahora mismo no hay espacio en el servidor. Inténtalo más tarde",
+    "sourceNotCancellable": "Este envío ya ha terminado"
   },
   "update": {
     "title": "Nueva versión {{version}}",

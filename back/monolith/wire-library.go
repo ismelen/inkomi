@@ -29,7 +29,7 @@ func wireLibrary(d *deps, r chi.Router) {
 
 	downloadBookUC := downloadbook.NewDownloadBookUC(d.queue, library, d.cloud)
 	// network bound: one job waiting on the network doesn't need to hold back the next one
-	if err := d.queue.SubscribeWith(string(jobs.SubjectLibrary), queue.SubscribeOptions{Concurrency: 2}, jobrun.Handle(d.queue, downloadBookUC.Execute)); err != nil {
+	if err := d.queue.SubscribeWith(string(jobs.SubjectLibrary), queue.SubscribeOptions{Concurrency: 2}, jobrun.Handle(d.queue, downloadBookUC.Execute, jobrun.WithCancellations(d.cancels))); err != nil {
 		log.Fatal(err)
 	}
 

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { colors, radii, spacing } from '../../theme';
 import {
   downloadablesOf,
+  isCancelled,
   isDownloadable,
   isFolder,
   treeError,
@@ -61,7 +62,11 @@ export function HistoryRow({ tree, busy, onDownload, onShare, onOpenResults }: P
         <SText variant="small" tone="textSecondary" numberOfLines={1}>
           {summary}
         </SText>
-        {error !== null ? (
+        {isCancelled(tree) ? (
+          <SText variant="small" tone="textSecondary">
+            {t('history.cancelled')}
+          </SText>
+        ) : error !== null ? (
           <SText variant="small" tone="danger" numberOfLines={2}>
             {error ? t('history.error', { error }) : t('history.errorUnknown')}
           </SText>

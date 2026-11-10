@@ -35,7 +35,11 @@ export function ResultsSheet({ tree, busyId, onClose, onDownload, onShare }: Pro
                 <SText variant="label" numberOfLines={1}>
                   {item.filename || item.title}
                 </SText>
-                {item.status === 'failed' ? (
+                {item.status === 'cancelled' ? (
+                  <SText variant="small" tone="textSecondary">
+                    {t('history.cancelled')}
+                  </SText>
+                ) : item.status === 'failed' ? (
                   <SText variant="small" tone="danger" numberOfLines={2}>
                     {item.errorMsg
                       ? t('history.error', { error: item.errorMsg })

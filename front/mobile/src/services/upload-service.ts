@@ -354,8 +354,19 @@ export class UploadRun {
     }
   }
 
-  /** Uploads with nothing confirmed will never start on the server: forget them locally. */
+  /**
+   * Uploads with nothing confirmed will never start on the server: forget them locally and cancel
+   * them there, so their disk reservation is freed right away.
+   */
   private async dropUnconfirmed() {
-    await deleteTrees(this.rootIds.filter((id) => !this.confirmedRoots.has(id)));
+    const unconfirmed = this.rootIds.filter((id) => !this.confirmedRoots.has(id));
+    await deleteTrees(unconfirmed);
+    await Promise.all(
+      unconfirmed.map((id) =>
+        uploadsApi.cancel(id).catch(() => {
+          // the server frees it anyway once its upload urls expire
+        })
+      )
+    );
   }
 }

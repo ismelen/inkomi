@@ -103,7 +103,7 @@ func (r *SQLiteStorageReservationRepository) IsTreeFinished(ctx context.Context,
 		SELECT
 			COALESCE((SELECT "join" FROM source WHERE id = ?), FALSE),
 			(SELECT COUNT(*) FROM source WHERE (id = ? OR parentId = ?) AND isFile = TRUE
-				AND status NOT IN ('done', 'sent', 'failed', 'joined')),
+				AND status NOT IN ('done', 'sent', 'failed', 'joined', 'cancelled')),
 			(SELECT COUNT(*) FROM source WHERE parentId = ? AND isResult = TRUE)`,
 		rootId, rootId, rootId, rootId,
 	).Scan(&join, &pending, &results)

@@ -16,7 +16,16 @@ export type Tone = 'textSecondary' | 'warning' | 'info' | 'success' | 'danger';
 export const stepOrder: StepKey[] = ['download', 'process', 'join', 'kepub', 'upload'];
 
 export type ActivityLine =
-  | { key: 'pendingUpload' | 'queued' | 'downloading' | 'joining' | 'kepub' | 'uploading' }
+  | {
+      key:
+        | 'pendingUpload'
+        | 'queued'
+        | 'downloading'
+        | 'joining'
+        | 'kepub'
+        | 'uploading'
+        | 'cancelled';
+    }
   | { key: 'processing'; done?: number; total?: number }
   | { key: 'waitingJoin'; done: number; total: number }
   | { key: 'failed'; error: string };
@@ -76,6 +85,8 @@ function lineOf(status: SourceStatus, source: LocalSource): ActivityLine {
       return { key: 'uploading' };
     case 'failed':
       return { key: 'failed', error: source.errorMsg ?? '' };
+    case 'cancelled':
+      return { key: 'cancelled' };
     default:
       return { key: 'queued' };
   }
@@ -91,6 +102,7 @@ const toneOf: Record<ActivityLine['key'], Tone> = {
   kepub: 'warning',
   uploading: 'success',
   failed: 'danger',
+  cancelled: 'textSecondary',
 };
 
 /** Node whose status describes the card: the root file, a join result or the busiest item. */

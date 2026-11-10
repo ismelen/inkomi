@@ -17,6 +17,7 @@ const statusRank: Record<SourceStatus, number> = {
   done: 6,
   sent: 7,
   failed: 8,
+  cancelled: 9,
 };
 
 /** IndexedDB can't index null: roots use an empty parent key. */

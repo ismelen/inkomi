@@ -17,12 +17,16 @@ import (
 	"github.com/nats-io/nats.go"
 
 	"github.com/ismelen/inkomi/back/monolith/internal/config"
+	"github.com/ismelen/inkomi/back/monolith/internal/modules/epub/infra/store"
 	"github.com/ismelen/inkomi/back/monolith/internal/platform/cloud"
 	"github.com/ismelen/inkomi/back/monolith/internal/platform/httpauth"
 	"github.com/ismelen/inkomi/back/monolith/internal/platform/httplog"
+	"github.com/ismelen/inkomi/back/monolith/internal/platform/jobcancel"
 	"github.com/ismelen/inkomi/back/monolith/internal/platform/queue"
 	"github.com/ismelen/inkomi/back/monolith/internal/platform/resources"
+	"github.com/ismelen/inkomi/back/monolith/internal/platform/sqlitedb"
 	"github.com/ismelen/inkomi/back/monolith/internal/platform/storage"
+	"github.com/ismelen/inkomi/back/monolith/migrations"
 )
 
 // timeoutMiddleware bounds every route except the WebSocket, which is long-lived, and the preview,
@@ -43,6 +47,9 @@ type deps struct {
 	ready func() bool
 	// mangaConcurrency is how many manga jobs run at once.
 	mangaConcurrency int
+	// cancels skips and interrupts the jobs of cancelled uploads.
+	cancels   *jobcancel.Registry
+	joinStore *store.SQLiteJoinStore
 }
 
 func main() {
@@ -76,8 +83,22 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// jobs.db holds the join groups and the cancelled jobs
+	jobsDB, err := sqlitedb.Open(filepath.Join(config.Env.DataDir, "jobs.db"), migrations.Joins)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer closeLogged("jobs.db", jobsDB.Close)()
+	cancels, err := jobcancel.NewRegistry(jobsDB, time.Now)
+	if err != nil {
+		log.Fatal(err)
+	}
+	cancels.Start(ctx, 6*time.Hour)
+
 	memory := resources.NewMemory()
 	d := &deps{
+		cancels:          cancels,
+		joinStore:        store.NewSQLiteJoinStore(jobsDB, config.Env.JoinTTL, config.Env.JoinLockTTL, time.Now),
 		ctx:              ctx,
 		nc:               nc,
 		queue:            jobQueue,
@@ -109,7 +130,8 @@ func main() {
 	router.Group(func(r chi.Router) {
 		r.Use(timeoutMiddleware)
 		closeAuth, auth := wireAuth(d, r)
-		closers = append(closers, closeAuth, wireEpub(d))
+		closers = append(closers, closeAuth)
+		wireEpub(d)
 		wireLibrary(d, r)
 		wireRelease(r)
 		wirePush(d, auth)

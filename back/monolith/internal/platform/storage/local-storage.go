@@ -167,6 +167,14 @@ func (s *LocalStorage) Delete(ctx context.Context, id string, filename string) e
 	return nil
 }
 
+// DeleteAll removes every file stored under id.
+func (s *LocalStorage) DeleteAll(id string) error {
+	if _, err := s.Path(id, "x"); err != nil {
+		return err
+	}
+	return os.RemoveAll(filepath.Join(s.root, id))
+}
+
 // Usage returns the bytes stored under each of ids.
 func (s *LocalStorage) Usage(ids []string) int64 {
 	var total int64

@@ -153,8 +153,13 @@
       "joining": "Merging",
       "kepub": "Kepubify",
       "uploading": "Sending",
-      "failed": "Error: {{error}}"
-    }
+      "failed": "Error: {{error}}",
+      "cancelled": "Cancelled"
+    },
+    "cancel": "Cancel",
+    "cancelTitle": "Cancel the send?",
+    "cancelMessage": "Whatever is left to process stops and its files are deleted from the server. What was already sent to Dropbox stays.",
+    "cancelKeep": "Keep going"
   },
   "history": {
     "title": "History",
@@ -172,7 +177,8 @@
     "download": "Download",
     "share": "Share",
     "saved": "Saved",
-    "results": "Results"
+    "results": "Results",
+    "cancelled": "Cancelled"
   },
   "settings": {
     "title": "Settings",
@@ -237,7 +243,8 @@
     "sourceNotRetryable": "This file can no longer be retried",
     "dropboxFolderMissing": "The Dropbox folder does not exist",
     "dropboxFolderExists": "A folder with that name already exists",
-    "insufficientStorage": "The server is out of space right now. Try again later"
+    "insufficientStorage": "The server is out of space right now. Try again later",
+    "sourceNotCancellable": "This send already finished"
   },
   "update": {
     "title": "New version {{version}}",

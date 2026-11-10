@@ -98,6 +98,11 @@ func (f *ForwardEventsUC) send(userId int, msg map[string]any) error {
 }
 
 func (f *ForwardEventsUC) forwardResult(ctx context.Context, job jobs.Msg, status models.SourceStatus) error {
+	// a cancelled folder takes no new results from a join that was already running
+	if parent, err := f.sourceRepo.GetByIdAndUserId(ctx, job.Result.ParentId, job.UserId); err == nil &&
+		parent != nil && parent.Status == models.SourceStatusCancelled {
+		return nil
+	}
 	if err := f.sourceRepo.UpsertResult(ctx, models.NewResultSource(job, status)); err != nil {
 		return err
 	}

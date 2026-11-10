@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   downloadablesOf,
+  isCancelled,
   isDownloadable,
   isFolder,
   treeError,
@@ -23,7 +24,8 @@ interface Props {
 export function HistoryRow({ tree, busyId, onDownload }: Props) {
   const { t, i18n } = useTranslation();
   const [open, setOpen] = useState(false);
-  const error = treeError(tree);
+  const cancelled = isCancelled(tree);
+  const error = cancelled ? null : treeError(tree);
   const files = downloadablesOf(tree);
   const multiple = isFolder(tree);
   const single = !multiple && isDownloadable(tree.root) ? tree.root : null;
@@ -49,7 +51,10 @@ export function HistoryRow({ tree, busyId, onDownload }: Props) {
             </p>
           )}
         </div>
-        {error === null && (
+        {cancelled && (
+          <span className="text-sm font-medium text-muted">{t('history.cancelled')}</span>
+        )}
+        {!cancelled && error === null && (
           <span className="flex items-center gap-1.5 text-sm font-medium text-success">
             <span className="size-1.5 rounded-full bg-success" />
             {t('history.sent')}

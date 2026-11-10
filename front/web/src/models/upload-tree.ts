@@ -17,7 +17,7 @@ export interface UploadTree {
 }
 
 export function isTerminal(status: SourceStatus): boolean {
-  return status === 'done' || status === 'sent' || status === 'failed';
+  return status === 'done' || status === 'sent' || status === 'failed' || status === 'cancelled';
 }
 
 export function itemsOf(tree: UploadTree): LocalSource[] {
@@ -62,6 +62,15 @@ export function isTreeFinished(tree: UploadTree): boolean {
     items.some((i) => i.status === 'failed') &&
     results.every((r) => isTerminal(r.status))
   );
+}
+
+export function isCancelled(tree: UploadTree): boolean {
+  return tree.root.status === 'cancelled';
+}
+
+/** Ids of the tree that can still change: what a cancellation marks as cancelled. */
+export function unfinishedIds(tree: UploadTree): string[] {
+  return [tree.root, ...tree.children].filter((s) => !isTerminal(s.status)).map((s) => s.id);
 }
 
 export function treeError(tree: UploadTree): string | null {

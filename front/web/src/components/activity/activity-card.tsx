@@ -1,6 +1,12 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { uploadsApi } from '../../api/uploads-api';
 import { ActivityLine, activityView, stepOrder, Tone } from '../../models/activity-view';
-import { UploadTree } from '../../models/upload-tree';
+import { unfinishedIds, UploadTree } from '../../models/upload-tree';
+import { advanceStatus } from '../../services/activity-db';
+import { showError } from '../../stores/use-toast';
+import { Button } from '../ui/button';
+import { Modal } from '../ui/modal';
 import { cx } from '../ui/cx';
 
 export const toneText: Record<Tone, string> = {
@@ -42,6 +48,22 @@ export function ActivityCard({ tree }: { tree: UploadTree }) {
   const lineText = useLineText();
   const view = activityView(tree);
   const queued = view.line.key === 'queued' || view.line.key === 'pendingUpload';
+  const [confirming, setConfirming] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+
+  const cancel = async () => {
+    setConfirming(false);
+    setCancelling(true);
+    try {
+      await uploadsApi.cancel(tree.root.id);
+      // the websocket brings the same statuses; this shows them right away
+      await advanceStatus(unfinishedIds(tree), 'cancelled');
+    } catch (err) {
+      showError(err);
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   return (
     <article className="rounded-lg bg-card px-4 py-3.5 shadow-card">
@@ -52,6 +74,15 @@ export function ActivityCard({ tree }: { tree: UploadTree }) {
             {view.counter.done}/{view.counter.total}
           </span>
         )}
+        <Button
+          variant="ghost"
+          size="sm"
+          icon="close"
+          loading={cancelling}
+          onClick={() => setConfirming(true)}
+        >
+          {t('activity.cancel')}
+        </Button>
       </div>
       <p className={cx('mt-0.5 text-sm', toneText[view.tone])}>{lineText(view.line)}</p>
       {!queued && (
@@ -84,6 +115,25 @@ export function ActivityCard({ tree }: { tree: UploadTree }) {
           </ol>
         </>
       )}
+      <Modal
+        open={confirming}
+        onClose={() => setConfirming(false)}
+        title={t('activity.cancelTitle')}
+        size="sm"
+        focusField={false}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setConfirming(false)}>
+              {t('activity.cancelKeep')}
+            </Button>
+            <Button variant="danger" onClick={() => void cancel()}>
+              {t('activity.cancel')}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-base text-muted">{t('activity.cancelMessage')}</p>
+      </Modal>
     </article>
   );
 }

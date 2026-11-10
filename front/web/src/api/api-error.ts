@@ -40,6 +40,7 @@ const messageKeys: Record<string, string> = {
   'file not available': 'fileNotAvailable',
   'source not uploaded': 'sourceNotUploaded',
   'insufficient storage': 'insufficientStorage',
+  'source not cancellable': 'sourceNotCancellable',
   'e-reader not available': 'ereaderNotAvailable',
   'invalid format': 'invalidRequest',
   'no release available': 'noRelease',

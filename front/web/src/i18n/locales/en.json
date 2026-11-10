@@ -167,10 +167,15 @@
       "joining": "Merging",
       "kepub": "Kepubify",
       "uploading": "Sending",
-      "failed": "Error: {{error}}"
+      "failed": "Error: {{error}}",
+      "cancelled": "Cancelled"
     },
     "pageTitle": "Activity",
-    "offline": "No realtime connection"
+    "offline": "No realtime connection",
+    "cancel": "Cancel",
+    "cancelTitle": "Cancel the send?",
+    "cancelMessage": "Whatever is left to process stops and its files are deleted from the server. What was already sent to Dropbox stays.",
+    "cancelKeep": "Keep going"
   },
   "history": {
     "title": "History",
@@ -189,7 +194,8 @@
     "share": "Share",
     "saved": "Saved",
     "results": "Results",
-    "loadingMore": "Loading more…"
+    "loadingMore": "Loading more…",
+    "cancelled": "Cancelled"
   },
   "settings": {
     "title": "Settings",
@@ -260,7 +266,8 @@
     "invalidRequest": "Invalid request",
     "noRelease": "No version has been published",
     "releaseUnavailable": "Updates can't be checked right now",
-    "insufficientStorage": "The server is out of space right now. Try again later"
+    "insufficientStorage": "The server is out of space right now. Try again later",
+    "sourceNotCancellable": "This send already finished"
   },
   "nav": {
     "list": "List",

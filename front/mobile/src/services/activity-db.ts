@@ -52,6 +52,7 @@ const statusRank: Record<SourceStatus, number> = {
   done: 6,
   sent: 7,
   failed: 8,
+  cancelled: 9,
 };
 
 interface SourceRecord {
