@@ -229,7 +229,7 @@ func TestEpubMerger_Merge_TocTitleFallbacks(t *testing.T) {
 	assert.Contains(t, m.files["OEBPS/nav.xhtml"], ">Part 2</a>")
 }
 
-func TestEpubMerger_Merge_BookOrderFollowsDirection(t *testing.T) {
+func TestEpubMerger_Merge_BookOrderIgnoresDirection(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
@@ -238,7 +238,7 @@ func TestEpubMerger_Merge_BookOrderFollowsDirection(t *testing.T) {
 		expected []string
 	}{
 		{"LTR", false, []string{"1", "2", "3"}},
-		{"RTL", true, []string{"3", "2", "1"}},
+		{"RTL", true, []string{"1", "2", "3"}},
 	}
 
 	for _, tc := range cases {

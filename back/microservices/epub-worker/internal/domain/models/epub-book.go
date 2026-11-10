@@ -6,7 +6,7 @@ type EpubBook struct {
 	Title string
 }
 
-// EpubMeta holds the metadata of a merged epub. RTL also reverses the order of its books.
+// EpubMeta holds the metadata of a merged epub. RTL sets the page progression, not the book order.
 type EpubMeta struct {
 	Title  string
 	Author string
