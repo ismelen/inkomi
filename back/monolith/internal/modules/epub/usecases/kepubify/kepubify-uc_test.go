@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/ismelen/inkomi/back/monolith/internal/platform/storage"
 	"io"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -239,4 +241,27 @@ func TestKepubifyUC_Execute_TransientErrorOnLastAttempt_PublishesFailed(t *testi
 	assert.NotNil(t, failed.msg.Result)
 	assert.Contains(t, failed.msg.ErrorMsg, "r2 down")
 	assert.Empty(t, f.deleted)
+}
+
+func TestKepubifyUC_Execute_LocalStorage_KeepsOnlyTheKepub(t *testing.T) {
+	t.Parallel()
+
+	// Arrange: the epub is in the server's storage and the temp dir is on the same volume
+	dir := t.TempDir()
+	store, err := storage.NewLocalStorage(filepath.Join(dir, "files"), filepath.Join(dir, "tmp"))
+	require.NoError(t, err)
+	ctx := context.Background()
+	require.NoError(t, store.Upload(ctx, "src-1", "Book.epub", strings.NewReader("epub")))
+	queue := &mocks.MockQueue{}
+	uc := kepubify.NewKepubifyUC(queue, store, &mocks.MockKepubifier{})
+	payload, err := json.Marshal(jobs.Msg{Id: "src-1", UserId: 1, Filename: "Book.epub", Kepubify: true})
+	require.NoError(t, err)
+
+	// Act
+	err = jobrun.Handle(queue, uc.Execute)(ctx, jobrun.Delivery{Subject: string(jobs.SubjectKepub), Payload: payload})
+
+	// Assert
+	require.NoError(t, err)
+	assert.False(t, store.Exists("src-1", "Book.epub"), "the epub is deleted once the kepub is stored")
+	assert.True(t, store.Exists("src-1", "Book.kepub.epub"))
 }

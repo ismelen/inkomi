@@ -329,3 +329,20 @@ docker compose ps
 docker compose logs -f monolith
 curl -I https://mono.tudominio.com/healthz   # 200
 ```
+
+### Archivos en el disco del servidor
+
+El monolito guarda los archivos en `~/inkomi/back/monolith/data/files` (`STORAGE=local`) en lugar de R2. La app y la web suben y bajan por `https://<dominio>/files/...` con URLs firmadas; el Caddyfile ya enruta `/files/*` al monolito. Variables del `.env` (ver `back/monolith/.env.example`): `PUBLIC_URL` (obligatoria), `FILES_RETENTION`, `DISK_RESERVE_MB`, `STORAGE_EPUB_RATIO` y `LIBRARY_ESTIMATE_MB`.
+
+- Cada envío reserva el máximo de disco que va a ocupar a la vez. Si no cabe (descontando `DISK_RESERVE_MB`), el servidor responde 507 y la app dice que se intente más tarde.
+- Lo que nadie toca en `FILES_RETENTION` (7 días) se borra: resultados ya enviados y subidas abandonadas.
+- Con 6 GB libres en el volumen de arranque cabe poco más que una carpeta grande. Para más, crea un volumen de bloque en OCI (la capa gratuita llega a 200 GB en total), móntalo y apunta `data/` a él:
+  ```bash
+  sudo mkfs.ext4 /dev/oracleoci/oraclevdb
+  sudo mkdir -p /mnt/inkomi && sudo mount /dev/oracleoci/oraclevdb /mnt/inkomi
+  echo '/dev/oracleoci/oraclevdb /mnt/inkomi ext4 defaults,_netdev,nofail 0 2' | sudo tee -a /etc/fstab
+  cd ~/inkomi/back/monolith && docker compose stop monolith
+  sudo rsync -a data/ /mnt/inkomi/data/ && sudo mv data data.old && ln -s /mnt/inkomi/data data
+  docker compose up -d monolith
+  ```
+

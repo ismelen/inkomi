@@ -139,7 +139,7 @@ configure_caddy() {
     # the monolith stack joins caddy_net with these aliases (back/monolith/docker-compose.yml)
     monolith="
 $MONOLITH_DOMAIN {
-    @api path /auth/* /users/* /books/* /uploads /uploads/* /ws /ws/* /preview /preview/* /app/*
+    @api path /auth/* /users/* /books/* /uploads /uploads/* /ws /ws/* /preview /preview/* /app/* /files/*
     reverse_proxy @api inkomi-monolith:3000
     reverse_proxy inkomi-web:8080
 }

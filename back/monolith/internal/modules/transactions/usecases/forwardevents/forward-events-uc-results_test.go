@@ -70,7 +70,7 @@ func handleResult(t *testing.T, repo ports.ISourceRepository, subject jobs.Subje
 			return nil
 		},
 	}
-	require.NoError(t, forwardevents.NewForwardEventsUC(hub, queue, repo).Execute())
+	require.NoError(t, forwardevents.NewForwardEventsUC(hub, queue, repo, &mocks.MockStorageQuota{}).Execute())
 
 	payload, err := json.Marshal(job)
 	require.NoError(t, err)

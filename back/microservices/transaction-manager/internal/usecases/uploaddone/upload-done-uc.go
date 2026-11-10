@@ -3,6 +3,7 @@ package uploaddone
 import (
 	"context"
 	"encoding/json"
+	"errors"
 
 	"github.com/ismelen/inkomi/back/microservices/common/jobs"
 	"github.com/ismelen/inkomi/back/microservices/transaction-manager/internal/domain/models"
@@ -43,11 +44,15 @@ func (u *UploadDoneUC) Execute(ctx context.Context, userId int, sourceId string)
 		return err
 	}
 
-	if err := u.queue.Publish(ctx, subject, bytes); err != nil {
+	// queued before publishing: a fast pipeline would otherwise report its later statuses first
+	// and this update would take the source back to queued
+	if err := u.sourceRepo.UpdateStatus(ctx, sourceId, userId, models.SourceStatusQueued); err != nil {
 		return err
 	}
-
-	return u.sourceRepo.UpdateStatus(ctx, sourceId, userId, models.SourceStatusQueued)
+	if err := u.queue.Publish(ctx, subject, bytes); err != nil {
+		return errors.Join(err, u.sourceRepo.UpdateStatus(ctx, sourceId, userId, models.SourceStatusPendingUpload))
+	}
+	return nil
 }
 
 func (u *UploadDoneUC) buildJob(src *models.SourceDetail) (jobs.Subject, jobs.Msg) {

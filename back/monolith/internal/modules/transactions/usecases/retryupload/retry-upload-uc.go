@@ -27,5 +27,5 @@ func (r *RetryUploadUC) Execute(ctx context.Context, userId int, sourceId string
 	if !src.IsFile || src.IsLibrary() || src.Status != models.SourceStatusPendingUpload {
 		return "", models.ErrSourceNotRetryable
 	}
-	return r.cloudStorage.GetUrl(src.Id, src.Filename)
+	return r.cloudStorage.GetUrl(src.Id, src.Filename, *src.Size)
 }

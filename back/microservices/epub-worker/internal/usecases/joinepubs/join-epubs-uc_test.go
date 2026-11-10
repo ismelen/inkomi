@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"io/fs"
 	"strings"
 	"testing"
 
@@ -35,11 +36,20 @@ type fixture struct {
 	released    bool
 }
 
-// newFixture returns mocks where the store always completes the group with children
-// and every child weighs 40 bytes in cloud storage.
+// newFixture returns mocks where the store always completes the group with children, every
+// child weighs 40 bytes in cloud storage and no result is stored yet.
 func newFixture(children []jobs.Msg) *fixture {
+	childIds := map[string]bool{}
+	for _, c := range children {
+		childIds[c.Id] = true
+	}
 	f := &fixture{
-		cloud:  &mocks.MockCloudStorage{SizeFn: func(ctx context.Context, id, filename string) (int64, error) { return 40, nil }},
+		cloud: &mocks.MockCloudStorage{SizeFn: func(ctx context.Context, id, filename string) (int64, error) {
+			if childIds[id] {
+				return 40, nil
+			}
+			return 0, fs.ErrNotExist
+		}},
 		merger: &mocks.MockEpubMerger{},
 	}
 	f.queue = &mocks.MockQueue{
@@ -436,4 +446,64 @@ func TestJoinEpubsUC_Execute_NoValidChildren_FailsParent(t *testing.T) {
 	require.Len(t, failed, 2)
 	assert.Equal(t, "1", failed[0].Id)
 	assert.Equal(t, "parent-1", failed[1].Id)
+}
+
+func TestJoinEpubsUC_Execute_Blocks_DeletesEachBlockBeforeTheNext(t *testing.T) {
+	t.Parallel()
+
+	// Arrange: maxBlockSize fits two chapters, so chapter 3 is a second block
+	children := []jobs.Msg{child("1", 0, false), child("2", 1, false), child("3", 2, false)}
+	f := newFixture(children)
+	var events []string
+	f.cloud.DeleteFn = func(ctx context.Context, id, filename string) error {
+		events = append(events, "delete "+id)
+		return nil
+	}
+	f.cloud.DownloadFn = func(ctx context.Context, id, filename string) (io.ReadCloser, error) {
+		events = append(events, "download "+id)
+		return io.NopCloser(strings.NewReader("epub")), nil
+	}
+
+	// Act
+	err := f.handle(t, payloadOf(t, children[0]))
+
+	// Assert
+	require.NoError(t, err)
+	assert.Equal(t, []string{"download 1", "download 2", "delete 1", "delete 2", "download 3", "delete 3"}, events)
+}
+
+func TestJoinEpubsUC_Execute_RetryWithStoredBlock_ReusesItWithoutChapters(t *testing.T) {
+	t.Parallel()
+
+	// Arrange: the first block was stored and its chapters deleted by a previous attempt
+	children := []jobs.Msg{child("1", 0, false), child("2", 1, false), child("3", 2, false)}
+	for i := range children {
+		children[i].Size = 40
+	}
+	f := newFixture(children)
+	first := joinepubs.ResultId("parent-1", 0)
+	f.cloud.SizeFn = func(ctx context.Context, id, filename string) (int64, error) {
+		switch id {
+		case first:
+			return 80, nil
+		case "3":
+			return 40, nil
+		}
+		return 0, fs.ErrNotExist
+	}
+	var downloaded []string
+	f.cloud.DownloadFn = func(ctx context.Context, id, filename string) (io.ReadCloser, error) {
+		downloaded = append(downloaded, id)
+		return io.NopCloser(strings.NewReader("epub")), nil
+	}
+
+	// Act
+	err := f.handle(t, payloadOf(t, children[0]))
+
+	// Assert
+	require.NoError(t, err)
+	assert.Equal(t, []string{"3"}, downloaded)
+	require.NotEmpty(t, f.published)
+	assert.Equal(t, first, f.published[0].msg.Id)
+	assert.Equal(t, int64(80), f.published[0].msg.Size)
 }

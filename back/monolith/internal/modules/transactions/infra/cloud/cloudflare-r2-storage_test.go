@@ -26,7 +26,7 @@ func TestCloudflareR2Storage_GetUrl_ValidIdAndFilename_ReturnsPresignedUrl(t *te
 	filename := "book.epub"
 
 	// Act
-	url, err := storage.GetUrl(id, filename)
+	url, err := storage.GetUrl(id, filename, 10)
 
 	// Assert
 	assert.NoError(t, err)

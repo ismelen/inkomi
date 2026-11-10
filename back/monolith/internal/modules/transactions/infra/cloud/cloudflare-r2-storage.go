@@ -46,7 +46,8 @@ func NewCloudflareR2Storage(accountId, accessKeyId, secretAccessKey, bucketName 
 	}, nil
 }
 
-func (c *CloudflareR2Storage) GetUrl(id string, filename string) (string, error) {
+// GetUrl ignores size: R2 doesn't reserve space.
+func (c *CloudflareR2Storage) GetUrl(id string, filename string, size int64) (string, error) {
 	key := id + "/" + filename
 	request, err := c.presignClient.PresignPutObject(context.TODO(), &s3.PutObjectInput{
 		Bucket: aws.String(c.bucketName),

@@ -234,7 +234,8 @@
     "releaseUnavailable": "Updates can't be checked right now",
     "sourceNotRetryable": "This file can no longer be retried",
     "dropboxFolderMissing": "The Dropbox folder does not exist",
-    "dropboxFolderExists": "A folder with that name already exists"
+    "dropboxFolderExists": "A folder with that name already exists",
+    "insufficientStorage": "The server is out of space right now. Try again later"
   },
   "update": {
     "title": "New version {{version}}",

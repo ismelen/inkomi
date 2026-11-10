@@ -16,17 +16,20 @@ type ForwardEventsUC struct {
 	hub        ports.ISocketHub
 	queue      ports.IQueue
 	sourceRepo ports.ISourceRepository
+	quota      ports.IStorageQuota
 }
 
 func NewForwardEventsUC(
 	hub ports.ISocketHub,
 	queue ports.IQueue,
 	sourceRepo ports.ISourceRepository,
+	quota ports.IStorageQuota,
 ) *ForwardEventsUC {
 	return &ForwardEventsUC{
-		hub,
-		queue,
-		sourceRepo,
+		hub:        hub,
+		queue:      queue,
+		sourceRepo: sourceRepo,
+		quota:      quota,
 	}
 }
 
@@ -71,6 +74,7 @@ func (f *ForwardEventsUC) Execute() error {
 			return err
 		}
 		logTransition(job, status)
+		f.releaseIfFinished(ctx, job, status)
 
 		return f.send(job.UserId, msg)
 	})
@@ -116,7 +120,11 @@ func (f *ForwardEventsUC) forwardResult(ctx context.Context, job jobs.Msg, statu
 		return err
 	}
 
-	return f.finishParent(ctx, job)
+	if err := f.finishParent(ctx, job); err != nil {
+		return err
+	}
+	f.releaseIfFinished(ctx, job, status)
+	return nil
 }
 
 // finishParent sets the parent folder status once all its results are finished.
@@ -155,4 +163,17 @@ func (f *ForwardEventsUC) finishParent(ctx context.Context, job jobs.Msg) error 
 	}
 
 	return f.send(job.UserId, msg)
+}
+
+// releaseIfFinished frees the disk reservation of the job's upload once its whole tree reached a
+// final status. A failure only delays the release until the quota sweep, so it isn't an error.
+func (f *ForwardEventsUC) releaseIfFinished(ctx context.Context, job jobs.Msg, status models.SourceStatus) {
+	switch status {
+	case models.SourceStatusDone, models.SourceStatusSent, models.SourceStatusFailed, models.SourceStatusJoined:
+	default:
+		return
+	}
+	if err := f.quota.ReleaseFinished(ctx, job.Id, job.UserId); err != nil {
+		log.Printf("storage: release after %s %s: %v", job.Id, status, err)
+	}
 }

@@ -234,7 +234,8 @@
     "releaseUnavailable": "No se pueden comprobar las actualizaciones ahora mismo",
     "sourceNotRetryable": "Este archivo ya no se puede reintentar",
     "dropboxFolderMissing": "La carpeta de Dropbox no existe",
-    "dropboxFolderExists": "Ya existe una carpeta con ese nombre"
+    "dropboxFolderExists": "Ya existe una carpeta con ese nombre",
+    "insufficientStorage": "Ahora mismo no hay espacio en el servidor. Inténtalo más tarde"
   },
   "update": {
     "title": "Nueva versión {{version}}",

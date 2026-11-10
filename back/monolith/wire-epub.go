@@ -32,7 +32,7 @@ func wireEpub(d *deps) func() {
 		jobs.SubjectJoin:  joinEpubsUC.Execute,
 		jobs.SubjectKepub: kepubifyUC.Execute,
 	} {
-		opts := queue.SubscribeOptions{Concurrency: 1, Ready: d.memoryGate.Ready}
+		opts := queue.SubscribeOptions{Concurrency: 1, Ready: d.ready}
 		if err := d.queue.SubscribeWith(string(subject), opts, jobrun.Handle(d.queue, handler)); err != nil {
 			log.Fatal(err)
 		}

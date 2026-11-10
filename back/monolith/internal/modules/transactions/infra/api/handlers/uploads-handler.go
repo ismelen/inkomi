@@ -53,6 +53,9 @@ func (u *UploadsHandler) HandleNewRequest(w http.ResponseWriter, r *http.Request
 	}
 
 	sources, err := u.newUploadUC.Execute(r.Context(), data, token.Id)
+	if errors.Is(err, models.ErrInsufficientStorage) {
+		return nil, requtil.NewError(http.StatusInsufficientStorage, err.Error())
+	}
 	if err != nil {
 		return nil, err
 	}

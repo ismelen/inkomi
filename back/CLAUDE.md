@@ -41,6 +41,8 @@ internal/modules/<módulo>/      auth, library, transactions, manga, epub, push,
 - Sin Redis: el estado de los joins de epub va en SQLite (`SQLiteJoinStore`, `jobs.db`).
 - Un módulo usa otro en proceso a través de un adaptador en su `infra` que implementa su propio puerto (p. ej. `push/infra/usersettings` llama a los UCs de auth). Nada de HTTP interno ni tokens de servicio.
 - Un único router chi en `PORT` con las mismas rutas que el Ingress, más `GET /healthz`.
+- Archivos en el disco del servidor (`STORAGE=local`, por defecto): `platform/storage.LocalStorage` implementa `cloud.ICloudStorage` en `DATA_DIR/files/<id>/<filename>` con enlaces duros (los temporales de los workers están en el mismo volumen, `TMPDIR`), y los clientes suben y bajan por `/files/{id}/{filename}` con URLs firmadas (HMAC con caducidad y, al subir, el tamaño declarado). `STORAGE=r2` vuelve a R2.
+- Cada envío reserva su pico de disco al pedirse (`models.EstimateStoragePeak` + `storagequota.DiskQuota`); si no cabe, 507 `insufficient storage`. La reserva se libera cuando todo su árbol termina. Cada paso borra su entrada en cuanto guarda su salida (cbz → epub → bloque → kepub); la unión borra los capítulos de cada bloque al guardarlo y un reintento reutiliza los bloques ya guardados.
 
 ## Módulo compartido de los microservicios (`back/microservices/common`)
 

@@ -24,6 +24,12 @@ const (
 	defaultMangaJobMemoryMB = 512
 	defaultMemoryReserveMB  = 400
 
+	defaultStorage           = StorageLocal
+	defaultFilesRetention    = 7 * 24 * time.Hour
+	defaultDiskReserveMB     = 1024
+	defaultStorageEpubRatio  = 1.2
+	defaultLibraryEstimateMB = 100
+
 	defaultMirrorRefreshInterval = time.Hour
 	defaultMirrorRefreshCooldown = time.Minute
 
@@ -49,6 +55,11 @@ const (
 	defaultCacheTTL     = 5 * time.Minute
 )
 
+const (
+	StorageLocal = "local"
+	StorageR2    = "r2"
+)
+
 type AppConfig struct {
 	Port string
 	// DataDir holds the SQLite databases and the JetStream store of the embedded NATS.
@@ -65,6 +76,22 @@ type AppConfig struct {
 	DropboxAppKey      string
 	TokenEncryptionKey string
 	ExternalTimeout    time.Duration
+
+	// Storage is where the files live: "local" (the server's disk, under DataDir/files) or "r2".
+	Storage string
+	// PublicURL is the public address of the monolith, the base of the signed /files urls.
+	PublicURL string
+	// StorageSigningKey signs the /files urls; empty derives it from TokenEncryptionKey.
+	StorageSigningKey string
+	// FilesRetention is how long a stored file nobody touched is kept (downloadable results).
+	FilesRetention time.Duration
+	// DiskReserve is the free disk kept out of every upload's reservation and below which no heavy
+	// job starts.
+	DiskReserve uint64
+	// StorageEpubRatio is the epub size relative to its manga file, for the space reservations.
+	StorageEpubRatio float64
+	// LibraryEstimate is the size reserved for a library download, whose size is unknown.
+	LibraryEstimate int64
 
 	R2AccountId       string
 	R2AccessKeyId     string
@@ -132,6 +159,14 @@ func Load() {
 		DropboxAppKey:      os.Getenv("DROPBOX_APP_KEY"),
 		TokenEncryptionKey: os.Getenv("TOKEN_ENCRYPTION_KEY"),
 		ExternalTimeout:    durationOr(os.Getenv("EXTERNAL_TIMEOUT"), defaultExternalTimeout),
+
+		Storage:           stringOr(os.Getenv("STORAGE"), defaultStorage),
+		PublicURL:         os.Getenv("PUBLIC_URL"),
+		StorageSigningKey: os.Getenv("STORAGE_SIGNING_KEY"),
+		FilesRetention:    durationOr(os.Getenv("FILES_RETENTION"), defaultFilesRetention),
+		DiskReserve:       uint64(intOr(os.Getenv("DISK_RESERVE_MB"), defaultDiskReserveMB)) << 20,
+		StorageEpubRatio:  floatOr(os.Getenv("STORAGE_EPUB_RATIO"), defaultStorageEpubRatio),
+		LibraryEstimate:   int64(intOr(os.Getenv("LIBRARY_ESTIMATE_MB"), defaultLibraryEstimateMB)) << 20,
 
 		R2AccountId:       os.Getenv("R2_ACCOUNT_ID"),
 		R2AccessKeyId:     os.Getenv("R2_ACCESS_KEY_ID"),
@@ -205,4 +240,12 @@ func list(value string) []string {
 		}
 	}
 	return items
+}
+
+func floatOr(value string, fallback float64) float64 {
+	f, err := strconv.ParseFloat(value, 64)
+	if err != nil || f <= 0 {
+		return fallback
+	}
+	return f
 }

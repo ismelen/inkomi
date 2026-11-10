@@ -3,7 +3,7 @@
 # healthy deploy.
 
 __DOMAIN__ {
-	@monolith path /auth/* /users/* /books/* /uploads /uploads/* /ws /ws/* /preview /preview/* /app/* /healthz
+	@monolith path /auth/* /users/* /books/* /uploads /uploads/* /ws /ws/* /preview /preview/* /app/* /files/* /healthz
 	handle @monolith {
 		reverse_proxy localhost:3001
 	}

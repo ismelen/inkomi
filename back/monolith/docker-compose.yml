@@ -20,7 +20,11 @@ services:
     environment:
       PORT: "3000"
       DATA_DIR: /app/data
+      # the workers' temp files on the data volume: the local storage hard links them
+      TMPDIR: /app/data/tmp
       FIREBASE_CREDENTIALS_FILE: /app/firebase.json
+      # the sandbox of the pipeline signs its upload urls for the compose network
+      PUBLIC_URL: ${SANDBOX_PUBLIC_URL:-${PUBLIC_URL:-}}
     volumes:
       - ${DATA_PATH:-./data}:/app/data
       - ./firebase.json:/app/firebase.json:ro
@@ -48,6 +52,8 @@ services:
       monolith:
         condition: service_healthy
     environment:
+      # the files live on the monolith's disk: check them through the API, not R2
+      E2E_STORAGE: api
       AUTH_URL: http://monolith:3000
       LIBRARY_URL: http://monolith:3000
       TM_URL: http://monolith:3000

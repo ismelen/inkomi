@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"syscall"
 	"time"
 
@@ -21,6 +22,7 @@ import (
 	"github.com/ismelen/inkomi/back/monolith/internal/platform/httplog"
 	"github.com/ismelen/inkomi/back/monolith/internal/platform/queue"
 	"github.com/ismelen/inkomi/back/monolith/internal/platform/resources"
+	"github.com/ismelen/inkomi/back/monolith/internal/platform/storage"
 )
 
 // timeoutMiddleware bounds every route except the WebSocket, which is long-lived, and the preview,
@@ -32,11 +34,15 @@ type deps struct {
 	ctx            context.Context
 	nc             *nats.Conn
 	queue          *queue.NatsQueue
-	cloud          *cloud.CloudflareR2Storage
+	cloud          cloud.ICloudStorage
 	authMiddleware func(http.Handler) http.Handler
-	memory         *resources.Memory
-	// memoryGate holds back heavy jobs while the free memory is below the reserve.
-	memoryGate *resources.MemoryGate
+	// local is the server's disk storage, nil when the files live in R2.
+	local  *storage.LocalStorage
+	signer *storage.URLSigner
+	// ready holds back heavy jobs while the free memory or disk is below its reserve.
+	ready func() bool
+	// mangaConcurrency is how many manga jobs run at once.
+	mangaConcurrency int
 }
 
 func main() {
@@ -65,17 +71,6 @@ func main() {
 	}
 	defer jobQueue.Close()
 
-	cloudStorage, err := cloud.NewCloudflareR2Storage(
-		ctx,
-		config.Env.R2AccountId,
-		config.Env.R2AccessKeyId,
-		config.Env.R2SecretAccessKey,
-		config.Env.R2BucketName,
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	authMiddleware, err := httpauth.NewAuthMiddleware(config.Env.JwtPublicKey)
 	if err != nil {
 		log.Fatal(err)
@@ -83,18 +78,21 @@ func main() {
 
 	memory := resources.NewMemory()
 	d := &deps{
-		ctx:            ctx,
-		nc:             nc,
-		queue:          jobQueue,
-		cloud:          cloudStorage,
-		authMiddleware: authMiddleware,
-		memory:         memory,
-		memoryGate:     resources.NewMemoryGate(memory, config.Env.MemoryReserve),
+		ctx:              ctx,
+		nc:               nc,
+		queue:            jobQueue,
+		authMiddleware:   authMiddleware,
+		mangaConcurrency: mangaConcurrency(memory),
 	}
 
 	router := chi.NewRouter()
 	router.Use(httplog.AccessLog("/healthz"), middleware.Recoverer)
 	router.Get("/healthz", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) })
+
+	// outside the timeout group: an upload from a phone can take minutes
+	wireStorage(d, router)
+	memoryGate := resources.NewMemoryGate(memory, config.Env.MemoryReserve)
+	d.ready = func() bool { return memoryGate.Ready() && diskReady(d) }
 
 	// closers release the module databases once the server stopped, in reverse order
 	var closers []func()
@@ -147,4 +145,23 @@ func closeLogged(name string, closeFn func() error) func() {
 			log.Printf("close %s: %v", name, err)
 		}
 	}
+}
+
+// mangaConcurrency is MANGA_CONCURRENCY or, when unset, min(CPUs, free memory / memory per job).
+func mangaConcurrency(memory *resources.Memory) int {
+	if config.Env.MangaConcurrency > 0 {
+		return config.Env.MangaConcurrency
+	}
+	available, ok := memory.Available()
+	return resources.Concurrency(runtime.NumCPU(), available, ok, config.Env.MangaJobMemory)
+}
+
+// diskReady reports whether the local storage has more free space than the reserve; it is
+// always true with R2 or when the free space can't be read.
+func diskReady(d *deps) bool {
+	if d.local == nil {
+		return true
+	}
+	free, ok := storage.FreeBytes(d.local.Root())
+	return !ok || free > config.Env.DiskReserve
 }

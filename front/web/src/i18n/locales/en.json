@@ -259,7 +259,8 @@
     "ereaderNotAvailable": "The selected reader is not valid",
     "invalidRequest": "Invalid request",
     "noRelease": "No version has been published",
-    "releaseUnavailable": "Updates can't be checked right now"
+    "releaseUnavailable": "Updates can't be checked right now",
+    "insufficientStorage": "The server is out of space right now. Try again later"
   },
   "nav": {
     "list": "List",

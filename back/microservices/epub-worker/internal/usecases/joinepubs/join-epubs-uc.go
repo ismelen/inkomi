@@ -68,18 +68,14 @@ func (j *JoinEpubsUC) Execute(ctx context.Context, msg jobs.Msg, delivery jobrun
 		return nil
 	}
 
-	merged, err := j.join(ctx, msg.Parent, msgs)
-	if err != nil {
+	if err := j.join(ctx, msg.Parent, msgs); err != nil {
 		return j.giveBack(ctx, delivery, msg, err)
 	}
 
 	// The results are already published: retrying because of a cleanup failure would fail
-	// on what was already cleaned, so these failures are only logged.
+	// on what was already cleaned, so it's only logged.
 	if err := j.joinStore.Clear(ctx, msg.Parent.Id); err != nil {
 		log.Printf("join %s: clear group: %v", msg.Parent.Id, err)
-	}
-	if err := j.deleteSources(ctx, merged); err != nil {
-		log.Printf("join %s: delete merged sources: %v", msg.Parent.Id, err)
 	}
 	return nil
 }
@@ -97,31 +93,32 @@ func (j *JoinEpubsUC) giveBack(ctx context.Context, delivery jobrun.Delivery, ms
 	return err
 }
 
-// join merges the group and publishes its results. It returns the children whose block
-// was merged, so their source files can be deleted.
-func (j *JoinEpubsUC) join(ctx context.Context, parent *jobs.Parent, msgs []jobs.Msg) ([]jobs.Msg, error) {
+// join merges the group block by block and publishes its results. The chapters of a block are
+// deleted as soon as the block is stored, so the folder never needs its chapters and all its
+// blocks on disk at once.
+func (j *JoinEpubsUC) join(ctx context.Context, parent *jobs.Parent, msgs []jobs.Msg) error {
 	valid, err := j.rejectInvalid(ctx, msgs)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	items, err := j.orderedItems(ctx, valid)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	blocks := SplitBlocks(items, j.maxBlockSize)
 	publications := make([]publication, 0, len(blocks)+len(items))
-	var merged []jobs.Msg
 	for i, block := range blocks {
 		result, err := j.processBlock(ctx, parent, block, i, len(blocks))
 		if err != nil {
-			return nil, err
+			return err
 		}
 		publications = append(publications, result)
 		if result.subject != jobs.SubjectFailed {
-			for _, item := range block {
-				merged = append(merged, item.Msg)
+			// the block is stored: a retry reuses it instead of these chapters
+			if err := j.deleteSources(ctx, block); err != nil {
+				log.Printf("join %s: delete merged chapters: %v", parent.Id, err)
 			}
 		}
 	}
@@ -135,17 +132,17 @@ func (j *JoinEpubsUC) join(ctx context.Context, parent *jobs.Parent, msgs []jobs
 
 	for _, p := range publications {
 		if err := j.queue.Publish(ctx, string(p.subject), p.msg); err != nil {
-			return nil, err
+			return err
 		}
 	}
-	return merged, nil
+	return nil
 }
 
-func (j *JoinEpubsUC) deleteSources(ctx context.Context, msgs []jobs.Msg) error {
+func (j *JoinEpubsUC) deleteSources(ctx context.Context, block []models.JoinItem) error {
 	var errs []error
-	for _, msg := range msgs {
-		if err := j.cloudStorage.Delete(ctx, msg.Id, msg.Filename); err != nil {
-			errs = append(errs, fmt.Errorf("delete %s/%s: %w", msg.Id, msg.Filename, err))
+	for _, item := range block {
+		if err := j.cloudStorage.Delete(ctx, item.Msg.Id, item.Msg.Filename); err != nil {
+			errs = append(errs, fmt.Errorf("delete %s/%s: %w", item.Msg.Id, item.Msg.Filename, err))
 		}
 	}
 	return errors.Join(errs...)
@@ -179,9 +176,14 @@ func (j *JoinEpubsUC) orderedItems(ctx context.Context, msgs []jobs.Msg) ([]mode
 
 	items := make([]models.JoinItem, len(sorted))
 	for i, msg := range sorted {
-		size, err := j.cloudStorage.Size(ctx, msg.Id, msg.Filename)
-		if err != nil {
-			return nil, fmt.Errorf("size of %s/%s: %w", msg.Id, msg.Filename, err)
+		// the size travels with the job, so a retry splits the same blocks even when the chapters
+		// of the blocks already stored were deleted
+		size := msg.Size
+		if size <= 0 {
+			var err error
+			if size, err = j.cloudStorage.Size(ctx, msg.Id, msg.Filename); err != nil {
+				return nil, fmt.Errorf("size of %s/%s: %w", msg.Id, msg.Filename, err)
+			}
 		}
 		items[i] = models.JoinItem{Msg: msg, Size: size}
 	}
@@ -206,6 +208,12 @@ func (j *JoinEpubsUC) processBlock(ctx context.Context, parent *jobs.Parent, blo
 		Kepubify: first.Kepubify,
 		ToCloud:  first.ToCloud,
 		Result:   &jobs.Result{ParentId: parent.Id, Index: index, Total: total},
+	}
+
+	// a previous attempt already stored this block before failing on a later one
+	if size, err := j.cloudStorage.Size(ctx, result.Id, filename); err == nil && size > 0 {
+		result.Size = size
+		return j.stored(result), nil
 	}
 
 	dir, err := os.MkdirTemp("", "join-epubs-*")
@@ -233,11 +241,15 @@ func (j *JoinEpubsUC) processBlock(ctx context.Context, parent *jobs.Parent, blo
 	if err != nil {
 		return publication{}, err
 	}
+	return j.stored(result), nil
+}
 
+// stored is the publication of a block already in storage: on to kepub or done.
+func (j *JoinEpubsUC) stored(result jobs.Msg) publication {
 	if result.Kepubify {
-		return publication{subject: jobs.SubjectKepub, msg: result}, nil
+		return publication{subject: jobs.SubjectKepub, msg: result}
 	}
-	return publication{subject: jobs.SubjectDone, msg: result}, nil
+	return publication{subject: jobs.SubjectDone, msg: result}
 }
 
 func (j *JoinEpubsUC) download(ctx context.Context, dir string, block []models.JoinItem) ([]models.EpubBook, error) {

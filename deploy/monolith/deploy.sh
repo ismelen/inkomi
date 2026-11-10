@@ -100,7 +100,8 @@ run_sandbox() {
   local status=0
   sandbox() {
     REGISTRY="$REGISTRY" TAG="$TAG" DATA_PATH="$data" CADDY_NETWORK="$network" \
-      MONOLITH_HOST_PORT="" WEB_HOST_PORT="" compose -p "$project" "$@"
+      MONOLITH_HOST_PORT="" WEB_HOST_PORT="" SANDBOX_PUBLIC_URL="http://monolith:3000" \
+      compose -p "$project" "$@"
   }
   sandbox --profile e2e run --rm e2e || status=$?
 

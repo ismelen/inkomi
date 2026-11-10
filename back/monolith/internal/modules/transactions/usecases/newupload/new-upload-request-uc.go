@@ -5,6 +5,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"path/filepath"
+	"strings"
 
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/transactions/domain/models"
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/transactions/domain/ports"
@@ -16,6 +18,8 @@ type NewUploadRequestUC struct {
 	sourceRepo   ports.ISourceRepository
 	configRepo   ports.IConfigRepository
 	cloudStorage ports.ICloudStorage
+	quota        ports.IStorageQuota
+	estimate     models.StorageEstimateOptions
 }
 
 func NewNewUploadRequestUC(
@@ -23,12 +27,16 @@ func NewNewUploadRequestUC(
 	sourceRepo ports.ISourceRepository,
 	configRepo ports.IConfigRepository,
 	cloudStorage ports.ICloudStorage,
+	quota ports.IStorageQuota,
+	estimate models.StorageEstimateOptions,
 ) *NewUploadRequestUC {
 	return &NewUploadRequestUC{
-		txManager,
-		sourceRepo,
-		configRepo,
-		cloudStorage,
+		txManager:    txManager,
+		sourceRepo:   sourceRepo,
+		configRepo:   configRepo,
+		cloudStorage: cloudStorage,
+		quota:        quota,
+		estimate:     estimate,
 	}
 }
 
@@ -55,26 +63,66 @@ func (n *NewUploadRequestUC) Execute(ctx context.Context, data dtos.UploadReques
 	if err := n.saveConfigs(operation); err != nil {
 		return nil, err
 	}
-	err = n.txManager.ExecuteTx(operation.ctx, func(txCtx context.Context) error {
-		for i := range data.Sources {
-			topSrc := &data.Sources[i]
-			if len(topSrc.Items) > 0 && topSrc.Type != models.SourceTypeFolder {
-				topSrc.Type = models.SourceTypeFolder
-			}
-			if err := n.saveSource(txCtx, operation, &topSrc.NoItemsSourceDTO, topSrc.ShouldJoin, nil, 0); err != nil {
+	// the space check and the transaction that records it must not interleave with another upload
+	err = n.quota.Exclusive(func() error {
+		return n.txManager.ExecuteTx(operation.ctx, func(txCtx context.Context) error {
+			if err := n.saveSources(txCtx, operation); err != nil {
 				return err
 			}
-
-			for j := range topSrc.Items {
-				if err := n.saveSource(txCtx, operation, &topSrc.Items[j], topSrc.ShouldJoin, topSrc, j); err != nil {
-					return err
-				}
-			}
-		}
-		return nil
+			return n.quota.Reserve(txCtx, n.reservations(userId, data.Sources))
+		})
 	})
 
 	return data.Sources, err
+}
+
+// reservations estimates the disk peak of every root of the request.
+func (n *NewUploadRequestUC) reservations(userId int, sources []dtos.SourceDTO) []models.StorageReservation {
+	out := make([]models.StorageReservation, 0, len(sources))
+	for _, root := range sources {
+		req := models.StorageRequest{Join: root.ShouldJoin}
+		files := root.Items
+		if root.Type != models.SourceTypeFolder {
+			files = []dtos.NoItemsSourceDTO{root.NoItemsSourceDTO}
+		}
+		for _, f := range files {
+			item := models.StorageItem{
+				IsLibrary: f.Type == models.SourceTypeLibrary,
+				IsEpub:    strings.EqualFold(filepath.Ext(f.Filename), ".epub"),
+			}
+			if f.Size != nil {
+				item.Size = *f.Size
+			}
+			req.Items = append(req.Items, item)
+			req.Kepub = req.Kepub || f.Kepubify
+		}
+		out = append(out, models.StorageReservation{
+			RootId: root.Id,
+			UserId: userId,
+			Bytes:  models.EstimateStoragePeak(req, n.estimate),
+		})
+	}
+	return out
+}
+
+func (n *NewUploadRequestUC) saveSources(txCtx context.Context, operation *uploadOperation) error {
+	data := operation.data
+	for i := range data.Sources {
+		topSrc := &data.Sources[i]
+		if len(topSrc.Items) > 0 && topSrc.Type != models.SourceTypeFolder {
+			topSrc.Type = models.SourceTypeFolder
+		}
+		if err := n.saveSource(txCtx, operation, &topSrc.NoItemsSourceDTO, topSrc.ShouldJoin, nil, 0); err != nil {
+			return err
+		}
+
+		for j := range topSrc.Items {
+			if err := n.saveSource(txCtx, operation, &topSrc.Items[j], topSrc.ShouldJoin, topSrc, j); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (n *NewUploadRequestUC) saveSource(ctx context.Context, op *uploadOperation, src *dtos.NoItemsSourceDTO, join bool, parent *dtos.SourceDTO, position int) error {
@@ -133,7 +181,11 @@ func (n *NewUploadRequestUC) saveSource(ctx context.Context, op *uploadOperation
 
 	src.Id = id
 	if src.Type == models.SourceTypeFile {
-		src.Url, err = n.cloudStorage.GetUrl(src.Id, src.Filename)
+		var size int64
+		if src.Size != nil {
+			size = *src.Size
+		}
+		src.Url, err = n.cloudStorage.GetUrl(src.Id, src.Filename, size)
 	}
 
 	return err

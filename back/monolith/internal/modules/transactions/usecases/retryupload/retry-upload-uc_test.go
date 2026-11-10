@@ -22,7 +22,7 @@ func TestRetryUploadUC_Execute_PendingFile_ReturnsNewURL(t *testing.T) {
 	repo := &mocks.MockSourceRepository{GetByIdAndUserIdFn: func(ctx context.Context, id string, userId int) (*models.Source, error) {
 		return source(models.SourceStatusPendingUpload, true, 100), nil
 	}}
-	cloud := &mocks.MockCloudStorage{GetUrlFn: func(id, filename string) (string, error) {
+	cloud := &mocks.MockCloudStorage{GetUrlFn: func(id, filename string, size int64) (string, error) {
 		return "https://r2/" + id + "/" + filename, nil
 	}}
 

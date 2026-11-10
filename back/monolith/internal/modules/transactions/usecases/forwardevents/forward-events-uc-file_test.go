@@ -49,7 +49,7 @@ func TestForwardEventsUC_Execute_FileFields_UpdatesFile(t *testing.T) {
 				sent = v.(map[string]any)
 				return nil
 			}}
-			require.NoError(t, forwardevents.NewForwardEventsUC(hub, queue, repo).Execute())
+			require.NoError(t, forwardevents.NewForwardEventsUC(hub, queue, repo, &mocks.MockStorageQuota{}).Execute())
 			payload, err := json.Marshal(tc.job)
 			require.NoError(t, err)
 

@@ -39,6 +39,7 @@ const messageKeys: Record<string, string> = {
   'source not ready': 'sourceNotReady',
   'file not available': 'fileNotAvailable',
   'source not uploaded': 'sourceNotUploaded',
+  'insufficient storage': 'insufficientStorage',
   'source not retryable': 'sourceNotRetryable',
   'dropbox folder not found': 'dropboxFolderMissing',
   'dropbox folder already exists': 'dropboxFolderExists',

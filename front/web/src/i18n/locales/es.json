@@ -259,7 +259,8 @@
     "ereaderNotAvailable": "El lector seleccionado no es válido",
     "invalidRequest": "Petición no válida",
     "noRelease": "No hay ninguna versión publicada",
-    "releaseUnavailable": "No se pueden comprobar las actualizaciones ahora mismo"
+    "releaseUnavailable": "No se pueden comprobar las actualizaciones ahora mismo",
+    "insufficientStorage": "Ahora mismo no hay espacio en el servidor. Inténtalo más tarde"
   },
   "nav": {
     "list": "Lista",

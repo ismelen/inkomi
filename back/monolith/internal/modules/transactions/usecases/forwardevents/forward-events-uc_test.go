@@ -41,7 +41,7 @@ func TestForwardEventsUC_Execute_SuccessfullyProcessesEventAndUpdatesStatus(t *t
 		},
 	}
 
-	uc := forwardevents.NewForwardEventsUC(mockHub, mockQueue, mockRepo)
+	uc := forwardevents.NewForwardEventsUC(mockHub, mockQueue, mockRepo, &mocks.MockStorageQuota{})
 
 	stepMsg := jobs.Msg{
 		Id:     "step-123",
@@ -95,7 +95,7 @@ func TestForwardEventsUC_Execute_ProcessesEventWithErrorMessage(t *testing.T) {
 		},
 	}
 
-	uc := forwardevents.NewForwardEventsUC(mockHub, mockQueue, mockRepo)
+	uc := forwardevents.NewForwardEventsUC(mockHub, mockQueue, mockRepo, &mocks.MockStorageQuota{})
 
 	stepMsg := jobs.Msg{
 		Id:       "step-123",
@@ -135,6 +135,7 @@ func TestForwardEventsUC_Execute_InvalidJsonPayload_ReturnsError(t *testing.T) {
 		&mocks.MockSocketHub{},
 		mockQueue,
 		&mocks.MockSourceRepository{},
+		&mocks.MockStorageQuota{},
 	)
 
 	// Act
@@ -170,7 +171,7 @@ func TestForwardEventsUC_Execute_RepoUpdateStatusReturnsError_ReturnsError(t *te
 		},
 	}
 
-	uc := forwardevents.NewForwardEventsUC(mockHub, mockQueue, mockRepo)
+	uc := forwardevents.NewForwardEventsUC(mockHub, mockQueue, mockRepo, &mocks.MockStorageQuota{})
 
 	stepMsg := jobs.Msg{
 		Id:     "step-123",
@@ -210,7 +211,7 @@ func TestForwardEventsUC_Execute_UserNotConnected_StillSucceeds(t *testing.T) {
 				return nil
 			}}
 			hub := &mocks.MockSocketHub{SendFn: func(id int, v any) error { return tc.sendErr }}
-			uc := forwardevents.NewForwardEventsUC(hub, queue, &mocks.MockSourceRepository{})
+			uc := forwardevents.NewForwardEventsUC(hub, queue, &mocks.MockSourceRepository{}, &mocks.MockStorageQuota{})
 			payload, _ := json.Marshal(jobs.Msg{Id: "step-1", UserId: 1})
 
 			// Act

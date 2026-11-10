@@ -7,11 +7,13 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/ismelen/inkomi/back/microservices/common/cloud"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -41,7 +43,12 @@ func TestMangaUpload_EndToEnd(t *testing.T) {
 
 	// Arrange
 	e := loadEnv(t)
-	storage := newCloudStorage(t)
+	// with E2E_STORAGE=api (the monolith keeps the files on its own disk) the files are only
+	// checked through the API
+	var storage cloud.ICloudStorage
+	if os.Getenv("E2E_STORAGE") != "api" {
+		storage = newCloudStorage(t)
+	}
 	token := registerUser(t, e)
 	events := subscribe(t, e, token)
 	cbz := buildCBZ(t)
@@ -70,6 +77,9 @@ func TestMangaUpload_EndToEnd(t *testing.T) {
 
 	results := map[string]string{}
 	t.Cleanup(func() {
+		if storage == nil {
+			return
+		}
 		ctx := context.Background()
 		for _, src := range sources {
 			// best effort: the sandbox shares the production bucket, so leave nothing behind
@@ -97,6 +107,9 @@ func TestMangaUpload_EndToEnd(t *testing.T) {
 			assert.False(t, strings.HasSuffix(filename, ".kepub.epub"), "%s: unexpected kepub", src.Title)
 		}
 
+		if storage == nil {
+			continue
+		}
 		size, err := storage.Size(context.Background(), src.Id, filename)
 		require.NoError(t, err, "%s: result missing in R2", src.Title)
 		assert.Positive(t, size)

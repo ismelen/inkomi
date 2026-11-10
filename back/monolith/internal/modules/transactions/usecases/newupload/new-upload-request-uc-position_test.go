@@ -23,7 +23,7 @@ func TestNewUploadRequestUC_Execute_FolderItems_SavesPositionInOrder(t *testing.
 			return source.Title, nil
 		},
 	}
-	uc := newupload.NewNewUploadRequestUC(&mocks.MockTxManager{}, sourceRepo, &mocks.MockConfigRepository{}, &mocks.MockCloudStorage{})
+	uc := newupload.NewNewUploadRequestUC(&mocks.MockTxManager{}, sourceRepo, &mocks.MockConfigRepository{}, &mocks.MockCloudStorage{}, &mocks.MockStorageQuota{}, models.StorageEstimateOptions{})
 
 	req := dtos.UploadRequestDTO{
 		EReaderKey: "KoMT",

@@ -3,14 +3,14 @@ package mocks
 import "time"
 
 type MockCloudStorage struct {
-	GetUrlFn         func(id string, filename string) (string, error)
+	GetUrlFn         func(id string, filename string, size int64) (string, error)
 	GetDownloadUrlFn func(id string, filename string) (string, time.Time, error)
 	CheckFn          func(id string, filename string) bool
 }
 
-func (m *MockCloudStorage) GetUrl(id string, filename string) (string, error) {
+func (m *MockCloudStorage) GetUrl(id string, filename string, size int64) (string, error) {
 	if m.GetUrlFn != nil {
-		return m.GetUrlFn(id, filename)
+		return m.GetUrlFn(id, filename, size)
 	}
 	return "", nil
 }

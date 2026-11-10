@@ -45,3 +45,15 @@ CREATE TABLE IF NOT EXISTS config (
 
 CREATE INDEX IF NOT EXISTS idx_source_user_parent_created
 	ON source (userId, parentId, createdAt DESC);
+
+-- Disk space held for an upload until its tree finishes (monolith with local storage).
+CREATE TABLE IF NOT EXISTS storage_reservation (
+	rootId TEXT PRIMARY KEY,
+	userId INTEGER NOT NULL,
+	bytes INTEGER NOT NULL,
+	createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	releasedAt DATETIME
+);
+
+CREATE INDEX IF NOT EXISTS idx_storage_reservation_active
+	ON storage_reservation (releasedAt);

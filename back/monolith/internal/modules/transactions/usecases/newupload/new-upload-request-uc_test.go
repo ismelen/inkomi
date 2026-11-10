@@ -2,6 +2,8 @@ package newupload_test
 
 import (
 	"context"
+	"fmt"
+	"github.com/stretchr/testify/require"
 	"testing"
 
 	"github.com/ismelen/inkomi/back/monolith/internal/modules/transactions/domain/models"
@@ -18,6 +20,8 @@ func TestNewUploadRequestUC_Execute_InvalidEreaderKey_ReturnsError(t *testing.T)
 		&mocks.MockSourceRepository{},
 		&mocks.MockConfigRepository{},
 		&mocks.MockCloudStorage{},
+		&mocks.MockStorageQuota{},
+		models.StorageEstimateOptions{},
 	)
 
 	req := dtos.UploadRequestDTO{
@@ -37,7 +41,7 @@ func TestNewUploadRequestUC_Execute_ValidRequest_ReturnsSources(t *testing.T) {
 	sourceRepo := &mocks.MockSourceRepository{}
 	configRepo := &mocks.MockConfigRepository{}
 	cloudStorage := &mocks.MockCloudStorage{
-		GetUrlFn: func(id string, filename string) (string, error) {
+		GetUrlFn: func(id string, filename string, size int64) (string, error) {
 			return "http://example.com/" + id + "/" + filename, nil
 		},
 	}
@@ -47,6 +51,8 @@ func TestNewUploadRequestUC_Execute_ValidRequest_ReturnsSources(t *testing.T) {
 		sourceRepo,
 		configRepo,
 		cloudStorage,
+		&mocks.MockStorageQuota{},
+		models.StorageEstimateOptions{},
 	)
 
 	req := dtos.UploadRequestDTO{
@@ -89,6 +95,8 @@ func TestNewUploadRequestUC_Execute_WithConfigs_SavesConfigsAndSources(t *testin
 		sourceRepo,
 		configRepo,
 		cloudStorage,
+		&mocks.MockStorageQuota{},
+		models.StorageEstimateOptions{},
 	)
 
 	confKey := "conf1"
@@ -126,6 +134,8 @@ func TestNewUploadRequestUC_Execute_SourceWithItemsNotFolder_SetsFolderAsType(t 
 		&mocks.MockSourceRepository{},
 		&mocks.MockConfigRepository{},
 		&mocks.MockCloudStorage{},
+		&mocks.MockStorageQuota{},
+		models.StorageEstimateOptions{},
 	)
 
 	req := dtos.UploadRequestDTO{
@@ -175,6 +185,8 @@ func TestNewUploadRequestUC_Execute_ChildInheritsConfigHash_UsesParentHash(t *te
 		sourceRepo,
 		configRepo,
 		cloudStorage,
+		&mocks.MockStorageQuota{},
+		models.StorageEstimateOptions{},
 	)
 
 	parentConfKey := "parent-conf"
@@ -229,6 +241,8 @@ func TestNewUploadRequestUC_Execute_ChildInheritsParentAttributes_MatchesParent(
 		sourceRepo,
 		configRepo,
 		cloudStorage,
+		&mocks.MockStorageQuota{},
+		models.StorageEstimateOptions{},
 	)
 
 	req := dtos.UploadRequestDTO{
@@ -268,10 +282,12 @@ func TestNewUploadRequestUC_Execute_FolderAndLibrary_EmptyUrl(t *testing.T) {
 		&mocks.MockSourceRepository{},
 		&mocks.MockConfigRepository{},
 		&mocks.MockCloudStorage{
-			GetUrlFn: func(id string, filename string) (string, error) {
+			GetUrlFn: func(id string, filename string, size int64) (string, error) {
 				return "should-not-be-called", nil
 			},
 		},
+		&mocks.MockStorageQuota{},
+		models.StorageEstimateOptions{},
 	)
 
 	req := dtos.UploadRequestDTO{
@@ -299,4 +315,61 @@ func TestNewUploadRequestUC_Execute_FolderAndLibrary_EmptyUrl(t *testing.T) {
 	assert.Empty(t, sources[0].Url)
 	assert.Len(t, sources[0].Items, 1)
 	assert.Empty(t, sources[0].Items[0].Url)
+}
+
+func TestNewUploadRequestUC_Execute_JoinedFolder_ReservesItsPeak(t *testing.T) {
+	// Arrange
+	next := 0
+	sourceRepo := &mocks.MockSourceRepository{
+		CreateFn: func(ctx context.Context, source *models.Source) (string, error) {
+			next++
+			return fmt.Sprint("id-", next), nil
+		},
+	}
+	var reserved []models.StorageReservation
+	quota := &mocks.MockStorageQuota{ReserveFn: func(ctx context.Context, r []models.StorageReservation) error {
+		reserved = r
+		return nil
+	}}
+	opts := models.StorageEstimateOptions{EpubRatio: 1, Concurrency: 1}
+	uc := newupload.NewNewUploadRequestUC(&mocks.MockTxManager{}, sourceRepo, &mocks.MockConfigRepository{}, &mocks.MockCloudStorage{}, quota, opts)
+	size := int64(100)
+	req := dtos.UploadRequestDTO{
+		EReaderKey: "K1",
+		Sources: []dtos.SourceDTO{{
+			NoItemsSourceDTO: dtos.NoItemsSourceDTO{Title: "Folder", Filename: "Folder", Type: models.SourceTypeFolder},
+			ShouldJoin:       true,
+			Items: []dtos.NoItemsSourceDTO{
+				{Title: "1", Filename: "1.cbz", Type: models.SourceTypeFile, Size: &size},
+				{Title: "2", Filename: "2.cbz", Type: models.SourceTypeFile, Size: &size},
+			},
+		}},
+	}
+
+	// Act
+	_, err := uc.Execute(context.Background(), req, 7)
+
+	// Assert: join peak = 200 of epubs + a 200 block
+	require.NoError(t, err)
+	require.Len(t, reserved, 1)
+	assert.Equal(t, models.StorageReservation{RootId: "id-1", UserId: 7, Bytes: 400}, reserved[0])
+}
+
+func TestNewUploadRequestUC_Execute_NoSpace_ReturnsInsufficientStorage(t *testing.T) {
+	// Arrange
+	quota := &mocks.MockStorageQuota{ReserveFn: func(ctx context.Context, r []models.StorageReservation) error {
+		return models.ErrInsufficientStorage
+	}}
+	uc := newupload.NewNewUploadRequestUC(&mocks.MockTxManager{}, &mocks.MockSourceRepository{}, &mocks.MockConfigRepository{}, &mocks.MockCloudStorage{}, quota, models.StorageEstimateOptions{})
+	size := int64(100)
+	req := dtos.UploadRequestDTO{
+		EReaderKey: "K1",
+		Sources:    []dtos.SourceDTO{{NoItemsSourceDTO: dtos.NoItemsSourceDTO{Title: "a", Filename: "a.cbz", Type: models.SourceTypeFile, Size: &size}}},
+	}
+
+	// Act
+	_, err := uc.Execute(context.Background(), req, 7)
+
+	// Assert
+	assert.ErrorIs(t, err, models.ErrInsufficientStorage)
 }
