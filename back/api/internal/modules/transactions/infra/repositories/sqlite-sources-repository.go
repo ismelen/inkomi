@@ -332,6 +332,35 @@ func (r *SQLiteSourceRepository) listSources(ctx context.Context, query string, 
 	return sources, rows.Err()
 }
 
+func (r *SQLiteSourceRepository) ListSentBooks(ctx context.Context, since time.Time, limit int) ([]models.SentBook, error) {
+	query := `
+		SELECT id, userId, title, filename, updatedAt
+		FROM source
+		WHERE parentId IS NULL AND isResult = FALSE AND isFile = TRUE
+			AND status IN ('sent', 'done')
+			AND lower(filename) LIKE '%.epub'
+			AND updatedAt >= ?
+		ORDER BY updatedAt, id
+		LIMIT ?
+	`
+	rows, err := datasources.GetDB(ctx, r.db).QueryContext(ctx, query, since.UTC().Format(sqliteTimeLayout), limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var books []models.SentBook
+	for rows.Next() {
+		var book models.SentBook
+		if err := rows.Scan(&book.SourceId, &book.UserId, &book.Title, &book.Filename, &book.UpdatedAt); err != nil {
+			return nil, err
+		}
+		book.UpdatedAt = book.UpdatedAt.UTC()
+		books = append(books, book)
+	}
+	return books, rows.Err()
+}
+
 func (r *SQLiteSourceRepository) Delete(ctx context.Context, id string, userId int) error {
 	query := `DELETE FROM source WHERE id = ? AND userId = ?`
 	_, err := datasources.GetDB(ctx, r.db).ExecContext(ctx, query, id, userId)
