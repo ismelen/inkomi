@@ -43,8 +43,7 @@
     "activity": "In progress",
     "settings": "Settings",
     "library": "Library",
-    "wishlist": "Wishlist",
-    "discover": "Discover"
+    "wishlist": "Wishlist"
   },
   "add": {
     "title": "Add",
@@ -295,17 +294,7 @@
     "searchLibrary": "Search the library",
     "remove": "Remove",
     "added": "Added to the wishlist",
-    "useText": "Add “{{text}}”"
-  },
-  "discover": {
-    "title": "Discover",
-    "forYou": "For you",
-    "new": "New",
-    "discover": "Discover",
-    "because": "Because you like {{title}}",
-    "empty": "Send books or wish some and recommendations will show up here. They are updated every few hours.",
-    "search": "Search",
-    "wish": "Wish",
-    "dismiss": "Not interested"
+    "useText": "Add “{{text}}”",
+    "wish": "Wish"
   }
 }

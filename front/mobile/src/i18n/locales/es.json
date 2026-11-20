@@ -43,8 +43,7 @@
     "activity": "En curso",
     "settings": "Ajustes",
     "library": "Biblioteca",
-    "wishlist": "Deseados",
-    "discover": "Descubrir"
+    "wishlist": "Deseados"
   },
   "add": {
     "title": "Añadir",
@@ -295,17 +294,7 @@
     "searchLibrary": "Buscar en la biblioteca",
     "remove": "Quitar",
     "added": "Añadido a deseados",
-    "useText": "Añadir “{{text}}”"
-  },
-  "discover": {
-    "title": "Descubrir",
-    "forYou": "Para ti",
-    "new": "Novedades",
-    "discover": "Descubre",
-    "because": "Porque te gusta {{title}}",
-    "empty": "Envía libros o añade deseados y aquí aparecerán recomendaciones. Se actualizan cada pocas horas.",
-    "search": "Buscar",
-    "wish": "Desear",
-    "dismiss": "No me interesa"
+    "useText": "Añadir “{{text}}”",
+    "wish": "Desear"
   }
 }

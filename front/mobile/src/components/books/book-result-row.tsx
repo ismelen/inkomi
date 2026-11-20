@@ -76,7 +76,7 @@ export function BookResultRow({ book, added, onToggle, wished, onWish }: Props) 
       {onWish && (
         <SIconButton
           icon={wished ? 'check' : 'favorite'}
-          label={t('discover.wish')}
+          label={t('wishlist.wish')}
           size={20}
           disabled={wished}
           onPress={onWish}

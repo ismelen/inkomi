@@ -207,11 +207,6 @@ export default function HomeScreen() {
             INKOMI
           </SText>
           <SIconButton
-            icon="explore"
-            label={t('home.discover')}
-            onPress={() => router.push('/discover')}
-          />
-          <SIconButton
             icon="favorite"
             label={t('home.wishlist')}
             onPress={() => router.push('/wishlist')}
