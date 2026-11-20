@@ -7,6 +7,7 @@ import { formatBytes } from '../../utils/format';
 import { SIconButton } from '../ui/s-icon-button';
 import { SSheet } from '../ui/s-sheet';
 import { SText } from '../ui/s-text';
+import { ErrorText } from './error-text';
 
 interface Props {
   tree: UploadTree | null;
@@ -14,10 +15,11 @@ interface Props {
   onClose: () => void;
   onDownload: (sourceId: string) => void;
   onShare: (sourceId: string) => void;
+  onShowError: (error: string) => void;
 }
 
 /** Files of a folder upload: join results, or the items of a folder without join. */
-export function ResultsSheet({ tree, busyId, onClose, onDownload, onShare }: Props) {
+export function ResultsSheet({ tree, busyId, onClose, onDownload, onShare, onShowError }: Props) {
   const { t } = useTranslation();
   const files = tree ? downloadablesOf(tree) : [];
 
@@ -40,11 +42,7 @@ export function ResultsSheet({ tree, busyId, onClose, onDownload, onShare }: Pro
                     {t('history.cancelled')}
                   </SText>
                 ) : item.status === 'failed' ? (
-                  <SText variant="small" tone="danger" numberOfLines={2}>
-                    {item.errorMsg
-                      ? t('history.error', { error: item.errorMsg })
-                      : t('history.errorUnknown')}
-                  </SText>
+                  <ErrorText error={item.errorMsg ?? ''} onPress={onShowError} />
                 ) : (
                   <SText variant="small" tone="textSecondary">
                     {formatBytes(item.size)}

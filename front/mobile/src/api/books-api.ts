@@ -1,10 +1,10 @@
 import { http } from './http-client';
-import { BookFormat, BookResponse } from './types/books';
+import { BookFormat, BookResponse, SearchField } from './types/books';
 
 export const booksApi = {
-  search: (q: string, formats: BookFormat[], signal?: AbortSignal) =>
+  search: (q: string, by: SearchField, formats: BookFormat[], signal?: AbortSignal) =>
     http.get<BookResponse[]>('/books/search', {
-      query: { q, fmt: formats.join(',') },
+      query: { q, by, fmt: formats.join(',') },
       signal,
     }),
 };

@@ -112,7 +112,10 @@
     "removeRainbow": "Reducir efecto arcoíris"
   },
   "search": {
-    "placeholder": "Buscar por título o autor",
+    "placeholderTitle": "Buscar por título",
+    "placeholderAuthor": "Buscar por autor",
+    "byTitle": "Título",
+    "byAuthor": "Autor",
     "all": "Todos",
     "added_one": "{{count}} añadido a la lista",
     "added_other": "{{count}} añadidos a la lista",
@@ -175,6 +178,8 @@
     "sent": "Enviado",
     "error": "Error: {{error}}",
     "errorUnknown": "Error",
+    "errorTitle": "Error del envío",
+    "errorTap": "Toca para ver el error completo",
     "download": "Descargar",
     "share": "Compartir",
     "saved": "Guardado",

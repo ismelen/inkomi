@@ -112,7 +112,10 @@
     "removeRainbow": "Reduce rainbow effect"
   },
   "search": {
-    "placeholder": "Search by title or author",
+    "placeholderTitle": "Search by title",
+    "placeholderAuthor": "Search by author",
+    "byTitle": "Title",
+    "byAuthor": "Author",
     "all": "All",
     "added_one": "{{count}} added to the list",
     "added_other": "{{count}} added to the list",
@@ -175,6 +178,8 @@
     "sent": "Sent",
     "error": "Error: {{error}}",
     "errorUnknown": "Error",
+    "errorTitle": "Sending error",
+    "errorTap": "Tap to see the full error",
     "download": "Download",
     "share": "Share",
     "saved": "Saved",

@@ -15,6 +15,7 @@ import {
 import { formatBytes, formatWhen } from '../../utils/format';
 import { SIconButton } from '../ui/s-icon-button';
 import { SText } from '../ui/s-text';
+import { ErrorText } from './error-text';
 
 interface Props {
   tree: UploadTree;
@@ -22,9 +23,10 @@ interface Props {
   onDownload: (sourceId: string) => void;
   onShare: (sourceId: string) => void;
   onOpenResults: (tree: UploadTree) => void;
+  onShowError: (error: string) => void;
 }
 
-export function HistoryRow({ tree, busy, onDownload, onShare, onOpenResults }: Props) {
+export function HistoryRow({ tree, busy, onDownload, onShare, onOpenResults, onShowError }: Props) {
   const { t, i18n } = useTranslation();
   const error = treeError(tree);
   const files = downloadablesOf(tree);
@@ -67,9 +69,7 @@ export function HistoryRow({ tree, busy, onDownload, onShare, onOpenResults }: P
             {t('history.cancelled')}
           </SText>
         ) : error !== null ? (
-          <SText variant="small" tone="danger" numberOfLines={2}>
-            {error ? t('history.error', { error }) : t('history.errorUnknown')}
-          </SText>
+          <ErrorText error={error} onPress={onShowError} />
         ) : (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
             <View

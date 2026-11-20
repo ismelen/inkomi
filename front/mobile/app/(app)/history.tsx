@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, SectionList, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { errorKey } from '../../src/api/api-error';
+import { ErrorModal } from '../../src/components/history/error-modal';
 import { HistoryRow } from '../../src/components/history/history-row';
 import { ResultsSheet } from '../../src/components/history/results-sheet';
 import { Header } from '../../src/components/ui/header';
@@ -20,6 +21,7 @@ export default function HistoryScreen() {
   const { history, historyEnd, loadingMore, loadMoreHistory } = useActivity();
   const [results, setResults] = useState<UploadTree | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [errorText, setErrorText] = useState<string | null>(null);
 
   useEffect(() => {
     if (history.length === 0) void loadMoreHistory();
@@ -85,6 +87,7 @@ export default function HistoryScreen() {
             onDownload={download}
             onShare={share}
             onOpenResults={setResults}
+            onShowError={setErrorText}
           />
         )}
         onEndReached={() => void loadMoreHistory()}
@@ -108,7 +111,9 @@ export default function HistoryScreen() {
         onClose={() => setResults(null)}
         onDownload={download}
         onShare={share}
+        onShowError={setErrorText}
       />
+      <ErrorModal error={errorText} onClose={() => setErrorText(null)} />
     </Screen>
   );
 }

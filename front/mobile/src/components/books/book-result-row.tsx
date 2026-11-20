@@ -3,6 +3,7 @@ import { Image, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { colors, radii, spacing } from '../../theme';
 import { BookResponse } from '../../api/types/books';
+import { backendUrl } from '../../config';
 import { SChip } from '../ui/s-chip';
 import { SIcon } from '../ui/s-icon';
 import { SIconButton } from '../ui/s-icon-button';
@@ -41,7 +42,9 @@ export function BookResultRow({ book, added, onToggle }: Props) {
       >
         {book.coverUrl ? (
           <Image
-            source={{ uri: book.coverUrl }}
+            source={{
+              uri: book.coverUrl.startsWith('/') ? backendUrl + book.coverUrl : book.coverUrl,
+            }}
             style={{ width: 44, height: 62 }}
             resizeMode="cover"
           />

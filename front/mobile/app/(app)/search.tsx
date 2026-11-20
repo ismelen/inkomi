@@ -3,7 +3,7 @@ import { ActivityIndicator, FlatList, View } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { BookFormat } from '../../src/api/types/books';
+import { BookFormat, SearchField } from '../../src/api/types/books';
 import { BookResultRow } from '../../src/components/books/book-result-row';
 import { Screen } from '../../src/components/ui/screen';
 import { SButton } from '../../src/components/ui/s-button';
@@ -22,7 +22,19 @@ const debounceMs = 500;
 export default function SearchScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { query, format, results, status, error, setQuery, setFormat, search, reset } = useSearch();
+  const {
+    query,
+    field,
+    format,
+    results,
+    status,
+    error,
+    setQuery,
+    setField,
+    setFormat,
+    search,
+    reset,
+  } = useSearch();
   const items = useList((s) => s.items);
   const toggleLibrary = useList((s) => s.toggleLibrary);
   const [added, setAdded] = useState(0);
@@ -37,6 +49,7 @@ export default function SearchScreen() {
   };
 
   const formats: (BookFormat | null)[] = [null, ...supportedFormats];
+  const fields: SearchField[] = ['title', 'author'];
 
   return (
     <Screen>
@@ -51,7 +64,9 @@ export default function SearchScreen() {
             onChangeText={onChangeQuery}
             onSubmitEditing={() => void search()}
             returnKeyType="search"
-            placeholder={t('search.placeholder')}
+            placeholder={t(
+              field === 'author' ? 'search.placeholderAuthor' : 'search.placeholderTitle'
+            )}
             left={<SIcon name="search" size={20} color={colors.textSecondary} />}
             right={
               query ? (
@@ -65,6 +80,23 @@ export default function SearchScreen() {
             }
           />
         </View>
+      </View>
+      <View
+        style={{
+          flexDirection: 'row',
+          gap: spacing.sm,
+          paddingHorizontal: spacing.lg,
+          paddingBottom: spacing.sm,
+        }}
+      >
+        {fields.map((f) => (
+          <SChip
+            key={f}
+            label={t(f === 'author' ? 'search.byAuthor' : 'search.byTitle')}
+            selected={field === f}
+            onPress={() => setField(f)}
+          />
+        ))}
       </View>
       <View style={{ flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg }}>
         {formats.map((f) => (
