@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/ismelen/inkomi/back/api/internal/modules/transactions/domain/models"
-	"github.com/ismelen/inkomi/back/api/internal/modules/transactions/ui/dtos"
 	"github.com/ismelen/inkomi/back/api/internal/modules/transactions/usecases/mocks"
 	"github.com/ismelen/inkomi/back/api/internal/modules/transactions/usecases/newupload"
 	"github.com/stretchr/testify/assert"
@@ -24,7 +23,7 @@ func TestNewUploadRequestUC_Execute_InvalidEreaderKey_ReturnsError(t *testing.T)
 		models.StorageEstimateOptions{},
 	)
 
-	req := dtos.UploadRequestDTO{
+	req := models.UploadRequest{
 		EReaderKey: "INVALID_KEY",
 	}
 
@@ -55,11 +54,11 @@ func TestNewUploadRequestUC_Execute_ValidRequest_ReturnsSources(t *testing.T) {
 		models.StorageEstimateOptions{},
 	)
 
-	req := dtos.UploadRequestDTO{
+	req := models.UploadRequest{
 		EReaderKey: "K1",
-		Sources: []dtos.SourceDTO{
+		Sources: []models.UploadSource{
 			{
-				NoItemsSourceDTO: dtos.NoItemsSourceDTO{
+				UploadItem: models.UploadItem{
 					Title:    "Source 1",
 					Filename: "test1.zip",
 					Type:     models.SourceTypeFile,
@@ -100,16 +99,16 @@ func TestNewUploadRequestUC_Execute_WithConfigs_SavesConfigsAndSources(t *testin
 	)
 
 	confKey := "conf1"
-	req := dtos.UploadRequestDTO{
+	req := models.UploadRequest{
 		EReaderKey: "K1",
-		Configs: map[string]dtos.ConfigDTO{
+		Configs: map[string]models.UploadConfig{
 			confKey: {
-				EReaderKey: "K1",
+				Data: `{"ereaderKey":"K1"}`,
 			},
 		},
-		Sources: []dtos.SourceDTO{
+		Sources: []models.UploadSource{
 			{
-				NoItemsSourceDTO: dtos.NoItemsSourceDTO{
+				UploadItem: models.UploadItem{
 					Title:     "Source Config",
 					Filename:  "test2.zip",
 					Type:      models.SourceTypeFile,
@@ -138,14 +137,14 @@ func TestNewUploadRequestUC_Execute_SourceWithItemsNotFolder_SetsFolderAsType(t 
 		models.StorageEstimateOptions{},
 	)
 
-	req := dtos.UploadRequestDTO{
+	req := models.UploadRequest{
 		EReaderKey: "K1",
-		Sources: []dtos.SourceDTO{
+		Sources: []models.UploadSource{
 			{
-				NoItemsSourceDTO: dtos.NoItemsSourceDTO{
+				UploadItem: models.UploadItem{
 					Type: models.SourceTypeFile,
 				},
-				Items: []dtos.NoItemsSourceDTO{
+				Items: []models.UploadItem{
 					{Type: models.SourceTypeFile},
 				},
 			},
@@ -190,18 +189,18 @@ func TestNewUploadRequestUC_Execute_ChildInheritsConfigHash_UsesParentHash(t *te
 	)
 
 	parentConfKey := "parent-conf"
-	req := dtos.UploadRequestDTO{
+	req := models.UploadRequest{
 		EReaderKey: "K1",
-		Configs: map[string]dtos.ConfigDTO{
-			parentConfKey: {EReaderKey: "K1"},
+		Configs: map[string]models.UploadConfig{
+			parentConfKey: {Data: `{"ereaderKey":"K1"}`},
 		},
-		Sources: []dtos.SourceDTO{
+		Sources: []models.UploadSource{
 			{
-				NoItemsSourceDTO: dtos.NoItemsSourceDTO{
+				UploadItem: models.UploadItem{
 					Type:      models.SourceTypeFolder,
 					ConfigKey: &parentConfKey,
 				},
-				Items: []dtos.NoItemsSourceDTO{
+				Items: []models.UploadItem{
 					{
 						Type:     models.SourceTypeFile,
 						Filename: "child.zip",
@@ -245,16 +244,16 @@ func TestNewUploadRequestUC_Execute_ChildInheritsParentAttributes_MatchesParent(
 		models.StorageEstimateOptions{},
 	)
 
-	req := dtos.UploadRequestDTO{
+	req := models.UploadRequest{
 		EReaderKey: "KoMT",
-		Sources: []dtos.SourceDTO{
+		Sources: []models.UploadSource{
 			{
 				ShouldJoin: true,
-				NoItemsSourceDTO: dtos.NoItemsSourceDTO{
+				UploadItem: models.UploadItem{
 					Type:             models.SourceTypeFolder,
 					ReadingDirection: models.ReadingDirectionRTL,
 				},
-				Items: []dtos.NoItemsSourceDTO{
+				Items: []models.UploadItem{
 					{
 						Type: models.SourceTypeFile,
 					},
@@ -290,14 +289,14 @@ func TestNewUploadRequestUC_Execute_FolderAndLibrary_EmptyUrl(t *testing.T) {
 		models.StorageEstimateOptions{},
 	)
 
-	req := dtos.UploadRequestDTO{
+	req := models.UploadRequest{
 		EReaderKey: "K1",
-		Sources: []dtos.SourceDTO{
+		Sources: []models.UploadSource{
 			{
-				NoItemsSourceDTO: dtos.NoItemsSourceDTO{
+				UploadItem: models.UploadItem{
 					Type: models.SourceTypeFolder,
 				},
-				Items: []dtos.NoItemsSourceDTO{
+				Items: []models.UploadItem{
 					{
 						Type: models.SourceTypeLibrary,
 					},
@@ -334,12 +333,12 @@ func TestNewUploadRequestUC_Execute_JoinedFolder_ReservesItsPeak(t *testing.T) {
 	opts := models.StorageEstimateOptions{EpubRatio: 1, Concurrency: 1}
 	uc := newupload.NewNewUploadRequestUC(&mocks.MockTxManager{}, sourceRepo, &mocks.MockConfigRepository{}, &mocks.MockCloudStorage{}, quota, opts)
 	size := int64(100)
-	req := dtos.UploadRequestDTO{
+	req := models.UploadRequest{
 		EReaderKey: "K1",
-		Sources: []dtos.SourceDTO{{
-			NoItemsSourceDTO: dtos.NoItemsSourceDTO{Title: "Folder", Filename: "Folder", Type: models.SourceTypeFolder},
-			ShouldJoin:       true,
-			Items: []dtos.NoItemsSourceDTO{
+		Sources: []models.UploadSource{{
+			UploadItem: models.UploadItem{Title: "Folder", Filename: "Folder", Type: models.SourceTypeFolder},
+			ShouldJoin: true,
+			Items: []models.UploadItem{
 				{Title: "1", Filename: "1.cbz", Type: models.SourceTypeFile, Size: &size},
 				{Title: "2", Filename: "2.cbz", Type: models.SourceTypeFile, Size: &size},
 			},
@@ -362,9 +361,9 @@ func TestNewUploadRequestUC_Execute_NoSpace_ReturnsInsufficientStorage(t *testin
 	}}
 	uc := newupload.NewNewUploadRequestUC(&mocks.MockTxManager{}, &mocks.MockSourceRepository{}, &mocks.MockConfigRepository{}, &mocks.MockCloudStorage{}, quota, models.StorageEstimateOptions{})
 	size := int64(100)
-	req := dtos.UploadRequestDTO{
+	req := models.UploadRequest{
 		EReaderKey: "K1",
-		Sources:    []dtos.SourceDTO{{NoItemsSourceDTO: dtos.NoItemsSourceDTO{Title: "a", Filename: "a.cbz", Type: models.SourceTypeFile, Size: &size}}},
+		Sources:    []models.UploadSource{{UploadItem: models.UploadItem{Title: "a", Filename: "a.cbz", Type: models.SourceTypeFile, Size: &size}}},
 	}
 
 	// Act

@@ -4,13 +4,11 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"path/filepath"
 	"strings"
 
 	"github.com/ismelen/inkomi/back/api/internal/modules/transactions/domain/models"
 	"github.com/ismelen/inkomi/back/api/internal/modules/transactions/domain/ports"
-	"github.com/ismelen/inkomi/back/api/internal/modules/transactions/ui/dtos"
 )
 
 type NewUploadRequestUC struct {
@@ -42,12 +40,12 @@ func NewNewUploadRequestUC(
 
 type uploadOperation struct {
 	userId      int
-	data        *dtos.UploadRequestDTO
+	data        *models.UploadRequest
 	ctx         context.Context
 	mainEreader *models.EReader
 }
 
-func (n *NewUploadRequestUC) Execute(ctx context.Context, data dtos.UploadRequestDTO, userId int) ([]dtos.SourceDTO, error) {
+func (n *NewUploadRequestUC) Execute(ctx context.Context, data models.UploadRequest, userId int) ([]models.UploadSource, error) {
 	ereader, err := models.NewEreader(data.EReaderKey)
 	if err != nil {
 		return nil, err
@@ -77,13 +75,13 @@ func (n *NewUploadRequestUC) Execute(ctx context.Context, data dtos.UploadReques
 }
 
 // reservations estimates the disk peak of every root of the request.
-func (n *NewUploadRequestUC) reservations(userId int, sources []dtos.SourceDTO) []models.StorageReservation {
+func (n *NewUploadRequestUC) reservations(userId int, sources []models.UploadSource) []models.StorageReservation {
 	out := make([]models.StorageReservation, 0, len(sources))
 	for _, root := range sources {
 		req := models.StorageRequest{Join: root.ShouldJoin}
 		files := root.Items
 		if root.Type != models.SourceTypeFolder {
-			files = []dtos.NoItemsSourceDTO{root.NoItemsSourceDTO}
+			files = []models.UploadItem{root.UploadItem}
 		}
 		for _, f := range files {
 			item := models.StorageItem{
@@ -112,7 +110,7 @@ func (n *NewUploadRequestUC) saveSources(txCtx context.Context, operation *uploa
 		if len(topSrc.Items) > 0 && topSrc.Type != models.SourceTypeFolder {
 			topSrc.Type = models.SourceTypeFolder
 		}
-		if err := n.saveSource(txCtx, operation, &topSrc.NoItemsSourceDTO, topSrc.ShouldJoin, nil, 0); err != nil {
+		if err := n.saveSource(txCtx, operation, &topSrc.UploadItem, topSrc.ShouldJoin, nil, 0); err != nil {
 			return err
 		}
 
@@ -125,7 +123,7 @@ func (n *NewUploadRequestUC) saveSources(txCtx context.Context, operation *uploa
 	return nil
 }
 
-func (n *NewUploadRequestUC) saveSource(ctx context.Context, op *uploadOperation, src *dtos.NoItemsSourceDTO, join bool, parent *dtos.SourceDTO, position int) error {
+func (n *NewUploadRequestUC) saveSource(ctx context.Context, op *uploadOperation, src *models.UploadItem, join bool, parent *models.UploadSource, position int) error {
 	if src.Type == models.SourceTypeFolder {
 		src.Size = new(int64)
 	}
@@ -194,17 +192,12 @@ func (n *NewUploadRequestUC) saveSource(ctx context.Context, op *uploadOperation
 func (n *NewUploadRequestUC) saveConfigs(op *uploadOperation) error {
 	err := n.txManager.ExecuteTx(op.ctx, func(txCtx context.Context) error {
 		for key, config := range op.data.Configs {
-			bytes, err := json.Marshal(config)
-			if err != nil {
-				return err
-			}
-
-			hashBytes := sha256.Sum256(bytes)
+			hashBytes := sha256.Sum256([]byte(config.Data))
 			hash := hex.EncodeToString(hashBytes[:])
 
 			if _, err := n.configRepo.Create(txCtx, &models.Config{
 				Hash: hash,
-				Data: string(bytes),
+				Data: config.Data,
 			}); err != nil {
 				return err
 			}

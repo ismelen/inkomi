@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/ismelen/inkomi/back/api/internal/modules/transactions/domain/models"
-	"github.com/ismelen/inkomi/back/api/internal/modules/transactions/ui/dtos"
 	"github.com/ismelen/inkomi/back/api/internal/modules/transactions/usecases/mocks"
 	"github.com/ismelen/inkomi/back/api/internal/modules/transactions/usecases/newupload"
 	"github.com/stretchr/testify/assert"
@@ -25,12 +24,12 @@ func TestNewUploadRequestUC_Execute_FolderItems_SavesPositionInOrder(t *testing.
 	}
 	uc := newupload.NewNewUploadRequestUC(&mocks.MockTxManager{}, sourceRepo, &mocks.MockConfigRepository{}, &mocks.MockCloudStorage{}, &mocks.MockStorageQuota{}, models.StorageEstimateOptions{})
 
-	req := dtos.UploadRequestDTO{
+	req := models.UploadRequest{
 		EReaderKey: "KoMT",
-		Sources: []dtos.SourceDTO{
+		Sources: []models.UploadSource{
 			{
-				NoItemsSourceDTO: dtos.NoItemsSourceDTO{Title: "Folder", Type: models.SourceTypeFolder},
-				Items: []dtos.NoItemsSourceDTO{
+				UploadItem: models.UploadItem{Title: "Folder", Type: models.SourceTypeFolder},
+				Items: []models.UploadItem{
 					{Title: "Ch 1", Type: models.SourceTypeFile},
 					{Title: "Ch 2", Type: models.SourceTypeFile},
 					{Title: "Ch 3", Type: models.SourceTypeFile},

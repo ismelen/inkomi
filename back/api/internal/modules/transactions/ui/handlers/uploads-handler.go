@@ -56,17 +56,24 @@ func (u *UploadsHandler) HandleNewRequest(w http.ResponseWriter, r *http.Request
 		return nil, requtil.NewError(http.StatusBadRequest, "invalid format")
 	}
 
-	sources, err := u.newUploadUC.Execute(r.Context(), data, token.Id)
+	request, err := data.ToUploadRequest()
+	if err != nil {
+		return nil, requtil.NewError(http.StatusBadRequest, "invalid format")
+	}
+
+	sources, err := u.newUploadUC.Execute(r.Context(), request, token.Id)
 	if errors.Is(err, models.ErrInsufficientStorage) {
 		return nil, requtil.NewError(http.StatusInsufficientStorage, err.Error())
 	}
 	if err != nil {
 		return nil, err
 	}
-	for _, source := range sources {
+	response := make([]dtos.SourceDTO, len(sources))
+	for i, source := range sources {
 		log.Printf("upload request user %d: %s %s %q with %d items", token.Id, source.Type, source.Id, source.Title, len(source.Items))
+		response[i] = dtos.NewSourceDTO(source)
 	}
-	return &sources, nil
+	return &response, nil
 }
 
 func (u *UploadsHandler) HandleOnComplete(w http.ResponseWriter, r *http.Request) (*any, error) {
