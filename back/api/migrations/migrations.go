@@ -11,5 +11,5 @@ var Transactions string
 //go:embed joins.sql
 var Joins string
 
-//go:embed discover.sql
-var Discover string
+//go:embed wishlist.sql
+var Wishlist string

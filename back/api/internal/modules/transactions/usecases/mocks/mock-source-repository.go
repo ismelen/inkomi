@@ -14,7 +14,6 @@ type MockSourceRepository struct {
 	GetDetailByIdAndUserIdFn         func(ctx context.Context, id string, userId int) (*models.SourceDetail, error)
 	ListTreesByUserIdFn              func(ctx context.Context, userId int, filter models.SourceListFilter) ([]models.SourceTree, error)
 	NowFn                            func(ctx context.Context) (time.Time, error)
-	ListSentBooksFn                  func(ctx context.Context, since time.Time, limit int) ([]models.SentBook, error)
 	UpdateStatusFn                   func(ctx context.Context, id string, userId int, status models.SourceStatus) error
 	UpdateFileFn                     func(ctx context.Context, id string, userId int, filename string, size int64) error
 	UpdateErrorMsgFn                 func(ctx context.Context, id string, userId int, errorMsg string) error
@@ -98,13 +97,6 @@ func (m *MockSourceRepository) Now(ctx context.Context) (time.Time, error) {
 		return m.NowFn(ctx)
 	}
 	return time.Now().UTC().Truncate(time.Second), nil
-}
-
-func (m *MockSourceRepository) ListSentBooks(ctx context.Context, since time.Time, limit int) ([]models.SentBook, error) {
-	if m.ListSentBooksFn != nil {
-		return m.ListSentBooksFn(ctx, since, limit)
-	}
-	return nil, nil
 }
 
 func (m *MockSourceRepository) CancelTree(ctx context.Context, rootId string, userId int) ([]string, error) {

@@ -10,17 +10,11 @@ import (
 const maxItems = 500
 
 type AddItemUC struct {
-	repo     ports.IItemRepository
-	onChange func(userId int)
+	repo ports.IItemRepository
 }
 
 func NewAddItemUC(repo ports.IItemRepository) *AddItemUC {
 	return &AddItemUC{repo: repo}
-}
-
-// SetOnChange registers f to be called with the user after an item is added.
-func (a *AddItemUC) SetOnChange(f func(userId int)) {
-	a.onChange = f
 }
 
 func (a *AddItemUC) Execute(ctx context.Context, userId int, kind models.ItemKind, title, author, workKey, authorKey string) (*models.Item, error) {
@@ -37,9 +31,6 @@ func (a *AddItemUC) Execute(ctx context.Context, userId int, kind models.ItemKin
 	}
 	if err := a.repo.Add(ctx, item); err != nil {
 		return nil, err
-	}
-	if a.onChange != nil {
-		a.onChange(userId)
 	}
 	return item, nil
 }

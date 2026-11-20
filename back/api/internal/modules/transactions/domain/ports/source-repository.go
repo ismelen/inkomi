@@ -29,9 +29,6 @@ type ISourceRepository interface {
 	UpsertResult(ctx context.Context, result *models.Source) error
 	ListResultsByParentIdAndUserId(ctx context.Context, parentId string, userId int) ([]models.Source, error)
 	Delete(ctx context.Context, id string, userId int) error
-	// ListSentBooks returns up to limit sent books updated at or after since, oldest first; a
-	// book updated exactly at since may come again.
-	ListSentBooks(ctx context.Context, since time.Time, limit int) ([]models.SentBook, error)
 	// CancelTree marks as cancelled the root and its unfinished sources and returns their ids.
 	CancelTree(ctx context.Context, rootId string, userId int) ([]string, error)
 }

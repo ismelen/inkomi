@@ -1,5 +1,5 @@
-// Package openlibrary is a small client of the Open Library APIs (search, authors, works and
-// subjects) shared by the modules, with a single rate limit for the whole process.
+// Package openlibrary is a small client of the Open Library search APIs (books and authors),
+// with a single rate limit for the whole process.
 package openlibrary
 
 import (
@@ -47,14 +47,10 @@ func NewClient(baseURL, userAgent string, rps float64) *Client {
 
 // SearchQuery is a query of search.json; empty fields are left out.
 type SearchQuery struct {
-	Title     string
-	Author    string
-	AuthorKey string
-	Subject   string
-	// Query is a free query, e.g. "first_publish_year:[2025 TO *]".
+	Title  string
+	Author string
+	// Query is free text matched against titles and authors.
 	Query string
-	// Sort is empty (relevance) or "new".
-	Sort  string
 	Limit int
 }
 
@@ -67,10 +63,7 @@ func (c *Client) SearchWorks(ctx context.Context, q SearchQuery) ([]Work, error)
 	}
 	set("title", q.Title)
 	set("author", q.Author)
-	set("author_key", q.AuthorKey)
-	set("subject", q.Subject)
 	set("q", q.Query)
-	set("sort", q.Sort)
 	params.Set("fields", searchFields)
 	params.Set("limit", strconv.Itoa(max(q.Limit, 1)))
 
@@ -110,53 +103,6 @@ func (c *Client) SearchAuthors(ctx context.Context, query string, limit int) ([]
 		authors = append(authors, Author{Key: trimKey(doc.Key), Name: doc.Name, TopWork: doc.TopWork, WorkCount: doc.WorkCount})
 	}
 	return authors, nil
-}
-
-// WorkDetail reads the description and subjects of a work (/works/<key>.json).
-func (c *Client) WorkDetail(ctx context.Context, key string) (*Detail, error) {
-	var body struct {
-		Description json.RawMessage `json:"description"`
-		Subjects    []string        `json:"subjects"`
-	}
-	if err := c.getJSON(ctx, "/works/"+url.PathEscape(trimKey(key))+".json", &body); err != nil {
-		return nil, err
-	}
-	return &Detail{Description: description(body.Description), Subjects: body.Subjects}, nil
-}
-
-// SubjectWorks lists works of a subject (/subjects/<subject>.json).
-func (c *Client) SubjectWorks(ctx context.Context, subject string, limit int) ([]Work, error) {
-	slug := strings.ReplaceAll(strings.ToLower(strings.TrimSpace(subject)), " ", "_")
-	var body struct {
-		Works []struct {
-			Key              string   `json:"key"`
-			Title            string   `json:"title"`
-			CoverId          int      `json:"cover_id"`
-			FirstPublishYear int      `json:"first_publish_year"`
-			Subject          []string `json:"subject"`
-			Authors          []struct {
-				Key  string `json:"key"`
-				Name string `json:"name"`
-			} `json:"authors"`
-		} `json:"works"`
-	}
-	path := "/subjects/" + url.PathEscape(slug) + ".json?limit=" + strconv.Itoa(max(limit, 1))
-	if err := c.getJSON(ctx, path, &body); err != nil {
-		return nil, err
-	}
-	works := make([]Work, 0, len(body.Works))
-	for _, w := range body.Works {
-		if w.Key == "" || w.Title == "" {
-			continue
-		}
-		work := Work{Key: trimKey(w.Key), Title: w.Title, CoverId: w.CoverId, FirstPublishYear: w.FirstPublishYear, Subjects: w.Subject}
-		for _, a := range w.Authors {
-			work.Authors = append(work.Authors, a.Name)
-			work.AuthorKeys = append(work.AuthorKeys, trimKey(a.Key))
-		}
-		works = append(works, work)
-	}
-	return works, nil
 }
 
 // CoverURL is the medium cover image of a cover id, or "" without one.

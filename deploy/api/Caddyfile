@@ -3,7 +3,7 @@
 # healthy deploy.
 
 __DOMAIN__ {
-	@api path /auth/* /users/* /books/* /uploads /uploads/* /ws /ws/* /preview /preview/* /app/* /files/* /wishlist /wishlist/* /recommendations /recommendations/* /healthz
+	@api path /auth/* /users/* /books/* /uploads /uploads/* /ws /ws/* /preview /preview/* /app/* /files/* /wishlist /wishlist/* /healthz
 	handle @api {
 		reverse_proxy localhost:3001
 	}

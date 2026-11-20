@@ -15,6 +15,4 @@ type IItemRepository interface {
 	// ListByUserId returns the items of the user, newest first.
 	ListByUserId(ctx context.Context, userId int) ([]models.Item, error)
 	CountByUserId(ctx context.Context, userId int) (int, error)
-	// ListAll returns every item of every user, oldest first.
-	ListAll(ctx context.Context) ([]models.Item, error)
 }

@@ -41,13 +41,9 @@ ui/                 entrada HTTP: dtos, handlers, routes, middlewares, requtil
 - Archivos en el disco del servidor (`STORAGE=local`, por defecto): `platform/storage.LocalStorage` implementa `cloud.ICloudStorage` en `DATA_DIR/files/<id>/<filename>` con enlaces duros (los temporales de los workers están en el mismo volumen, `TMPDIR`), y los clientes suben y bajan por `/files/{id}/{filename}` con URLs firmadas (HMAC con caducidad y, al subir, el tamaño declarado). `STORAGE=r2` vuelve a R2.
 - Cada envío reserva su pico de disco al pedirse (`models.EstimateStoragePeak` + `storagequota.DiskQuota`); si no cabe, 507 `insufficient storage`. La reserva se libera cuando todo su árbol termina. Cada paso borra su entrada en cuanto guarda su salida (cbz → epub → bloque → kepub); la unión borra los capítulos de cada bloque al guardarlo y un reintento reutiliza los bloques ya guardados.
 
-## Deseados y recomendaciones
+## Deseados
 
-- `wishlist` (libros y autores por usuario, autocompletado con Open Library) y `recommendations` comparten `discover.db` (`migrations/discover.sql`). El cliente de Open Library es `platform/openlibrary`, con un único límite de peticiones para todo el proceso.
-- `recommendations` lee lo enviado (`transactions/usecases/listsentbooks`: raíces `.epub` en `sent`/`done`, sin manga) y los deseados (`wishlist/usecases/listallitems`) con adaptadores en proceso. Lo convierte en señales (`user_signal`), las casa con obras de Open Library (`catalog_work`) y añade candidatos: otras obras de sus autores, obras de sus subjects y novedades.
-- Los embeddings los calcula `infra/embedding` en el propio proceso: hugot con backend pure Go (sin cgo) y `multilingual-e5-small` int8, que se descarga una vez en `DATA_DIR/models` y se libera tras cada pasada. El ranking es coseno por fuerza bruta contra el perfil (media ponderada) con tres secciones (`for_you`, `new`, `discover`).
-- `refreshcatalog.Start` hace una pasada completa cada `RECS_REFRESH_INTERVAL`, con un presupuesto de peticiones. Un cambio en los deseados lanza una pasada rápida con debounce. `RECS_ENABLED=false` la apaga.
-- Test del modelo real: `go test -tags embedding ./internal/modules/recommendations/infra/embedding/`.
+- `wishlist`: libros y autores que quiere cada usuario, en `wishlist.db` (`migrations/wishlist.sql`), con autocompletado desde Open Library (`platform/openlibrary`, con un único límite de peticiones para todo el proceso). Los duplicados se detectan por la clave de Open Library o por título y autor normalizados.
 
 ## Nombres
 

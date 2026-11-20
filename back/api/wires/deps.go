@@ -39,10 +39,9 @@ type Deps struct {
 	// MangaConcurrency is how many manga jobs run at once.
 	MangaConcurrency int
 	// Cancels skips and interrupts the jobs of cancelled uploads.
-	Cancels   *jobcancel.Registry
-	JoinStore *store.SQLiteJoinStore
-	// DiscoverDB holds the wishlists and the recommendations (discover.db).
-	DiscoverDB  *sql.DB
+	Cancels     *jobcancel.Registry
+	JoinStore   *store.SQLiteJoinStore
+	WishlistDB  *sql.DB
 	OpenLibrary *openlibrary.Client
 }
 

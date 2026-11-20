@@ -12,16 +12,15 @@ import (
 	"github.com/ismelen/inkomi/back/api/internal/modules/wishlist/usecases/removeitem"
 )
 
-func TestRemoveItemUC_Execute_Results_NotifiesOnlyOnSuccess(t *testing.T) {
+func TestRemoveItemUC_Execute_Results_DeletesTheItemOfTheUser(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
-		name     string
-		err      error
-		notified bool
+		name string
+		err  error
 	}{
-		{"Removed", nil, true},
-		{"Not found", models.ErrItemNotFound, false},
+		{"Removed", nil},
+		{"Not found", models.ErrItemNotFound},
 	}
 
 	for _, tc := range cases {
@@ -30,14 +29,13 @@ func TestRemoveItemUC_Execute_Results_NotifiesOnlyOnSuccess(t *testing.T) {
 
 			// Arrange
 			var gotId int64
+			var gotUser int
 			uc := removeitem.NewRemoveItemUC(&mocks.MockItemRepository{
 				DeleteFn: func(ctx context.Context, id int64, userId int) error {
-					gotId = id
+					gotId, gotUser = id, userId
 					return tc.err
 				},
 			})
-			notified := false
-			uc.SetOnChange(func(int) { notified = true })
 
 			// Act
 			err := uc.Execute(context.Background(), 1, 9)
@@ -49,7 +47,7 @@ func TestRemoveItemUC_Execute_Results_NotifiesOnlyOnSuccess(t *testing.T) {
 				require.NoError(t, err)
 			}
 			assert.Equal(t, int64(9), gotId)
-			assert.Equal(t, tc.notified, notified)
+			assert.Equal(t, 1, gotUser)
 		})
 	}
 }

@@ -49,60 +49,6 @@ func TestClient_SearchWorks_Query_SendsParamsAndTrimsKeys(t *testing.T) {
 	}}, works)
 }
 
-func TestClient_WorkDetail_Descriptions_ReadsBothShapes(t *testing.T) {
-	t.Parallel()
-
-	cases := []struct {
-		name string
-		body string
-		want string
-	}{
-		{"Plain", `{"description":" Una novela ","subjects":["Crime"]}`, "Una novela"},
-		{"Typed", `{"description":{"type":"/type/text","value":"Typed text"}}`, "Typed text"},
-		{"Missing", `{}`, ""},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			// Arrange
-			client := newServer(t, func(w http.ResponseWriter, r *http.Request) {
-				assert.Equal(t, "/works/OL1W.json", r.URL.Path)
-				fmt.Fprint(w, tc.body)
-			})
-
-			// Act
-			detail, err := client.WorkDetail(context.Background(), "/works/OL1W")
-
-			// Assert
-			require.NoError(t, err)
-			assert.Equal(t, tc.want, detail.Description)
-		})
-	}
-}
-
-func TestClient_SubjectWorks_Subject_ReadsWorksWithAuthors(t *testing.T) {
-	t.Parallel()
-
-	// Arrange
-	client := newServer(t, func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/subjects/science_fiction.json", r.URL.Path)
-		fmt.Fprint(w, `{"works":[{"key":"/works/OL2W","title":"Dune","cover_id":7,"first_publish_year":1965,
-			"subject":["Science fiction"],"authors":[{"key":"/authors/OL3A","name":"Frank Herbert"}]}]}`)
-	})
-
-	// Act
-	works, err := client.SubjectWorks(context.Background(), "Science Fiction", 10)
-
-	// Assert
-	require.NoError(t, err)
-	require.Len(t, works, 1)
-	assert.Equal(t, "OL2W", works[0].Key)
-	assert.Equal(t, []string{"OL3A"}, works[0].AuthorKeys)
-	assert.Equal(t, []string{"Frank Herbert"}, works[0].Authors)
-}
-
 func TestClient_SearchAuthors_NotFoundAndErrors_MapsThem(t *testing.T) {
 	t.Parallel()
 

@@ -22,7 +22,7 @@ func setupDB(t *testing.T) *sql.DB {
 	require.NoError(t, err)
 	db.SetMaxOpenConns(1)
 	t.Cleanup(func() { _ = db.Close() })
-	_, err = db.Exec(migrations.Discover)
+	_, err = db.Exec(migrations.Wishlist)
 	require.NoError(t, err)
 	return db
 }
@@ -54,8 +54,6 @@ func TestSQLiteItemRepository_AddListDelete_Lifecycle_Works(t *testing.T) {
 	require.NoError(t, err)
 	count, err := repo.CountByUserId(ctx, 1)
 	require.NoError(t, err)
-	all, err := repo.ListAll(ctx)
-	require.NoError(t, err)
 	notMine := repo.Delete(ctx, other.Id, 1)
 	deleted := repo.Delete(ctx, first.Id, 1)
 	afterDelete, err := repo.ListByUserId(ctx, 1)
@@ -68,7 +66,6 @@ func TestSQLiteItemRepository_AddListDelete_Lifecycle_Works(t *testing.T) {
 	assert.Equal(t, "Carmen Mola", mine[1].Author)
 	assert.False(t, mine[1].CreatedAt.IsZero())
 	assert.Equal(t, 2, count)
-	assert.Len(t, all, 3)
 	assert.ErrorIs(t, notMine, models.ErrItemNotFound)
 	require.NoError(t, deleted)
 	assert.Len(t, afterDelete, 1)

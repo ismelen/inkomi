@@ -11,7 +11,6 @@ type MockItemRepository struct {
 	DeleteFn        func(ctx context.Context, id int64, userId int) error
 	ListByUserIdFn  func(ctx context.Context, userId int) ([]models.Item, error)
 	CountByUserIdFn func(ctx context.Context, userId int) (int, error)
-	ListAllFn       func(ctx context.Context) ([]models.Item, error)
 }
 
 func (m *MockItemRepository) Add(ctx context.Context, item *models.Item) error {
@@ -41,11 +40,4 @@ func (m *MockItemRepository) CountByUserId(ctx context.Context, userId int) (int
 		return m.CountByUserIdFn(ctx, userId)
 	}
 	return 0, nil
-}
-
-func (m *MockItemRepository) ListAll(ctx context.Context) ([]models.Item, error) {
-	if m.ListAllFn != nil {
-		return m.ListAllFn(ctx)
-	}
-	return nil, nil
 }

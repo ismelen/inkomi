@@ -72,12 +72,11 @@ func main() {
 	}
 	cancels.Start(ctx, 6*time.Hour)
 
-	// discover.db holds the wishlists and the recommendations
-	discoverDB, err := sqlitedb.Open(filepath.Join(config.Env.DataDir, "discover.db"), migrations.Discover)
+	wishlistDB, err := sqlitedb.Open(filepath.Join(config.Env.DataDir, "wishlist.db"), migrations.Wishlist)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer wires.CloseLogged("discover.db", discoverDB.Close)()
+	defer wires.CloseLogged("wishlist.db", wishlistDB.Close)()
 
 	memory := resources.NewMemory()
 	d := &wires.Deps{
@@ -88,7 +87,7 @@ func main() {
 		Queue:            jobQueue,
 		AuthMiddleware:   authMiddleware,
 		MangaConcurrency: mangaConcurrency(memory),
-		DiscoverDB:       discoverDB,
+		WishlistDB:       wishlistDB,
 		OpenLibrary:      openlibrary.NewClient(openlibrary.DefaultBaseURL, config.Env.OpenLibraryUserAgent, config.Env.OpenLibraryRPS),
 	}
 
@@ -110,8 +109,7 @@ func main() {
 	}()
 
 	// the WebSocket stays outside the timeout group and the preview has its own limits
-	closeTransactions, transactions := wires.Transactions(d, router)
-	closers = append(closers, closeTransactions)
+	closers = append(closers, wires.Transactions(d, router))
 	wires.Manga(d, router)
 
 	router.Group(func(r chi.Router) {
@@ -122,8 +120,7 @@ func main() {
 		wires.Library(d, r)
 		wires.Release(r)
 		wires.Push(d, auth)
-		wishlist := wires.Wishlist(d, r)
-		wires.Recommendations(d, r, transactions, wishlist)
+		wires.Wishlist(d, r)
 	})
 
 	server := &http.Server{

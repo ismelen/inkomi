@@ -1,7 +1,6 @@
 package openlibrary
 
 import (
-	"encoding/json"
 	"errors"
 	"strings"
 )
@@ -25,11 +24,6 @@ type Author struct {
 	Name      string
 	TopWork   string
 	WorkCount int
-}
-
-type Detail struct {
-	Description string
-	Subjects    []string
 }
 
 type searchDoc struct {
@@ -70,22 +64,4 @@ func trimKey(key string) string {
 		return key[i+1:]
 	}
 	return key
-}
-
-// description reads a description that is either a string or {"type": ..., "value": ...}.
-func description(raw json.RawMessage) string {
-	if len(raw) == 0 {
-		return ""
-	}
-	var text string
-	if err := json.Unmarshal(raw, &text); err == nil {
-		return strings.TrimSpace(text)
-	}
-	var typed struct {
-		Value string `json:"value"`
-	}
-	if err := json.Unmarshal(raw, &typed); err == nil {
-		return strings.TrimSpace(typed.Value)
-	}
-	return ""
 }

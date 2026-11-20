@@ -12,7 +12,7 @@ import (
 	"github.com/ismelen/inkomi/back/api/internal/modules/wishlist/usecases/mocks"
 )
 
-func TestAddItemUC_Execute_ValidItem_StoresAndNotifies(t *testing.T) {
+func TestAddItemUC_Execute_ValidItem_StoresIt(t *testing.T) {
 	t.Parallel()
 
 	// Arrange
@@ -24,8 +24,6 @@ func TestAddItemUC_Execute_ValidItem_StoresAndNotifies(t *testing.T) {
 			return nil
 		},
 	})
-	notified := 0
-	uc.SetOnChange(func(userId int) { notified = userId })
 
 	// Act
 	item, err := uc.Execute(context.Background(), 3, models.ItemKindAuthor, "Carmen Mola", "", "", "OL9A")
@@ -34,10 +32,9 @@ func TestAddItemUC_Execute_ValidItem_StoresAndNotifies(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, int64(7), item.Id)
 	assert.Equal(t, "OL9A", stored.AuthorKey)
-	assert.Equal(t, 3, notified)
 }
 
-func TestAddItemUC_Execute_Failures_DoesNotNotify(t *testing.T) {
+func TestAddItemUC_Execute_Failures_ReturnsTheError(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
@@ -61,15 +58,12 @@ func TestAddItemUC_Execute_Failures_DoesNotNotify(t *testing.T) {
 				CountByUserIdFn: func(ctx context.Context, userId int) (int, error) { return tc.count, nil },
 				AddFn:           func(ctx context.Context, item *models.Item) error { return tc.add },
 			})
-			notified := false
-			uc.SetOnChange(func(int) { notified = true })
 
 			// Act
 			_, err := uc.Execute(context.Background(), 1, models.ItemKindBook, tc.title, "", "", "")
 
 			// Assert
 			assert.ErrorIs(t, err, tc.err)
-			assert.False(t, notified)
 		})
 	}
 }

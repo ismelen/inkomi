@@ -61,10 +61,6 @@ func (r *SQLiteItemRepository) CountByUserId(ctx context.Context, userId int) (i
 	return count, err
 }
 
-func (r *SQLiteItemRepository) ListAll(ctx context.Context) ([]models.Item, error) {
-	return r.list(ctx, `SELECT `+itemColumns+` FROM wishlist_item ORDER BY createdAt, id`)
-}
-
 func (r *SQLiteItemRepository) list(ctx context.Context, query string, args ...any) ([]models.Item, error) {
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
