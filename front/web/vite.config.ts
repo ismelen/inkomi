@@ -3,29 +3,20 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import pkg from './package.json';
 
-// Default ports of the services run with `go run .` (like the ingress, by path prefix).
-const localServices: Record<string, string> = {
-  '/auth': 'http://localhost:3100',
-  '/users': 'http://localhost:3100',
-  '/books': 'http://localhost:3001',
-  '/uploads': 'http://localhost:3000',
-  '/ws': 'http://localhost:3000',
-  '/app': 'http://localhost:3200',
-};
+// Routes of the api (back/api) run locally with `go run .` on its default port.
+const localAPI = 'http://localhost:3000';
+const apiRoutes = ['/auth', '/users', '/books', '/uploads', '/ws', '/app'];
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
-  // DEV_BACKEND: one gateway for every route (a deployed domain); otherwise the local services.
-  const gateway = env.DEV_BACKEND;
+  // DEV_BACKEND: another backend for every route (a deployed domain); otherwise the local api.
+  const target = env.DEV_BACKEND || localAPI;
   return {
     plugins: [react(), tailwindcss()],
     define: { __APP_VERSION__: JSON.stringify(pkg.version) },
     server: {
       proxy: Object.fromEntries(
-        Object.entries(localServices).map(([prefix, local]) => [
-          prefix,
-          { target: gateway || local, changeOrigin: true, ws: prefix === '/ws' },
-        ])
+        apiRoutes.map((prefix) => [prefix, { target, changeOrigin: true, ws: prefix === '/ws' }])
       ),
     },
   };

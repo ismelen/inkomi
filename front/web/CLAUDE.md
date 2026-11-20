@@ -5,7 +5,7 @@ Mismo producto que `front/mobile` (mismo funcionamiento y contratos con el backe
 ## Stack y comandos
 
 - Vite + React 19 + TypeScript estricto, react-router 7, zustand 5 + immer, Tailwind CSS v4, i18next, `idb` (IndexedDB), dnd-kit.
-- `npm run dev` (proxy de `/auth`, `/users`, `/books`, `/uploads`, `/ws` y `/app` a los servicios locales por sus puertos, o todo a `DEV_BACKEND` si se define) · `npm run build` (incluye `tsc`) · `npm run typecheck` · `npx prettier --check .`.
+- `npm run dev` (proxy de `/auth`, `/users`, `/books`, `/uploads`, `/ws` y `/app` a la api local (`back/api`, `localhost:3000`), o a `DEV_BACKEND` si se define) · `npm run build` (incluye `tsc`) · `npm run typecheck` · `npx prettier --check .`.
 - Sin backend: `npm run mock` (backend falso en memoria, `dev/mock-backend.mjs`, puerto 8080) y `npm run dev:mock` (Vite con `.env.mock`). Si cambia un contrato del backend, actualiza también el mock.
 - Variables en `.env` (ver `.env.template`): `VITE_BACKEND_URL` (vacío = mismo origen), `VITE_DROPBOX_API_KEY`, `VITE_GOOGLE_WEB_CLIENT_ID`. Solo se leen en `src/config.ts`.
 
@@ -37,7 +37,7 @@ src/services/ · src/stores/      como en móvil, con las adaptaciones de plataf
 ## Plataforma (diferencias con móvil)
 
 - Tokens y `deviceId` en `localStorage`; todas las pestañas comparten sesión (evento `storage`). El refresh, además de single-flight, va dentro de `navigator.locks` (`inkomi-refresh`) y relee el token: otra pestaña puede haberlo rotado ya.
-- WebSocket: el navegador no manda cabeceras, así que el token va como subprotocolo `['bearer', token]` (lo acepta `back/microservices/common/httpauth` y el upgrader del transaction-manager lo devuelve). Solo la pestaña con el lock `inkomi-ws` abre el WS y sincroniza; las demás ven los cambios por la BD compartida (`BroadcastChannel`). El backoff solo se reinicia si la conexión duró >30 s (el servidor admite una conexión por usuario).
+- WebSocket: el navegador no manda cabeceras, así que el token va como subprotocolo `['bearer', token]` (lo acepta `back/api/internal/platform/httpauth` y el upgrader del módulo transactions lo devuelve). Solo la pestaña con el lock `inkomi-ws` abre el WS y sincroniza; las demás ven los cambios por la BD compartida (`BroadcastChannel`). El backoff solo se reinicia si la conexión duró >30 s (el servidor admite una conexión por usuario).
 - Actividad en IndexedDB (`services/activity-db.ts`, misma API que la versión SQLite). El borrador de la lista se persiste en IndexedDB sin JSON para conservar los `File`. Preferencias en `localStorage` (el tema se aplica antes de React en `index.html`).
 - Subida: `PUT` con `XMLHttpRequest` (progreso y `abort`); `beforeunload` avisa mientras sube. Necesita CORS del bucket R2 (`deploy/SERVERS.md`).
 - Descarga: se pide el enlace en cada clic y se navega a él. No hay "Compartir".
@@ -46,7 +46,7 @@ src/services/ · src/stores/      como en móvil, con las adaptaciones de plataf
 
 ## Despliegue
 
-- `Dockerfile` (build con Node, nginx sin root en 8080 con fallback a `index.html`) y `deploy/k8s/web/web.yaml`; pipeline manual `.github/workflows/deploy-web.yml`. Mismo dominio que la API.
+- `Dockerfile` (build con Node, nginx sin root en 8080 con fallback a `index.html`) ; pipeline manual `.github/workflows/deploy-web.yml`, que publica `inkomi-web:latest` y el stack de `back/api/docker-compose.yml` la sirve detrás de Caddy. Mismo dominio que la API.
 
 ## Nombres y estilo
 

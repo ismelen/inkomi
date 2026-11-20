@@ -1,0 +1,171 @@
+name: Deploy api (Docker Compose)
+
+# Manual only. Deploys the api (back/api: every module in one process, with an embedded NATS
+# and SQLite) to the Oracle server with Docker Compose:
+#   1. unit tests (gofmt + go vet + go test -race, with libvips)
+#   2. linux/arm64 images (the server is ARM) of the api and the e2e tests pushed to ghcr.io,
+#      built natively on an ARM runner: cgo + libvips can't cross-compile and QEMU took ~20 min
+#   3. on the server: preview samples to R2, e2e tests against a throwaway compose project and,
+#      only if they pass, the production rollout with rollback (deploy/api/deploy.sh)
+#
+# Secrets: ORACLE_HOST, ORACLE_USERNAME, ORACLE_PRIVATE_KEY, ORACLE_SSH_PORT (default 22) and,
+#          optionally, GHCR_PULL_TOKEN (PAT with read:packages; without it the job token is used).
+# The env lives on the server at ~/inkomi/back/api/.env and firebase.json next to it (see
+# back/api/.env.example and deploy/SERVERS.md). The web image is the latest one pushed by
+# deploy-web.yml.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: deploy-api
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.plan.outputs.tag }}
+      registry: ${{ steps.plan.outputs.registry }}
+    steps:
+      - id: plan
+        env:
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          {
+            echo "tag=${GITHUB_SHA:0:12}"
+            echo "registry=ghcr.io/${OWNER,,}"
+          } | tee -a "$GITHUB_OUTPUT"
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: back/api
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: back/api/go.mod
+          cache-dependency-path: back/api/go.sum
+
+      - name: Install libvips
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libvips-dev
+
+      - name: Format, vet and test
+        run: |
+          unformatted="$(gofmt -l .)"
+          [[ -z "$unformatted" ]] || { echo "gofmt needed:"; echo "$unformatted"; exit 1; }
+          go vet ./...
+          go test -race ./...
+
+  e2e-compile:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: back/api
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: back/api/go.mod
+          cache-dependency-path: back/api/go.sum
+
+      - name: Vet and compile the e2e tests
+        run: |
+          go vet -tags e2e ./e2e/...
+          go test -tags e2e -c -o /dev/null ./e2e
+
+  images:
+    needs: [plan, unit-tests, e2e-compile]
+    runs-on: ubuntu-24.04-arm
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - image: api
+            context: back/api
+            file: back/api/Dockerfile
+          - image: e2e
+            context: back/api
+            file: back/api/e2e/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
+          target: runtime
+          platforms: linux/arm64
+          push: true
+          tags: ${{ needs.plan.outputs.registry }}/inkomi-${{ matrix.image }}:${{ needs.plan.outputs.tag }}
+          cache-from: type=gha,scope=${{ matrix.image }}-arm64
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}-arm64
+
+  deploy:
+    needs: [plan, images]
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare the deploy files
+        run: |
+          mkdir -p bundle
+          cp back/api/docker-compose.yml deploy/api/deploy.sh deploy/api/Caddyfile bundle/
+
+      - name: Clean the deploy files on the server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          port: ${{ secrets.ORACLE_SSH_PORT || '22' }}
+          username: ${{ secrets.ORACLE_USERNAME }}
+          key: ${{ secrets.ORACLE_PRIVATE_KEY }}
+          script: |
+            rm -rf ~/inkomi-api/src ~/inkomi-monolith/src
+            mkdir -p ~/inkomi-api/src
+
+      - name: Copy the deploy files
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          port: ${{ secrets.ORACLE_SSH_PORT || '22' }}
+          username: ${{ secrets.ORACLE_USERNAME }}
+          key: ${{ secrets.ORACLE_PRIVATE_KEY }}
+          source: "bundle/*"
+          strip_components: 1
+          target: "~/inkomi-api/src"
+
+      - name: Sandbox tests and deploy
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          GHCR_USER: ${{ secrets.GHCR_PULL_TOKEN && github.repository_owner || github.actor }}
+          # without a PAT the job token pulls the images (enough: they stay cached on the server)
+          GHCR_TOKEN: ${{ secrets.GHCR_PULL_TOKEN || secrets.GITHUB_TOKEN }}
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          port: ${{ secrets.ORACLE_SSH_PORT || '22' }}
+          username: ${{ secrets.ORACLE_USERNAME }}
+          key: ${{ secrets.ORACLE_PRIVATE_KEY }}
+          command_timeout: 45m
+          envs: GHCR_USER,GHCR_TOKEN
+          script: |
+            bash ~/inkomi-api/src/deploy.sh \
+              --tag "${{ needs.plan.outputs.tag }}" \
+              --registry "${{ needs.plan.outputs.registry }}" \
+              --run "${{ github.run_id }}-${{ github.run_attempt }}"

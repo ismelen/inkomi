@@ -1,0 +1,14 @@
+# Caddyfile for a Caddy installed on the host (systemd, /etc/caddy/Caddyfile). deploy.sh renders
+# __DOMAIN__ with API_DOMAIN from ~/inkomi/back/api/.deploy.env and installs it after a
+# healthy deploy.
+
+__DOMAIN__ {
+	@api path /auth/* /users/* /books/* /uploads /uploads/* /ws /ws/* /preview /preview/* /app/* /files/* /healthz
+	handle @api {
+		reverse_proxy localhost:3001
+	}
+
+	handle {
+		reverse_proxy localhost:8081
+	}
+}

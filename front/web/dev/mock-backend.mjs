@@ -1,4 +1,4 @@
-// Fake backend to work on the web without the microservices: `npm run mock` and, in another
+// Fake backend to work on the web without the api: `npm run mock` and, in another
 // terminal, `npm run dev:mock` (Vite with .env.mock, which proxies everything here). Everything lives in memory and is lost on restart.
 //
 // It answers the routes the app uses with the same shapes as the real services (auth, users,

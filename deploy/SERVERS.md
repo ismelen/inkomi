@@ -1,71 +1,42 @@
 # Servidores: lo que hay que hacer a mano
 
-Guía de lo que **no** hacen las pipelines (`.github/workflows/deploy-microservices.yml` para k3s y `.github/workflows/deploy-monolith.yml` para el monolito, §12) y hay que preparar en las máquinas. Las máquinas base se configuran con el Ansible de `utils/server-config` (usuarios, SSH en 2222, UFW, fail2ban, Docker y Caddy). Esta guía va encima de eso.
+Guía de lo que **no** hace la pipeline (`.github/workflows/deploy-api.yml`) y hay que preparar en el servidor. La máquina base se configura con el Ansible de `utils/server-config` (usuarios, SSH en 2222, UFW, fail2ban, Docker y Caddy). Esta guía va encima de eso.
 
 ## Arquitectura
 
-Un único clúster **k3s** con dos nodos (y los que se añadan después):
+Un único servidor (Oracle, ARM) con Docker Compose (`back/api/docker-compose.yml`, proyecto `inkomi-api`):
 
-| Nodo | Rol k3s | Etiqueta | Qué corre | Entrada desde internet |
-|---|---|---|---|---|
-| Oracle (≈2 vCPU / 2 GB) | server (control plane) | `inkomi.io/capacity=low` | NATS, Redis, auth-service, library-service, transaction-manager, push-service | IP pública → Caddy (HTTPS) |
-| Móvil (ARM64, ≥4 GB) | agent | `inkomi.io/capacity=high` | manga-worker, epub-worker | ninguna (opcional: Cloudflare Tunnel, ver §8) |
+- `api`: `back/api`, todos los módulos en un proceso, con NATS embebido (JetStream en disco) y las tres SQLite (`users.db`, `transactions.db`, `jobs.db`) en `data/`. Los archivos van al disco del servidor (`STORAGE=local`, ver más abajo) o a R2.
+- `web`: la imagen `inkomi-web:latest` que publica `deploy-web.yml`.
+- Entrada HTTP: Caddy (HTTPS) → las rutas de la API a `api` y el resto a `web`, en el mismo dominio (sin CORS).
+- La pipeline entra por SSH (usuario `deployer`, sin sudo) y usa `docker compose`.
 
-- `manga-worker` y `epub-worker` *prefieren* nodos `high`. Si no hay ninguno (o no tienen hueco), se colocan donde quepan, aunque sea en un `low`. El resto *prefiere* nodos `low`, así que los nodos grandes quedan libres para procesar imágenes. Son preferencias, no requisitos: el clúster funciona aunque solo haya un nodo.
-- Los nodos se ven entre sí por **Tailscale** (el móvil está detrás del NAT de casa). Flannel va sobre la interfaz `tailscale0`.
-- Entrada HTTP: el Caddy de cada nodo → Traefik de k3s (NodePort `30080`) → servicios por ruta (`deploy/k8s/ingress.yaml`). Cualquier nodo sirve todas las rutas.
-- Las imágenes son multi-arch (amd64 + arm64) y se descargan de `ghcr.io`, así que da igual la arquitectura de Oracle y de los nodos futuros.
-- La pipeline entra **solo en Oracle** (SSH 2222, usuario `deployer`, sin sudo) y usa `kubectl`.
+## Script de preparación
 
-## Scripts de preparación
-
-Automatizan las secciones 2 a 8 y 10 de esta guía. Son idempotentes: si se vuelven a ejecutar, solo aplican lo que falta. Se ejecutan como root **después del Ansible**.
+`deploy/servers/setup-oracle.sh` automatiza las secciones 2 a 4 y 8. Es idempotente: si se vuelve a ejecutar, solo aplica lo que falta. Se ejecuta como root **después del Ansible**.
 
 ```bash
-# 1. Oracle (server)
 scp -P 2222 -r deploy <admin>@<ip-oracle>:~/
 ssh -p 2222 <admin>@<ip-oracle>
-sudo TS_AUTHKEY=tskey-auth-... DOMAIN=api.tudominio.com bash ~/deploy/servers/setup-oracle.sh
-#    con el monolito (§12): añade MONOLITH_DOMAIN=mono.tudominio.com
-#    → imprime la IP de Tailscale de Oracle y el token para unir nodos
-
-# 2. Móvil (agent) y nodos futuros
-scp -P 2222 -r deploy <admin>@<ip-movil>:~/
-ssh -p 2222 <admin>@<ip-movil>
-sudo TS_AUTHKEY=tskey-auth-... K3S_URL=https://<ip-tailscale-oracle>:6443 K3S_TOKEN=<token>      bash ~/deploy/servers/setup-mobile.sh
-#    otro nodo pequeño: añade NODE_CAPACITY=low
+sudo TS_AUTHKEY=tskey-auth-... API_DOMAIN=inkomi.tudominio.com bash ~/deploy/servers/setup-oracle.sh
 ```
 
-| Script | Qué hace |
-|---|---|
-| `setup-oracle.sh` | paquetes, quita los REJECT de OCI, swap, Tailscale, reglas UFW, k3s server con etiqueta `low`, carpetas de `.env` de `deployer`, copia diaria de las SQLite (`/var/backups/inkomi`, 14 días) y Caddy con HTTPS para `DOMAIN` (y `MONOLITH_DOMAIN`, con su carpeta en `~/inkomi/back/monolith` y `deployer` en el grupo `docker`) |
-| `setup-mobile.sh` | paquetes, comprobaciones (arquitectura, disco, cgroups), desactiva la suspensión, Tailscale, reglas UFW, k3s agent con etiqueta `high` y, opcionalmente, Cloudflare Tunnel y su Caddy (`CF_TUNNEL_TOKEN`, `TUNNEL_HOSTNAME`) |
+Hace: paquetes, quita los REJECT de OCI, swap, Tailscale, la carpeta del stack en `~/inkomi/back/api` (con `data/` de uid 10001 y `deployer` en el grupo `docker`), la copia diaria de las SQLite (`/var/backups/inkomi`, 14 días) y Caddy con HTTPS para `API_DOMAIN`.
 
-Lo que sigue siendo manual: el cambio del Ansible (§1), la *Security List* de OCI, desactivar la expiración de clave en Tailscale, rellenar los `.env` (§6) y los secrets de GitHub (§9).
-
-Las auth keys de Tailscale se crean en <https://login.tailscale.com/admin/settings/keys>. Usa una *reusable* si vas a añadir varios nodos. Tailscale SSH queda activado (`tailscale ssh <usuario>@<nodo>`), así que puedes administrar el móvil desde fuera de casa sin túnel.
+Lo que sigue siendo manual: el cambio del Ansible (§1), la *Security List* de OCI, desactivar la expiración de clave en Tailscale, rellenar el `.env` (§4) y los secrets de GitHub (§6).
 
 ---
 
 ## 1. Ansible (`utils/server-config`)
 
-Cambios necesarios antes de aplicarlo a estas máquinas:
+Cambios necesarios antes de aplicarlo:
 
-1. **Arquitectura de Docker.** `roles/docker/tasks/main.yml` tiene `arch=amd64` fijo y en el móvil (y en Oracle si es ARM) fallará. Cámbialo por:
+1. **Arquitectura de Docker.** `roles/docker/tasks/main.yml` tiene `arch=amd64` fijo y en una máquina ARM fallará. Cámbialo por:
    ```yaml
    repo: "deb [arch={{ 'arm64' if ansible_architecture == 'aarch64' else 'amd64' }} signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
    ```
-   Si el móvil no es Ubuntu (Debian, postmarketOS…) la URL `linux/ubuntu` tampoco valdrá.
-2. **`config/general.yml`**
-   - Oracle: comenta `allowed_web_ip` (servidor público).
-   - Móvil: el tráfico web llega por el túnel (localhost). Ojo: los puertos que publica Docker (Caddy 80/443) se saltan UFW, así que en la LAN de casa siguen abiertos.
-3. **Usuario `deployer`**: es el de la pipeline. No necesita sudo (`deploy.sh` no lo usa). Para k3s no necesita el grupo `docker`; para el monolito sí (§12). Necesita que exista `~/inkomi/back/microservices/` con los `.env` (paso 6).
-4. **UFW** para el tráfico del clúster (en ambos nodos):
-   ```bash
-   sudo ufw allow in on tailscale0
-   sudo ufw allow from 10.42.0.0/16   # pods
-   sudo ufw allow from 10.43.0.0/16   # services
-   ```
+2. **`config/general.yml`**: comenta `allowed_web_ip` (servidor público).
+3. **Usuario `deployer`**: es el de la pipeline. No necesita sudo; sí el grupo `docker` (`deploy.sh` usa `docker compose`, y si no puede prueba con `sudo -n`).
 
 ## 2. Oracle: particularidades
 
@@ -76,263 +47,100 @@ Cambios necesarios antes de aplicarlo a estas máquinas:
   sudo fallocate -l 4G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
   echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
   ```
-- **La API antigua** (`back/api`, ya eliminada del repo) no cabe junto a k3s en 2 GB: si sigue corriendo, para ese stack (`docker compose down` en `~/inkomi/back/api`).
-- **El monolito** (§12) junto a k3s y los microservicios también va justo en 2 GB: úsalo como alternativa (parando el namespace `inkomi`) o en otra máquina.
 
-## 3. Móvil: comprobaciones previas
+## 3. Tailscale (opcional)
 
-- Kernel compatible con k3s. Tras instalarlo: `sudo k3s check-config`. Fíjate en cgroups (memory, cpuset), overlayfs, iptables/nftables y vxlan.
-- Que no se suspenda: desactiva el ahorro de energía y la suspensión, y déjalo siempre enchufado (vigila la batería hinchada a largo plazo).
-- Almacenamiento: manga-worker usa hasta 4 GB de temporales por conversión (`emptyDir`) y las imágenes ocupan espacio. Deja unos 10 GB libres.
-
-## 4. Tailscale (en todos los nodos)
+Solo para administrar el servidor sin exponer más puertos (Tailscale SSH):
 
 ```bash
 curl -fsSL https://tailscale.com/install.sh | sh
-sudo tailscale up --ssh          # Tailscale SSH: administrar el nodo sin abrir puertos
-tailscale ip -4      # anota la IP de cada nodo (100.x.y.z)
+sudo tailscale up --ssh
 ```
 
-En la consola de Tailscale, desactiva la expiración de clave de ambos nodos (*Disable key expiry*). Si no, el clúster se rompe a los 180 días.
+Las auth keys se crean en <https://login.tailscale.com/admin/settings/keys>. En la consola, desactiva la expiración de clave del nodo (*Disable key expiry*).
 
-## 5. k3s
-
-### Oracle (server)
-
-```bash
-ORACLE_TS_IP=$(tailscale ip -4)
-curl -sfL https://get.k3s.io | sh -s - server \
-  --write-kubeconfig-mode 644 \
-  --disable servicelb \
-  --node-ip "$ORACLE_TS_IP" \
-  --advertise-address "$ORACLE_TS_IP" \
-  --flannel-iface tailscale0 \
-  --node-label inkomi.io/capacity=low \
-  --kube-proxy-arg nodeport-addresses=172.16.0.0/12 \
-  --kubelet-arg system-reserved=memory=300Mi \
-  --kubelet-arg eviction-hard=memory.available<150Mi
-
-sudo cat /var/lib/rancher/k3s/server/node-token   # token para unir nodos
-```
-
-- `--write-kubeconfig-mode 644`: el usuario `deployer` puede usar `kubectl` sin sudo (la pipeline lo necesita).
-- `--disable servicelb`: Caddy ya ocupa el 80/443 del host. Traefik va por NodePort (`deploy/k8s/traefik-config.yaml`, que aplica la pipeline).
-- `nodeport-addresses=172.16.0.0/12`: los NodePort solo escuchan en los bridges de Docker, por donde llega Caddy, y no en la IP pública.
-- Comprueba que `envsubst` existe (`sudo apt-get install -y gettext-base`).
-
-### Móvil y nodos futuros (agent)
-
-```bash
-NODE_TS_IP=$(tailscale ip -4)
-curl -sfL https://get.k3s.io | K3S_URL="https://<ORACLE_TS_IP>:6443" K3S_TOKEN="<node-token>" sh -s - agent \
-  --node-ip "$NODE_TS_IP" \
-  --flannel-iface tailscale0 \
-  --node-label inkomi.io/capacity=high \
-  --kube-proxy-arg nodeport-addresses=172.16.0.0/12
-```
-
-Comprobar desde Oracle:
-
-```bash
-kubectl get nodes -L inkomi.io/capacity -o wide
-```
-
-**Añadir un nodo más adelante:** Ansible, Tailscale y el comando de agent con la etiqueta que le toque (`high` si tiene RAM para procesar imágenes). Para cambiar la etiqueta de un nodo existente:
-
-```bash
-kubectl label node <nodo> inkomi.io/capacity=high --overwrite
-```
-
-Con más nodos `high` puedes subir `replicas` de `manga-worker` y `epub-worker` en `deploy/k8s/app/manga-worker.yaml` y `epub-worker.yaml`: los consumidores de NATS reparten los trabajos.
-
-## 6. Variables de entorno (en Oracle)
-
-La pipeline crea los Secrets a partir de estos ficheros. Cada servicio tiene su `back/microservices/<servicio>/.env.example` con todas las variables explicadas. Si vienes del layout anterior (`~/inkomi/back/<servicio>/.env`), muévelos: `deploy.sh` solo usa la ruta antigua si `~/inkomi/back/microservices` no existe.
+## 4. Variables de entorno
 
 ```
-/home/deployer/inkomi/back/microservices/auth-service/.env
-/home/deployer/inkomi/back/microservices/library-service/.env
-/home/deployer/inkomi/back/microservices/transaction-manager/.env
-/home/deployer/inkomi/back/microservices/manga-worker/.env        ← también lo usan la subida de samples y los tests e2e (R2)
-/home/deployer/inkomi/back/microservices/epub-worker/.env
-/home/deployer/inkomi/back/microservices/push-service/.env
-/home/deployer/inkomi/back/microservices/push-service/firebase.json
-/home/deployer/inkomi/back/microservices/release-service/.env      ← opcional: todas las variables tienen valor por defecto
+/home/deployer/inkomi/back/api/.env            ← plantilla: back/api/.env.example
+/home/deployer/inkomi/back/api/firebase.json
+/home/deployer/inkomi/back/api/data/           ← propiedad de uid 10001 (el usuario del contenedor)
+/home/deployer/inkomi/back/api/.deploy.env     ← opcional: API_DOMAIN=<dominio> para el Caddy del host (§5)
 ```
 
 ```bash
-chmod 700 ~/inkomi && chmod 600 ~/inkomi/back/microservices/*/.env ~/inkomi/back/microservices/push-service/firebase.json
+sudo install -d -o 10001 -g 10001 -m 700 ~deployer/inkomi/back/api/data
+chmod 700 ~/inkomi && chmod 600 ~/inkomi/back/api/.env ~/inkomi/back/api/firebase.json
 ```
 
-Claves que tienen que cuadrar entre servicios:
+- `deploy.sh` no despliega si faltan `JWT_PRIVATE_KEY`, `JWT_PUBLIC_KEY`, `TOKEN_ENCRYPTION_KEY`, `GOOGLE_CLIENT_IDS` o las `R2_*` (las usan la subida de samples y los tests e2e).
+- `TOKEN_ENCRYPTION_KEY`: no la cambies después, o los tokens de Dropbox guardados quedan ilegibles.
+- Si cambias el `.env` sin desplegar código: `cd ~/inkomi/back/api && docker compose up -d api`.
 
-- `JWT_PUBLIC_KEY` es la misma en auth-service, library-service y transaction-manager, y es la pareja de `JWT_PRIVATE_KEY` de auth-service.
-- La pública de `SERVICE_PRIVATE_KEY` (push-service) va en `SERVICE_PUBLIC_KEYS` de auth-service con la clave `"push-service"`.
-- `TOKEN_ENCRYPTION_KEY` (auth-service): no la cambies después, o los tokens de Dropbox guardados quedan ilegibles.
-- Las direcciones internas (NATS, Redis, auth-service, rutas de BD, puertos) las fija el manifiesto de cada servicio en `deploy/k8s/app/` y mandan sobre el `.env`.
+## 5. Caddy
 
-Si cambias un `.env` sin desplegar código, reinicia el servicio para que lo lea:
-
-```bash
-kubectl -n inkomi rollout restart deployment/<servicio>
-```
-
-## 7. Caddy (`roles/caddy/files/Caddyfile`)
-
-Caddy corre en Docker (red `caddy_net`) y llega a Traefik por la puerta de enlace de esa red:
-
-```bash
-docker network inspect caddy_net -f '{{(index .IPAM.Config 0).Gateway}}'   # p. ej. 172.18.0.1
-```
-
-**Oracle** (público, HTTPS automático):
+**Caddy en Docker** (servidores montados con el Ansible, `roles/caddy/files/Caddyfile`): `setup-oracle.sh` con `API_DOMAIN` escribe:
 
 ```caddyfile
-api.tudominio.com {
-    reverse_proxy 172.18.0.1:30080
+inkomi.tudominio.com {
+    @api path /auth/* /users/* /books/* /uploads /uploads/* /ws /ws/* /preview /preview/* /app/* /files/*
+    reverse_proxy @api inkomi-api:3000
+    reverse_proxy inkomi-web:8080
 }
 ```
 
-**Móvil** (detrás del túnel; el HTTPS lo pone Cloudflare). La IP real del cliente llega en `Cf-Connecting-Ip` y hace falta para el límite por IP de `/preview`:
+El compose une `api` y `web` a `caddy_net` con los alias `inkomi-api` e `inkomi-web`. Copia ese Caddyfile a `utils/server-config/roles/caddy/files/Caddyfile` o el siguiente Ansible lo sobrescribe.
 
-```caddyfile
-{
-    servers {
-        trusted_proxies static private_ranges
-        client_ip_headers Cf-Connecting-Ip X-Forwarded-For
-    }
-}
+**Caddy instalado en el host** (systemd): tras un despliegue sano, `deploy.sh` renderiza `deploy/api/Caddyfile` con el `API_DOMAIN` de `.deploy.env`, lo instala en `/etc/caddy/Caddyfile` (con copia `.bak-*` del anterior) y recarga Caddy. Las rutas de la API van a `127.0.0.1:3001` y el resto a la web en `127.0.0.1:8081`.
 
-http://app.tudominio.com {
-    reverse_proxy 172.18.0.1:30080
-}
-```
-
-Caddy sustituye el `X-Forwarded-For` de clientes no confiables por la IP real y Traefik lo conserva (`forwardedHeaders.insecure`), así que el límite por IP no se puede falsear.
-
-## 8. Cloudflare Tunnel (móvil): opcional
-
-**Para la app no hace falta.** Oracle es la entrada pública y, como los dos nodos están en el mismo clúster, una petición a `https://api.tudominio.com/preview` entra por Oracle y Traefik la manda al manga-worker del móvil por Tailscale. Para administrar el móvil tampoco: usa Tailscale SSH.
-
-Un túnel en el móvil solo aporta una **segunda entrada pública** (otro hostname apuntando a la misma API). Como el control plane, NATS y las bases de datos están en Oracle, no da alta disponibilidad: si Oracle cae, la app cae igual.
-
-Si aun así lo quieres, usa un **túnel con nombre gestionado desde el panel** (requiere un dominio en Cloudflare):
-
-1. Cloudflare Zero Trust → *Networks* → *Tunnels* → *Create a tunnel* (cloudflared). Copia el token.
-2. *Public hostname*: `movil.tudominio.com` → servicio `HTTP` → `localhost:80` (el Caddy del móvil).
-3. En el móvil: `sudo CF_TUNNEL_TOKEN=... TUNNEL_HOSTNAME=movil.tudominio.com K3S_URL=... K3S_TOKEN=... bash ~/deploy/servers/setup-mobile.sh`. Instala `cloudflared` como servicio y configura Caddy para leer la IP real del cliente (`Cf-Connecting-Ip`), que necesita el límite por IP de `/preview`.
-
-### ¿Y TryCloudflare (`cloudflared tunnel --url ...`)?
-
-Sirve para **probar un rato**, no para dejarlo puesto:
-
-- La URL (`*.trycloudflare.com`) es aleatoria y **cambia cada vez que se reinicia** `cloudflared` (corte de luz, reinicio del móvil…). La app tendría que cambiar de URL.
-- No tiene garantía de disponibilidad, tiene límite de peticiones concurrentes y Cloudflare lo reserva para pruebas y desarrollo.
-- Solo expone un servicio por proceso y no se puede proteger con Cloudflare Access.
-
-Para echar un vistazo rápido a la previsualización desde el ereader sin dominio:
-
-```bash
-cloudflared tunnel --url http://localhost:80   # imprime https://<palabras>.trycloudflare.com
-```
-
-Con un Caddy que acepte cualquier host (`:80 { reverse_proxy <gateway>:30080 }`) bastaría con abrir `https://<palabras>.trycloudflare.com/preview`.
-
-## 9. GitHub
+## 6. GitHub
 
 Secrets del repositorio (o del environment `production`, al que puedes poner aprobación manual):
 
 | Secret | Valor |
 |---|---|
-| `ORACLE_HOST` | IP pública de Oracle |
-| `ORACLE_SSH_PORT` | `2222` |
+| `ORACLE_HOST` | IP pública o dominio de Oracle |
+| `ORACLE_SSH_PORT` | `2222` (por defecto 22) |
 | `ORACLE_USERNAME` | `deployer` |
 | `ORACLE_PRIVATE_KEY` | clave privada SSH de `deployer` |
-| `GHCR_PULL_TOKEN` | PAT (classic) con `read:packages`, para que los nodos descarguen las imágenes privadas de ghcr.io. Si haces públicos los paquetes `inkomi-*`, no hace falta. |
+| `GHCR_PULL_TOKEN` | opcional: PAT (classic) con `read:packages`; sin él se usa el token del job |
 
-Primer despliegue: *Actions → Deploy microservices (k3s) → Run workflow* con `all`. Después puedes desplegar solo algunos servicios (`manga-worker,epub-worker`).
+*Actions → Deploy api (Docker Compose)* (`.github/workflows/deploy-api.yml`):
+
+1. Tests (con libvips) e imágenes `inkomi-api` e `inkomi-e2e` (`linux/arm64`, en un runner ARM) en ghcr.io.
+2. En el servidor, `deploy/api/deploy.sh`: sube los samples de la preview a R2, arranca la imagen nueva como proyecto compose desechable (datos y red propios) y pasa los tests e2e contra él. Solo si pasan, actualiza producción, espera al healthcheck (`/healthz`) y, si falla, vuelve a la versión anterior (`.deployed-tag`).
+
+**Migración desde el nombre anterior:** si el servidor aún tiene el stack en `~/inkomi/back/monolith` (proyecto `inkomi-monolith`), el primer `deploy.sh` para ese proyecto, mueve la carpeta a `~/inkomi/back/api` (con `.env`, `firebase.json` y `data/`), cambia `MONOLITH_DOMAIN` por `API_DOMAIN` en `.deploy.env` y etiqueta la imagen desplegada como `inkomi-api` para que el rollback siga funcionando.
 
 ### Web (`front/web`)
 
-*Actions → Deploy web (k3s)* (`.github/workflows/deploy-web.yml`) construye la imagen nginx y aplica `deploy/k8s/web/web.yaml` después del backend (usa su secret `ghcr`). Su Ingress solo captura `/`: Traefik prioriza los prefijos más largos, así que la web vive en el mismo dominio que la API, sin CORS en los servicios.
+*Actions → Deploy web (image)* (`.github/workflows/deploy-web.yml`) construye la imagen nginx y la publica como `inkomi-web:<sha>` y `inkomi-web:latest`. El stack usa `latest` y la recoge en el siguiente *Deploy api*, así que publícala al menos una vez antes del primero.
 
 Variables del repositorio (públicas, van dentro del bundle): `DROPBOX_APP_KEY` y `GOOGLE_WEB_CLIENT_ID`. Además, una vez:
 
-- **R2**: el navegador sube con `PUT` a las URLs prefirmadas. Política CORS del bucket: `AllowedOrigins: ["https://<dominio>"]`, `AllowedMethods: ["PUT"]`, `AllowedHeaders: ["content-type"]`.
+- **R2** (solo con `STORAGE=r2`): el navegador sube con `PUT` a las URLs prefirmadas. Política CORS del bucket: `AllowedOrigins: ["https://<dominio>"]`, `AllowedMethods: ["PUT"]`, `AllowedHeaders: ["content-type"]`.
 - **Dropbox** (app console → OAuth 2 → Redirect URIs): `https://<dominio>/oauth/dropbox`.
-- **Google** (client id web, el mismo de `GOOGLE_CLIENT_IDS` del auth-service): añadir `https://<dominio>` a *Authorized JavaScript origins*.
+- **Google** (client id web, el mismo de `GOOGLE_CLIENT_IDS`): añadir `https://<dominio>` a *Authorized JavaScript origins*.
 
-## 10. Copias de seguridad
-
-Las bases SQLite (usuarios en auth-service y transacciones en transaction-manager) viven en volúmenes `local-path` del nodo donde corren, en `/var/lib/rancher/k3s/storage/`. **Si se pierde ese disco se pierden los usuarios.** Programa una copia (cron + `sqlite3 .backup` y subida a R2, o snapshot del volumen de Oracle).
+## 7. Comprobaciones tras el primer despliegue
 
 ```bash
-kubectl -n inkomi get pvc
-sudo ls /var/lib/rancher/k3s/storage/
-```
-
-## 11. Comprobaciones tras el primer despliegue
-
-```bash
-kubectl -n inkomi get pods -o wide        # workers en el móvil, el resto en Oracle
-kubectl -n inkomi logs deploy/manga-worker
-curl -I https://api.tudominio.com/preview  # 200
-kubectl get ns | grep sandbox              # vacío: la pipeline borra los sandboxes
-```
-
-Si un despliegue falla en los tests e2e, producción no se toca. Si falla el rollout de producción, la pipeline hace `rollout undo` de los servicios desplegados. Los logs de los pods salen en el log del job de GitHub.
-
-## 12. Monolito (Docker Compose)
-
-`back/monolith` junta todos los microservicios en un proceso: mismas rutas y contratos (la web y la app no cambian), NATS embebido con JetStream en disco en vez de NATS y Redis, y las tres SQLite (`users.db`, `transactions.db`, `jobs.db`) en `data/`. Se despliega con *Actions → Deploy monolith (Docker Compose)* (`.github/workflows/deploy-monolith.yml`), con los mismos secrets que k3s (§9):
-
-1. Tests (con libvips) e imágenes `inkomi-monolith` e `inkomi-e2e` en ghcr.io.
-2. En Oracle, `deploy/monolith/deploy.sh`: sube los samples de la preview, arranca la imagen nueva como proyecto compose desechable (datos y red propios) y pasa los tests e2e contra él. Solo si pasan, actualiza producción, espera al healthcheck (`/healthz`) y, si falla, vuelve a la versión anterior (`.deployed-tag`).
-
-Preparación (una vez):
-
-```
-/home/deployer/inkomi/back/monolith/.env            ← plantilla: back/monolith/.env.example
-/home/deployer/inkomi/back/monolith/firebase.json
-/home/deployer/inkomi/back/monolith/data/           ← propiedad de uid 10001 (el usuario del contenedor)
-```
-
-```bash
-sudo install -d -o 10001 -g 10001 -m 700 ~deployer/inkomi/back/monolith/data
-sudo usermod -aG docker deployer        # deploy.sh usa docker compose (si no, prueba con sudo -n)
-```
-
-**Servidor actual (Oracle Linux 9, `opc` por el puerto 22, Caddy instalado con systemd):** ya está preparado. Se usa `opc` en lugar de `deployer`, y `opc` ya está en el grupo `docker`. En `~/inkomi/back/monolith/` están:
-
-- `.env`, con claves JWT y `TOKEN_ENCRYPTION_KEY` recién generadas y la `DROPBOX_APP_KEY` de la app. **Faltan `R2_*` y `GOOGLE_CLIENT_IDS`**, y `deploy.sh` no despliega sin ellas.
-- `firebase.json`, la cuenta de servicio de la API antigua.
-- `data/`.
-- `.deploy.env`, con `MONOLITH_DOMAIN=inkomi.duckdns.org`.
-
-Tras el primer despliegue sano, `deploy.sh` instala `deploy/monolith/Caddyfile` en `/etc/caddy/Caddyfile` y guarda una copia `.bak-*` del anterior. Con ese Caddyfile, `/api/*` sigue yendo a la API antigua en `:3000` para las versiones viejas de la app, las rutas del monolito van a `127.0.0.1:3001` y el resto a la web en `127.0.0.1:8081`. Secrets de GitHub para este servidor: `ORACLE_HOST=inkomi.duckdns.org`, `ORACLE_USERNAME=opc` y `ORACLE_PRIVATE_KEY`. `ORACLE_SSH_PORT` es 22 por defecto y `GHCR_PULL_TOKEN` es opcional: sin él se usa el token del job.
-
-Con Caddy en Docker (servidores montados con el Ansible), `setup-oracle.sh` con `MONOLITH_DOMAIN` hace estos pasos y añade al Caddyfile:
-
-```caddyfile
-mono.tudominio.com {
-    @api path /auth/* /users/* /books/* /uploads /uploads/* /ws /ws/* /preview /preview/* /app/*
-    reverse_proxy @api inkomi-monolith:3000
-    reverse_proxy inkomi-web:8080
-}
-```
-
-El compose une `monolith` y `web` a `caddy_net` con los alias `inkomi-monolith` e `inkomi-web`. La web es la imagen `inkomi-web:latest` que publica `deploy-web.yml`, así que despliega la web al menos una vez antes. Para que los tokens sigan valiendo al pasar de k3s al monolito, usa las mismas `JWT_*` y `TOKEN_ENCRYPTION_KEY` que auth-service. Para llevarte los datos, copia `users.db` y `transactions.db` de los volúmenes de k3s (§10) a `data/`.
-
-```bash
-cd ~/inkomi/back/monolith
+cd ~/inkomi/back/api
 docker compose ps
-docker compose logs -f monolith
-curl -I https://mono.tudominio.com/healthz   # 200
+docker compose logs -f api
+docker compose ls                               # solo inkomi-api
+curl -I https://inkomi.tudominio.com/healthz    # 200
 ```
 
-### Archivos en el disco del servidor
+Si un despliegue falla en los tests e2e, producción no se toca. Los logs del sandbox salen en el log del job de GitHub.
 
-El monolito guarda los archivos en `~/inkomi/back/monolith/data/files` (`STORAGE=local`) en lugar de R2. La app y la web suben y bajan por `https://<dominio>/files/...` con URLs firmadas; el Caddyfile ya enruta `/files/*` al monolito. Variables del `.env` (ver `back/monolith/.env.example`): `PUBLIC_URL` (obligatoria), `FILES_RETENTION`, `DISK_RESERVE_MB`, `STORAGE_EPUB_RATIO` y `LIBRARY_ESTIMATE_MB`.
+## 8. Copias de seguridad
+
+`setup-oracle.sh` instala `/usr/local/bin/inkomi-backup` (cron diario a las 3:30): `sqlite3 .backup` de `users.db` y `transactions.db` en `/var/backups/inkomi/<fecha>`, 14 días. Están en el mismo disco: para sobrevivir a su pérdida, súbelas fuera (R2) o haz snapshots del volumen.
+
+## 9. Archivos en el disco del servidor
+
+La api guarda los archivos en `~/inkomi/back/api/data/files` (`STORAGE=local`) en lugar de R2. La app y la web suben y bajan por `https://<dominio>/files/...` con URLs firmadas; el Caddyfile ya enruta `/files/*` a la api. Variables del `.env` (ver `back/api/.env.example`): `PUBLIC_URL` (obligatoria), `FILES_RETENTION`, `DISK_RESERVE_MB`, `STORAGE_EPUB_RATIO` y `LIBRARY_ESTIMATE_MB`.
 
 - Cada envío reserva el máximo de disco que va a ocupar a la vez. Si no cabe (descontando `DISK_RESERVE_MB`), el servidor responde 507 y la app dice que se intente más tarde.
 - Lo que nadie toca en `FILES_RETENTION` (7 días) se borra: resultados ya enviados y subidas abandonadas.
@@ -341,8 +149,7 @@ El monolito guarda los archivos en `~/inkomi/back/monolith/data/files` (`STORAGE
   sudo mkfs.ext4 /dev/oracleoci/oraclevdb
   sudo mkdir -p /mnt/inkomi && sudo mount /dev/oracleoci/oraclevdb /mnt/inkomi
   echo '/dev/oracleoci/oraclevdb /mnt/inkomi ext4 defaults,_netdev,nofail 0 2' | sudo tee -a /etc/fstab
-  cd ~/inkomi/back/monolith && docker compose stop monolith
+  cd ~/inkomi/back/api && docker compose stop api
   sudo rsync -a data/ /mnt/inkomi/data/ && sudo mv data data.old && ln -s /mnt/inkomi/data data
-  docker compose up -d monolith
+  docker compose up -d api
   ```
-

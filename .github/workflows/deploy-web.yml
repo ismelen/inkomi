@@ -1,13 +1,11 @@
-name: Deploy web (k3s)
+name: Deploy web (image)
 
-# Manual only. Builds the web app (front/web) and deploys it to the k3s cluster next to the
-# backend, on the same domain (deploy/k8s/web/web.yaml):
+# Manual only. Builds the web app (front/web) and publishes its image; the api stack
+# (back/api/docker-compose.yml) runs inkomi-web:latest and picks it up on its next deploy
+# (Actions → Deploy api):
 #   1. typecheck, prettier and build
-#   2. multi-arch nginx image pushed to ghcr.io
-#   3. on the k3s server: apply the manifest with the new image and wait for the rollout
+#   2. multi-arch nginx image pushed to ghcr.io (<sha> and latest)
 #
-# Secrets: the same as deploy-microservices.yml (ORACLE_HOST, ORACLE_USERNAME, ORACLE_PRIVATE_KEY,
-#          ORACLE_SSH_PORT). The pull secret "ghcr" is created by the backend deploy.
 # Variables (public, baked into the bundle): DROPBOX_APP_KEY, GOOGLE_WEB_CLIENT_ID.
 
 on:
@@ -18,7 +16,7 @@ permissions:
   packages: write
 
 concurrency:
-  group: k3s-deploy-web
+  group: deploy-web
   cancel-in-progress: false
 
 jobs:
@@ -41,9 +39,6 @@ jobs:
   image:
     needs: check
     runs-on: ubuntu-latest
-    outputs:
-      tag: ${{ steps.meta.outputs.tag }}
-      registry: ${{ steps.meta.outputs.registry }}
     steps:
       - uses: actions/checkout@v4
       - id: meta
@@ -67,47 +62,10 @@ jobs:
           build-args: |
             VITE_DROPBOX_API_KEY=${{ vars.DROPBOX_APP_KEY }}
             VITE_GOOGLE_WEB_CLIENT_ID=${{ vars.GOOGLE_WEB_CLIENT_ID }}
-          # latest is the one the monolith stack (back/monolith/docker-compose.yml) runs
+          # latest is the one the api stack (back/api/docker-compose.yml) runs
           tags: |
             ${{ steps.meta.outputs.registry }}/inkomi-web:${{ steps.meta.outputs.tag }}
             ${{ steps.meta.outputs.registry }}/inkomi-web:latest
           cache-from: type=gha,scope=web
           cache-to: type=gha,mode=max,scope=web
 
-  deploy:
-    needs: image
-    runs-on: ubuntu-latest
-    environment: production
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Copy the manifest
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.ORACLE_HOST }}
-          port: ${{ secrets.ORACLE_SSH_PORT || '2222' }}
-          username: ${{ secrets.ORACLE_USERNAME }}
-          key: ${{ secrets.ORACLE_PRIVATE_KEY }}
-          source: "deploy/k8s/web/web.yaml"
-          target: "~/inkomi-k3s/web"
-          strip_components: 3
-          overwrite: true
-
-      - name: Apply and wait for the rollout
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.ORACLE_HOST }}
-          port: ${{ secrets.ORACLE_SSH_PORT || '2222' }}
-          username: ${{ secrets.ORACLE_USERNAME }}
-          key: ${{ secrets.ORACLE_PRIVATE_KEY }}
-          script: |
-            set -euo pipefail
-            export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
-            export NAMESPACE=inkomi
-            export REGISTRY="${{ needs.image.outputs.registry }}"
-            export TAG_WEB="${{ needs.image.outputs.tag }}"
-            envsubst '$NAMESPACE $REGISTRY $TAG_WEB' < ~/inkomi-k3s/web/web.yaml | kubectl apply -f -
-            if ! kubectl -n inkomi rollout status deployment/web --timeout=300s; then
-              kubectl -n inkomi rollout undo deployment/web || true
-              exit 1
-            fi
