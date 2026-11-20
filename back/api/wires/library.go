@@ -10,6 +10,7 @@ import (
 	"github.com/ismelen/inkomi/back/api/internal/modules/library/ui/handlers"
 	"github.com/ismelen/inkomi/back/api/internal/modules/library/ui/routes"
 	"github.com/ismelen/inkomi/back/api/internal/modules/library/usecases/downloadbook"
+	"github.com/ismelen/inkomi/back/api/internal/modules/library/usecases/getcover"
 	"github.com/ismelen/inkomi/back/api/internal/modules/library/usecases/searchbooks"
 	"github.com/ismelen/inkomi/back/api/internal/platform/jobrun"
 	"github.com/ismelen/inkomi/back/api/internal/platform/jobs"
@@ -33,6 +34,7 @@ func Library(d *Deps, r chi.Router) {
 		log.Fatal(err)
 	}
 
+	routes.SetupCoverRoutes(r, handlers.NewCoversHandler(getcover.NewGetCoverUC(libgen.NewLibgenCoverSource())))
 	r.Group(func(r chi.Router) {
 		r.Use(d.AuthMiddleware)
 		routes.SetupBookRoutes(r, handlers.NewBooksHandler(searchbooks.NewSearchBooksUC(library)))

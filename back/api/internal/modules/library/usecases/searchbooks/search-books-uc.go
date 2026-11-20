@@ -18,15 +18,18 @@ func NewSearchBooksUC(library ports.ILibrary) *SearchBooksUC {
 	return &SearchBooksUC{library: library}
 }
 
-// Execute searches query and keeps the deduplicated books in language and formats; empty
-// filters keep every book.
-func (s *SearchBooksUC) Execute(ctx context.Context, query, language string, formats []string) ([]models.Book, error) {
+// Execute searches query in field and keeps the deduplicated books in language and formats;
+// empty filters keep every book.
+func (s *SearchBooksUC) Execute(ctx context.Context, query string, field models.SearchField, language string, formats []string) ([]models.Book, error) {
 	query = strings.TrimSpace(query)
 	if query == "" {
 		return nil, models.ErrEmptyQuery
 	}
+	if !field.IsValid() {
+		return nil, models.ErrInvalidField
+	}
 
-	books, err := s.library.Search(ctx, query)
+	books, err := s.library.Search(ctx, query, field)
 	if err != nil {
 		return nil, err
 	}

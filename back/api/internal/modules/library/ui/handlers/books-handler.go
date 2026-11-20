@@ -21,7 +21,8 @@ func NewBooksHandler(searchUC *searchbooks.SearchBooksUC) *BooksHandler {
 	return &BooksHandler{searchUC: searchUC}
 }
 
-// HandleSearch serves GET /books/search?q=<query>&lang=<language>&fmt=<ext,ext>; fmt defaults to epub.
+// HandleSearch serves GET /books/search?q=<query>&by=<title|author>&lang=<language>&fmt=<ext,ext>;
+// by defaults to title and fmt to epub.
 func (b *BooksHandler) HandleSearch(r *http.Request) (*[]dtos.BookResponse, error) {
 	params := r.URL.Query()
 	formats := defaultFormats
@@ -29,9 +30,14 @@ func (b *BooksHandler) HandleSearch(r *http.Request) (*[]dtos.BookResponse, erro
 		formats = strings.Split(value, ",")
 	}
 
-	books, err := b.searchUC.Execute(r.Context(), params.Get("q"), params.Get("lang"), formats)
+	field := models.SearchFieldTitle
+	if value := params.Get("by"); value != "" {
+		field = models.SearchField(value)
+	}
+
+	books, err := b.searchUC.Execute(r.Context(), params.Get("q"), field, params.Get("lang"), formats)
 	switch {
-	case errors.Is(err, models.ErrEmptyQuery):
+	case errors.Is(err, models.ErrEmptyQuery), errors.Is(err, models.ErrInvalidField):
 		return nil, requtil.NewError(http.StatusBadRequest, err.Error())
 	case errors.Is(err, models.ErrNoMirror):
 		return nil, requtil.NewError(http.StatusServiceUnavailable, err.Error())

@@ -36,8 +36,16 @@ func (m *mirrorBase) Download(ctx context.Context, md5 models.MD5) (*models.Book
 	}
 
 	resp, err := get(ctx, downloadClient, info.downloadURL)
+	var statusErr *statusError
+	if errors.As(err, &statusErr) && statusErr.code >= http.StatusInternalServerError {
+		// the download key of ads.php may be stale: read a fresh one and try once more
+		if fresh, adsErr := m.adsInfo(ctx, md5); adsErr == nil {
+			info = fresh
+			resp, err = get(ctx, downloadClient, info.downloadURL)
+		}
+	}
 	if err != nil {
-		return nil, fmt.Errorf("download %q: %w", info.title, err)
+		return nil, fmt.Errorf("download %q from %s: %w", info.title, m.url, err)
 	}
 
 	return &models.BookDownload{

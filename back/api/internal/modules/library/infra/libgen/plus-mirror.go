@@ -23,15 +23,13 @@ func NewPlusMirror(url string) *PlusMirror {
 	return &PlusMirror{mirrorBase{url: url}}
 }
 
-func (p *PlusMirror) Search(ctx context.Context, query string) ([]models.Book, error) {
+func (p *PlusMirror) Search(ctx context.Context, query string, field models.SearchField) ([]models.Book, error) {
 	params := url.Values{}
 	params.Set("req", query)
 	params.Set("res", strconv.Itoa(maxResults))
 	params.Set("filesuns", "all")
 	params.Set("objects[]", "f")
-	for _, column := range []string{"t", "a", "s", "y", "p", "i", "f"} {
-		params.Add("columns[]", column)
-	}
+	params.Add("columns[]", plusColumn(field))
 	for _, topic := range []string{"l", "c", "f", "a", "m", "r", "s"} {
 		params.Add("topics[]", topic)
 	}
@@ -81,12 +79,28 @@ func (p *PlusMirror) parseRow(tds *goquery.Selection) (models.Book, bool) {
 		return book.MD5 == ""
 	})
 
-	if src, ok := tds.Eq(0).Find("img").Attr("src"); ok && src != "" {
-		if cover, err := resolveURL(p.url+"/", src); err == nil {
-			book.CoverURL = cover
-		}
+	if cover, err := resolveURL(p.url+"/", rowCover(tds.Eq(0))); err == nil && cover != p.url+"/" {
+		book.CoverURL = cover
 	}
 	return book, true
+}
+
+func plusColumn(field models.SearchField) string {
+	if field == models.SearchFieldAuthor {
+		return "a"
+	}
+	return "t"
+}
+
+// rowCover reads the cover of a result, which may be lazy loaded (data-src) behind a placeholder.
+func rowCover(td *goquery.Selection) string {
+	img := td.Find("img").First()
+	for _, attr := range []string{"data-src", "src"} {
+		if src, ok := img.Attr(attr); ok && isCoverPath(src) {
+			return strings.TrimSpace(src)
+		}
+	}
+	return ""
 }
 
 // rowTitle prefers the longest edition link and falls back to the last meaningful text line.

@@ -9,13 +9,13 @@ import (
 )
 
 type MockLibrary struct {
-	SearchFn   func(ctx context.Context, query string) ([]models.Book, error)
+	SearchFn   func(ctx context.Context, query string, field models.SearchField) ([]models.Book, error)
 	DownloadFn func(ctx context.Context, md5 models.MD5) (*models.BookDownload, error)
 }
 
-func (m *MockLibrary) Search(ctx context.Context, query string) ([]models.Book, error) {
+func (m *MockLibrary) Search(ctx context.Context, query string, field models.SearchField) ([]models.Book, error) {
 	if m.SearchFn != nil {
-		return m.SearchFn(ctx, query)
+		return m.SearchFn(ctx, query, field)
 	}
 	return nil, nil
 }

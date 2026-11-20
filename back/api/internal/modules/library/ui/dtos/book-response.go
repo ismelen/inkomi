@@ -1,6 +1,10 @@
 package dtos
 
-import "github.com/ismelen/inkomi/back/api/internal/modules/library/domain/models"
+import (
+	"net/url"
+
+	"github.com/ismelen/inkomi/back/api/internal/modules/library/domain/models"
+)
 
 type BookResponse struct {
 	Title     string `json:"title"`
@@ -20,6 +24,15 @@ func NewBookResponse(book models.Book) BookResponse {
 		Language:  book.Language,
 		Extension: book.Extension,
 		MD5:       book.MD5,
-		CoverURL:  book.CoverURL,
+		CoverURL:  coverURL(book.CoverURL),
 	}
+}
+
+// coverURL points the cover to the api's /books/cover, which fetches it from the mirror: the
+// clients may not reach the libgen hosts themselves.
+func coverURL(mirrorURL string) string {
+	if mirrorURL == "" {
+		return ""
+	}
+	return "/books/cover?url=" + url.QueryEscape(mirrorURL)
 }

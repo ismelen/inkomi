@@ -18,12 +18,14 @@ import (
 
 // fakeMirror answers pings through a real server and searches through SearchFn.
 type fakeMirror struct {
-	url      string
-	SearchFn func() ([]models.Book, error)
-	searches atomic.Int32
+	url        string
+	SearchFn   func() ([]models.Book, error)
+	DownloadFn func() (*models.BookDownload, error)
+	searches   atomic.Int32
+	downloads  atomic.Int32
 }
 
-func (f *fakeMirror) Search(ctx context.Context, query string) ([]models.Book, error) {
+func (f *fakeMirror) Search(ctx context.Context, query string, field models.SearchField) ([]models.Book, error) {
 	f.searches.Add(1)
 	if f.SearchFn != nil {
 		return f.SearchFn()
@@ -32,6 +34,10 @@ func (f *fakeMirror) Search(ctx context.Context, query string) ([]models.Book, e
 }
 
 func (f *fakeMirror) Download(ctx context.Context, md5 models.MD5) (*models.BookDownload, error) {
+	f.downloads.Add(1)
+	if f.DownloadFn != nil {
+		return f.DownloadFn()
+	}
 	return nil, models.ErrBookNotFound
 }
 
@@ -68,7 +74,7 @@ func TestLibgenLibrary_Search_NoMirrorYet_UsesFastest(t *testing.T) {
 	library := libgen.NewLibgenLibrary(&fakeMirrorList{mirrors: []libgen.IMirror{broken, slow, fast}}, time.Hour)
 
 	// Act
-	books, err := library.Search(context.Background(), "dune")
+	books, err := library.Search(context.Background(), "dune", models.SearchFieldTitle)
 
 	// Assert
 	require.NoError(t, err)
@@ -85,8 +91,8 @@ func TestLibgenLibrary_Search_NoMirrorAnswers_ReturnsErrNoMirror(t *testing.T) {
 	library := libgen.NewLibgenLibrary(list, time.Hour)
 
 	// Act
-	_, err := library.Search(context.Background(), "dune")
-	_, errAgain := library.Search(context.Background(), "dune")
+	_, err := library.Search(context.Background(), "dune", models.SearchFieldTitle)
+	_, errAgain := library.Search(context.Background(), "dune", models.SearchFieldTitle)
 
 	// Assert
 	assert.ErrorIs(t, err, models.ErrNoMirror)
@@ -104,8 +110,8 @@ func TestLibgenLibrary_Search_MirrorFails_RetriesOnAnotherMirror(t *testing.T) {
 	library := libgen.NewLibgenLibrary(&fakeMirrorList{mirrors: []libgen.IMirror{failing, backup}}, 0)
 
 	// Act
-	books, err := library.Search(context.Background(), "dune")
-	again, errAgain := library.Search(context.Background(), "dune")
+	books, err := library.Search(context.Background(), "dune", models.SearchFieldTitle)
+	again, errAgain := library.Search(context.Background(), "dune", models.SearchFieldTitle)
 
 	// Assert
 	require.NoError(t, err)
@@ -126,7 +132,7 @@ func TestLibgenLibrary_Search_FailsWithinCooldown_ReturnsError(t *testing.T) {
 	library := libgen.NewLibgenLibrary(&fakeMirrorList{mirrors: []libgen.IMirror{failing, backup}}, time.Hour)
 
 	// Act
-	_, err := library.Search(context.Background(), "dune")
+	_, err := library.Search(context.Background(), "dune", models.SearchFieldTitle)
 
 	// Assert
 	assert.ErrorIs(t, err, searchErr)
@@ -144,7 +150,7 @@ func TestLibgenLibrary_Search_Concurrent_DiscoversOnce(t *testing.T) {
 	var wg sync.WaitGroup
 	for range 10 {
 		wg.Go(func() {
-			_, err := library.Search(context.Background(), "dune")
+			_, err := library.Search(context.Background(), "dune", models.SearchFieldTitle)
 			assert.NoError(t, err)
 		})
 	}
@@ -169,6 +175,63 @@ func TestLibgenLibrary_Start_Interval_RenewsMirror(t *testing.T) {
 	// Assert
 	assert.Eventually(t, func() bool { return list.calls.Load() >= 3 }, 2*time.Second, 10*time.Millisecond)
 	cancel()
-	_, err := library.Search(context.Background(), "dune")
+	_, err := library.Search(context.Background(), "dune", models.SearchFieldTitle)
 	assert.NoError(t, err)
+}
+
+func TestLibgenLibrary_Download_CurrentMirrorFails_TriesTheOthers(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	failing := newMirror(t, 0, http.StatusOK)
+	failing.DownloadFn = func() (*models.BookDownload, error) { return nil, errors.New("GET get.php: HTTP 500") }
+	missing := newMirror(t, 100*time.Millisecond, http.StatusOK)
+	backup := newMirror(t, 100*time.Millisecond, http.StatusOK)
+	backup.DownloadFn = func() (*models.BookDownload, error) {
+		return &models.BookDownload{Title: "La novia gitana", Ext: "epub"}, nil
+	}
+	library := libgen.NewLibgenLibrary(&fakeMirrorList{mirrors: []libgen.IMirror{failing, missing, backup}}, time.Hour)
+
+	// Act
+	book, err := library.Download(context.Background(), "0123456789abcdef0123456789abcdef")
+
+	// Assert
+	require.NoError(t, err)
+	assert.Equal(t, "La novia gitana", book.Title)
+	assert.Equal(t, int32(1), failing.downloads.Load())
+	assert.Equal(t, int32(1), backup.downloads.Load())
+}
+
+func TestLibgenLibrary_Download_EveryMirrorFails_ReportsAll(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name     string
+		firstErr error
+		notFound bool
+	}{
+		{"No mirror has it", models.ErrBookNotFound, true},
+		{"One mirror broken", errors.New("GET get.php: HTTP 500"), false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			// Arrange
+			first := newMirror(t, 0, http.StatusOK)
+			first.DownloadFn = func() (*models.BookDownload, error) { return nil, tc.firstErr }
+			second := newMirror(t, 100*time.Millisecond, http.StatusOK)
+			library := libgen.NewLibgenLibrary(&fakeMirrorList{mirrors: []libgen.IMirror{first, second}}, time.Hour)
+
+			// Act
+			_, err := library.Download(context.Background(), "0123456789abcdef0123456789abcdef")
+
+			// Assert
+			require.Error(t, err)
+			assert.Equal(t, tc.notFound, errors.Is(err, models.ErrBookNotFound))
+			assert.Contains(t, err.Error(), tc.firstErr.Error())
+			assert.Equal(t, int32(1), second.downloads.Load())
+		})
+	}
 }

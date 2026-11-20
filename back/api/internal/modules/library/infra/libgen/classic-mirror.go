@@ -31,10 +31,11 @@ type classicBook struct {
 	Language  string `json:"language"`
 	Extension string `json:"extension"`
 	MD5       string `json:"md5"`
+	CoverURL  string `json:"coverurl"`
 }
 
-func (c *ClassicMirror) Search(ctx context.Context, query string) ([]models.Book, error) {
-	ids, err := c.searchIds(ctx, query)
+func (c *ClassicMirror) Search(ctx context.Context, query string, field models.SearchField) ([]models.Book, error) {
+	ids, err := c.searchIds(ctx, query, field)
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +45,7 @@ func (c *ClassicMirror) Search(ctx context.Context, query string) ([]models.Book
 
 	params := url.Values{}
 	params.Set("ids", strings.Join(ids, ","))
-	params.Set("fields", "id,title,author,pages,language,extension,md5")
+	params.Set("fields", "id,title,author,pages,language,extension,md5,coverurl")
 	jsonURL := c.url + "/json.php?" + params.Encode()
 
 	resp, err := get(ctx, pageClient, jsonURL)
@@ -71,18 +72,39 @@ func (c *ClassicMirror) Search(ctx context.Context, query string) ([]models.Book
 			Language:  strings.TrimSpace(b.Language),
 			Extension: strings.ToLower(strings.TrimSpace(b.Extension)),
 			MD5:       strings.ToLower(b.MD5),
+			CoverURL:  c.coverURL(b.CoverURL),
 		})
 	}
 	return books, nil
 }
 
-func (c *ClassicMirror) searchIds(ctx context.Context, query string) ([]string, error) {
+// coverURL turns the coverurl of json.php (a path under /covers) into an absolute url.
+func (c *ClassicMirror) coverURL(path string) string {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return ""
+	}
+	cover, err := resolveURL(c.url+"/covers/", strings.TrimPrefix(path, "/"))
+	if err != nil {
+		return ""
+	}
+	return cover
+}
+
+func classicColumn(field models.SearchField) string {
+	if field == models.SearchFieldAuthor {
+		return "author"
+	}
+	return "title"
+}
+
+func (c *ClassicMirror) searchIds(ctx context.Context, query string, field models.SearchField) ([]string, error) {
 	params := url.Values{}
 	params.Set("req", query)
 	params.Set("res", strconv.Itoa(maxResults))
 	params.Set("view", "simple")
 	params.Set("phrase", "1")
-	params.Set("column", "def")
+	params.Set("column", classicColumn(field))
 
 	doc, err := fetchDocument(ctx, c.url+"/search.php?"+params.Encode())
 	if err != nil {

@@ -2,6 +2,8 @@ package libgen
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log"
 	"slices"
 	"sync"
@@ -51,16 +53,49 @@ func (l *LibgenLibrary) Start(ctx context.Context, interval time.Duration) {
 	}()
 }
 
-func (l *LibgenLibrary) Search(ctx context.Context, query string) ([]models.Book, error) {
+func (l *LibgenLibrary) Search(ctx context.Context, query string, field models.SearchField) ([]models.Book, error) {
 	return withFailover(ctx, l, func(m IMirror) ([]models.Book, error) {
-		return m.Search(ctx, query)
+		return m.Search(ctx, query, field)
 	})
 }
 
+// Download tries the current mirror and then every other known mirror: a file can fail on one
+// (its download server answering 5xx) and work on another. It returns models.ErrBookNotFound
+// only when no mirror has the book.
 func (l *LibgenLibrary) Download(ctx context.Context, md5 models.MD5) (*models.BookDownload, error) {
-	return withFailover(ctx, l, func(m IMirror) (*models.BookDownload, error) {
-		return m.Download(ctx, md5)
-	})
+	first, ok := l.mirror(ctx, "")
+	if !ok {
+		return nil, models.ErrNoMirror
+	}
+	book, err := first.Download(ctx, md5)
+	if err == nil || ctx.Err() != nil {
+		return book, err
+	}
+
+	errs := []error{err}
+	notFound := errors.Is(err, models.ErrBookNotFound)
+	for _, m := range l.mirrors.Mirrors(ctx) {
+		if m.URL() == first.URL() {
+			continue
+		}
+		book, err := m.Download(ctx, md5)
+		if err == nil {
+			log.Printf("libgen: %s downloaded on %s after %d failed mirrors", md5, m.URL(), len(errs))
+			return book, nil
+		}
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		errs = append(errs, err)
+		notFound = notFound && errors.Is(err, models.ErrBookNotFound)
+	}
+
+	joined := errors.Join(errs...)
+	if notFound {
+		return nil, joined
+	}
+	// a mirror that failed for another reason may have it: not a permanent failure
+	return nil, fmt.Errorf("every mirror failed:\n%s", joined.Error())
 }
 
 func withFailover[T any](ctx context.Context, l *LibgenLibrary, op func(IMirror) (T, error)) (T, error) {

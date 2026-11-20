@@ -7,7 +7,10 @@ import (
 )
 
 func SetupBookRoutes(api chi.Router, handler *handlers.BooksHandler) {
-	api.Route("/books", func(r chi.Router) {
-		r.Get("/search", requtil.Wrap(handler.HandleSearch))
-	})
+	api.Get("/books/search", requtil.Wrap(handler.HandleSearch))
+}
+
+// SetupCoverRoutes registers the public cover route (no token: <img> tags can't send one).
+func SetupCoverRoutes(api chi.Router, handler *handlers.CoversHandler) {
+	api.Get("/books/cover", handler.HandleCover)
 }
