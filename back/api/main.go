@@ -20,6 +20,7 @@ import (
 	"github.com/ismelen/inkomi/back/api/internal/platform/httpauth"
 	"github.com/ismelen/inkomi/back/api/internal/platform/httplog"
 	"github.com/ismelen/inkomi/back/api/internal/platform/jobcancel"
+	"github.com/ismelen/inkomi/back/api/internal/platform/openlibrary"
 	"github.com/ismelen/inkomi/back/api/internal/platform/queue"
 	"github.com/ismelen/inkomi/back/api/internal/platform/resources"
 	"github.com/ismelen/inkomi/back/api/internal/platform/sqlitedb"
@@ -71,6 +72,13 @@ func main() {
 	}
 	cancels.Start(ctx, 6*time.Hour)
 
+	// discover.db holds the wishlists and the recommendations
+	discoverDB, err := sqlitedb.Open(filepath.Join(config.Env.DataDir, "discover.db"), migrations.Discover)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer wires.CloseLogged("discover.db", discoverDB.Close)()
+
 	memory := resources.NewMemory()
 	d := &wires.Deps{
 		Cancels:          cancels,
@@ -80,6 +88,8 @@ func main() {
 		Queue:            jobQueue,
 		AuthMiddleware:   authMiddleware,
 		MangaConcurrency: mangaConcurrency(memory),
+		DiscoverDB:       discoverDB,
+		OpenLibrary:      openlibrary.NewClient(openlibrary.DefaultBaseURL, config.Env.OpenLibraryUserAgent, config.Env.OpenLibraryRPS),
 	}
 
 	router := chi.NewRouter()
@@ -100,7 +110,8 @@ func main() {
 	}()
 
 	// the WebSocket stays outside the timeout group and the preview has its own limits
-	closers = append(closers, wires.Transactions(d, router))
+	closeTransactions, transactions := wires.Transactions(d, router)
+	closers = append(closers, closeTransactions)
 	wires.Manga(d, router)
 
 	router.Group(func(r chi.Router) {
@@ -111,6 +122,8 @@ func main() {
 		wires.Library(d, r)
 		wires.Release(r)
 		wires.Push(d, auth)
+		wishlist := wires.Wishlist(d, r)
+		wires.Recommendations(d, r, transactions, wishlist)
 	})
 
 	server := &http.Server{

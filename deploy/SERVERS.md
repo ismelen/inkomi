@@ -83,7 +83,7 @@ chmod 700 ~/inkomi && chmod 600 ~/inkomi/back/api/.env ~/inkomi/back/api/firebas
 
 ```caddyfile
 inkomi.tudominio.com {
-    @api path /auth/* /users/* /books/* /uploads /uploads/* /ws /ws/* /preview /preview/* /app/* /files/*
+    @api path /auth/* /users/* /books/* /uploads /uploads/* /ws /ws/* /preview /preview/* /app/* /files/* /wishlist /wishlist/* /recommendations /recommendations/*
     reverse_proxy @api inkomi-api:3000
     reverse_proxy inkomi-web:8080
 }

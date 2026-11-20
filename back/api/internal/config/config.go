@@ -53,6 +53,14 @@ const (
 	defaultGitHubAPIURL = "https://api.github.com"
 	defaultAPKAssetName = "inkomi.apk"
 	defaultCacheTTL     = 5 * time.Minute
+
+	defaultRecsRefreshInterval = 6 * time.Hour
+	defaultRecsRefreshBudget   = 300
+	defaultOpenLibraryRPS      = 1.0
+	defaultOpenLibraryAgent    = "book-recommender/1.0"
+	defaultEmbeddingModelURL   = "https://huggingface.co/Xenova/multilingual-e5-small/resolve/main"
+	defaultEmbeddingOnnxFile   = "onnx/model_quantized.onnx"
+	defaultRecsLanguages       = "spa"
 )
 
 const (
@@ -139,6 +147,23 @@ type AppConfig struct {
 	GitHubToken  string
 	APKAssetName string
 	CacheTTL     time.Duration
+
+	// RecsEnabled turns on the wishlist recommendations (Open Library catalog + local embeddings).
+	RecsEnabled bool
+	// RecsRefreshInterval is how often the catalog and the recommendations are refreshed.
+	RecsRefreshInterval time.Duration
+	// RecsRefreshBudget caps the Open Library requests of a refresh.
+	RecsRefreshBudget int
+	// OpenLibraryRPS is the request rate to Open Library (about 1 anonymous, 3 with a contact in
+	// OpenLibraryUserAgent).
+	OpenLibraryRPS       float64
+	OpenLibraryUserAgent string
+	// EmbeddingModelURL is where the model files (config, tokenizer, ONNX) are downloaded from
+	// into DataDir/models the first time.
+	EmbeddingModelURL string
+	EmbeddingOnnxFile string
+	// RecsLanguages are the Open Library language codes the users read in (ranked a bit higher).
+	RecsLanguages []string
 }
 
 var Env AppConfig
@@ -206,6 +231,15 @@ func Load() {
 		GitHubToken:  os.Getenv("GITHUB_TOKEN"),
 		APKAssetName: stringOr(os.Getenv("APK_ASSET_NAME"), defaultAPKAssetName),
 		CacheTTL:     durationOr(os.Getenv("RELEASE_CACHE_TTL"), defaultCacheTTL),
+
+		RecsEnabled:          os.Getenv("RECS_ENABLED") != "false",
+		RecsRefreshInterval:  durationOr(os.Getenv("RECS_REFRESH_INTERVAL"), defaultRecsRefreshInterval),
+		RecsRefreshBudget:    intOr(os.Getenv("RECS_REFRESH_BUDGET"), defaultRecsRefreshBudget),
+		OpenLibraryRPS:       floatOr(os.Getenv("OPENLIBRARY_RPS"), defaultOpenLibraryRPS),
+		OpenLibraryUserAgent: stringOr(os.Getenv("OPENLIBRARY_USER_AGENT"), defaultOpenLibraryAgent),
+		EmbeddingModelURL:    stringOr(os.Getenv("EMBEDDING_MODEL_URL"), defaultEmbeddingModelURL),
+		EmbeddingOnnxFile:    stringOr(os.Getenv("EMBEDDING_ONNX_FILE"), defaultEmbeddingOnnxFile),
+		RecsLanguages:        list(stringOr(os.Getenv("RECS_LANGUAGES"), defaultRecsLanguages)),
 	}
 }
 

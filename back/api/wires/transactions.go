@@ -21,6 +21,7 @@ import (
 	"github.com/ismelen/inkomi/back/api/internal/modules/transactions/usecases/canceltransaction"
 	"github.com/ismelen/inkomi/back/api/internal/modules/transactions/usecases/forwardevents"
 	"github.com/ismelen/inkomi/back/api/internal/modules/transactions/usecases/getdownload"
+	"github.com/ismelen/inkomi/back/api/internal/modules/transactions/usecases/listsentbooks"
 	"github.com/ismelen/inkomi/back/api/internal/modules/transactions/usecases/listuploads"
 	"github.com/ismelen/inkomi/back/api/internal/modules/transactions/usecases/newupload"
 	"github.com/ismelen/inkomi/back/api/internal/modules/transactions/usecases/retryupload"
@@ -29,7 +30,12 @@ import (
 	"github.com/ismelen/inkomi/back/api/migrations"
 )
 
-func Transactions(d *Deps, router chi.Router) func() {
+// TransactionsAPI are the transactions use cases other modules call in-process.
+type TransactionsAPI struct {
+	ListSentBooks *listsentbooks.ListSentBooksUC
+}
+
+func Transactions(d *Deps, router chi.Router) (func(), *TransactionsAPI) {
 	db, err := datasources.NewSQLiteDatasource(filepath.Join(config.Env.DataDir, "transactions.db"), migrations.Transactions)
 	if err != nil {
 		log.Fatal(err)
@@ -76,10 +82,11 @@ func Transactions(d *Deps, router chi.Router) func() {
 		})
 	})
 
-	return func() {
+	closer := func() {
 		CloseLogged("event queue", eventQueue.Close)()
 		CloseLogged("transactions.db", db.Close)()
 	}
+	return closer, &TransactionsAPI{ListSentBooks: listsentbooks.NewListSentBooksUC(sourceRepo)}
 }
 
 // transactionsStorage returns the signed urls and the space quota of the storage in use: urls of

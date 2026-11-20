@@ -4,6 +4,7 @@ package wires
 
 import (
 	"context"
+	"database/sql"
 	"log"
 	"net/http"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"github.com/ismelen/inkomi/back/api/internal/modules/epub/infra/store"
 	"github.com/ismelen/inkomi/back/api/internal/platform/cloud"
 	"github.com/ismelen/inkomi/back/api/internal/platform/jobcancel"
+	"github.com/ismelen/inkomi/back/api/internal/platform/openlibrary"
 	"github.com/ismelen/inkomi/back/api/internal/platform/queue"
 	"github.com/ismelen/inkomi/back/api/internal/platform/storage"
 )
@@ -39,6 +41,9 @@ type Deps struct {
 	// Cancels skips and interrupts the jobs of cancelled uploads.
 	Cancels   *jobcancel.Registry
 	JoinStore *store.SQLiteJoinStore
+	// DiscoverDB holds the wishlists and the recommendations (discover.db).
+	DiscoverDB  *sql.DB
+	OpenLibrary *openlibrary.Client
 }
 
 // CloseLogged adapts a Close method to a closer that logs its error.

@@ -87,7 +87,7 @@ configure_caddy() {
   fi
   # the api stack joins caddy_net with these aliases (back/api/docker-compose.yml)
   write_caddyfile "$API_DOMAIN {
-    @api path /auth/* /users/* /books/* /uploads /uploads/* /ws /ws/* /preview /preview/* /app/* /files/*
+    @api path /auth/* /users/* /books/* /uploads /uploads/* /ws /ws/* /preview /preview/* /app/* /files/* /wishlist /wishlist/* /recommendations /recommendations/*
     reverse_proxy @api inkomi-api:3000
     reverse_proxy inkomi-web:8080
 }
