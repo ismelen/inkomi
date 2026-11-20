@@ -25,6 +25,7 @@ func TestFilterChain_Filter_Books_KeepsMatching(t *testing.T) {
 		{Title: "Duna", Language: "Spanish", Extension: "epub"},
 		{Title: "Dune Messiah", Language: "English", Extension: "pdf"},
 		{Title: "Children of Dune", Language: "english", Extension: "EPUB"},
+		{Title: "Dune bilingüe", Language: "Spanish; English", Extension: "pdf"},
 	}
 
 	cases := []struct {
@@ -33,10 +34,11 @@ func TestFilterChain_Filter_Books_KeepsMatching(t *testing.T) {
 		formats  []string
 		want     []string
 	}{
-		{"No filters", "", nil, []string{"Dune", "Duna", "Dune Messiah", "Children of Dune"}},
-		{"Language", "English", nil, []string{"Dune", "Dune Messiah", "Children of Dune"}},
+		{"No filters", "", nil, []string{"Dune", "Duna", "Dune Messiah", "Children of Dune", "Dune bilingüe"}},
+		{"Language", "English", nil, []string{"Dune", "Dune Messiah", "Children of Dune", "Dune bilingüe"}},
+		{"Several languages", "spanish", nil, []string{"Duna", "Dune bilingüe"}},
 		{"Format", "", []string{"epub"}, []string{"Dune", "Duna", "Children of Dune"}},
-		{"Both", "english", []string{"pdf"}, []string{"Dune Messiah"}},
+		{"Both", "english", []string{"pdf"}, []string{"Dune Messiah", "Dune bilingüe"}},
 		{"Nothing matches", "French", nil, []string{}},
 	}
 
