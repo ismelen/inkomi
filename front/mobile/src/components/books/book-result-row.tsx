@@ -1,13 +1,13 @@
 import React from 'react';
-import { Image, View } from 'react-native';
+import { View } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { colors, radii, spacing } from '../../theme';
+import { colors, spacing } from '../../theme';
 import { BookResponse } from '../../api/types/books';
-import { backendUrl } from '../../config';
+import { bookLanguagesOf, isBookLanguage } from '../../models/book-languages';
 import { SChip } from '../ui/s-chip';
-import { SIcon } from '../ui/s-icon';
 import { SIconButton } from '../ui/s-icon-button';
 import { SText } from '../ui/s-text';
+import { BookCover } from './book-cover';
 
 interface Props {
   book: BookResponse;
@@ -20,7 +20,10 @@ interface Props {
 
 export function BookResultRow({ book, added, onToggle, wished, onWish }: Props) {
   const { t } = useTranslation();
-  const subtitle = [book.author, book.language].filter(Boolean).join(' · ');
+  const language = bookLanguagesOf(book.language)
+    .map((l) => (isBookLanguage(l) ? t(`bookLanguages.${l}`) : l))
+    .join(', ');
+  const subtitle = [book.author, language].filter(Boolean).join(' · ');
   const addable = !!book.md5;
 
   return (
@@ -32,29 +35,10 @@ export function BookResultRow({ book, added, onToggle, wished, onWish }: Props) 
         paddingVertical: spacing.sm,
       }}
     >
-      <View
-        style={{
-          width: 44,
-          height: 62,
-          borderRadius: radii.sm,
-          backgroundColor: colors.surface,
-          overflow: 'hidden',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        {book.coverUrl ? (
-          <Image
-            source={{
-              uri: book.coverUrl.startsWith('/') ? backendUrl + book.coverUrl : book.coverUrl,
-            }}
-            style={{ width: 44, height: 62 }}
-            resizeMode="cover"
-          />
-        ) : (
-          <SIcon name="menu_book" size={22} color={colors.textSecondary} />
-        )}
-      </View>
+      <BookCover
+        url={book.coverUrl}
+        accessibilityLabel={t('search.cover', { title: book.title })}
+      />
       <View style={{ flex: 1, gap: spacing.xxs }}>
         <SText variant="label" numberOfLines={2}>
           {book.title}
@@ -68,7 +52,7 @@ export function BookResultRow({ book, added, onToggle, wished, onWish }: Props) 
           {!!book.extension && <SChip label={book.extension.toUpperCase()} />}
           {book.pages > 0 && (
             <SText variant="small" tone="textSecondary">
-              {book.pages} p.
+              {t('search.pages', { count: book.pages })}
             </SText>
           )}
         </View>
