@@ -110,7 +110,7 @@ Secrets del repositorio (o del environment `production`, al que puedes poner apr
 1. Tests (con libvips) e imágenes `inkomi-api` e `inkomi-e2e` (`linux/arm64`, en un runner ARM) en ghcr.io.
 2. En el servidor, `deploy/api/deploy.sh`: sube los samples de la preview a R2, arranca la imagen nueva como proyecto compose desechable (datos y red propios) y pasa los tests e2e contra él. Solo si pasan, actualiza producción, espera al healthcheck (`/healthz`) y, si falla, vuelve a la versión anterior (`.deployed-tag`).
 
-**Migración desde el nombre anterior:** si el servidor aún tiene el stack en `~/inkomi/back/monolith` (proyecto `inkomi-monolith`), el primer `deploy.sh` para ese proyecto, mueve la carpeta a `~/inkomi/back/api` (con `.env`, `firebase.json` y `data/`), cambia `MONOLITH_DOMAIN` por `API_DOMAIN` en `.deploy.env` y etiqueta la imagen desplegada como `inkomi-api` para que el rollback siga funcionando.
+**Migración desde el nombre anterior:** si el servidor aún tiene el stack en `~/inkomi/back/monolith` (proyecto `inkomi-monolith`), el primer `deploy.sh` para ese proyecto, mueve la carpeta a `~/inkomi/back/api` (con `.env`, `firebase.json` y `data/`), cambia `MONOLITH_DOMAIN` por `API_DOMAIN` en `.deploy.env` y etiqueta la imagen desplegada como `inkomi-api` para que el rollback siga funcionando. Si `~/inkomi/back/api` ya existía sin `.env` (la carpeta de la API antigua), primero la aparta como `~/inkomi/back/api-legacy-<fecha>`, sin borrar nada.
 
 ### Web (`front/web`)
 

@@ -57,7 +57,18 @@ compose() { "${DOCKER[@]}" compose --project-directory "$API_DIR" -f "$API_DIR/d
 # project (the data is a bind mount and moves with the folder), renames MONOLITH_DOMAIN in
 # .deploy.env and tags the deployed image with the new name so the rollback still has it.
 migrate_old_stack() {
-  [[ -d "$OLD_DIR" && ! -e "$API_DIR" ]] || return 0
+  [[ -d "$OLD_DIR" ]] || return 0
+  if [[ -e "$API_DIR" ]]; then
+    if [[ -f "$API_DIR/.env" || -f "$API_DIR/.deployed-tag" ]]; then
+      warn "both $OLD_DIR and $API_DIR hold a stack: nothing moved, remove the one that isn't used"
+      return 0
+    fi
+    # the legacy api (and a previous failed run) used this folder without a .env: keep it aside
+    local legacy
+    legacy="$API_DIR-legacy-$(date +%Y%m%d%H%M%S)"
+    warn "$API_DIR is not this stack (no .env): moving it to $legacy"
+    mv "$API_DIR" "$legacy"
+  fi
   log "Moving $OLD_DIR to $API_DIR"
   if [[ -f "$OLD_DIR/docker-compose.yml" ]]; then
     "${DOCKER[@]}" compose -p inkomi-monolith --project-directory "$OLD_DIR" -f "$OLD_DIR/docker-compose.yml" down --remove-orphans \
