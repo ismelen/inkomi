@@ -22,3 +22,7 @@ description: Cómo hacer commits en este repo (autoría, sin coautor de Claude, 
 - Un commit por cambio lógico: un refactor grande y un arreglo encima van separados, y cada commit debe compilar y pasar sus tests.
 - Antes de commitear en `back/api`: `gofmt -l .`, `go vet ./...` y los tests del código tocado. En `front/web`: `npm run typecheck` y `npx prettier --check .`.
 - Se commitea en la rama actual (normalmente `dev`). No hagas push ni abras PR salvo que se pida.
+
+## Merge de `dev` a `master`
+
+- Si el merge trae cambios en `front/mobile` (compara `git diff --stat master..dev -- front/mobile`), **es obligatorio subir la versión** antes de mergear: incrementa `expo.version` en `front/mobile/app.json` (minor para funcionalidades, patch si solo hay arreglos) en un commit `chore(mobile): version X.Y.Z` en `dev`. Sin eso, `build-mobile` no publica el APK y la app no se actualiza.
