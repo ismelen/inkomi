@@ -117,12 +117,19 @@
     "placeholderAuthor": "Search by author",
     "byTitle": "Title",
     "byAuthor": "Author",
-    "all": "All",
+    "all": "All formats",
     "added_one": "{{count}} added to the list",
     "added_other": "{{count}} added to the list",
     "empty": "No results",
     "idle": "Search books to add them to the list",
-    "noMd5": "Unavailable"
+    "noMd5": "Unavailable",
+    "by": "Search by",
+    "language": "Language",
+    "format": "Format",
+    "allLanguages": "All languages",
+    "pages_one": "{{count}} page",
+    "pages_other": "{{count}} pages",
+    "cover": "Cover of “{{title}}”"
   },
   "sending": {
     "title": "Sending",
@@ -225,6 +232,21 @@
   "languages": {
     "es": "Español",
     "en": "English"
+  },
+  "bookLanguages": {
+    "es": "Spanish",
+    "en": "English",
+    "fr": "French",
+    "de": "German",
+    "it": "Italian",
+    "pt": "Portuguese",
+    "ca": "Catalan",
+    "ru": "Russian",
+    "ja": "Japanese",
+    "zh": "Chinese",
+    "nl": "Dutch",
+    "pl": "Polish",
+    "tr": "Turkish"
   },
   "errors": {
     "title": "Something went wrong",

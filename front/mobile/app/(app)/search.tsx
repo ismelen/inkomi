@@ -7,14 +7,15 @@ import { BookFormat, SearchField } from '../../src/api/types/books';
 import { BookResultRow } from '../../src/components/books/book-result-row';
 import { Screen } from '../../src/components/ui/screen';
 import { SButton } from '../../src/components/ui/s-button';
-import { SChip } from '../../src/components/ui/s-chip';
 import { SIcon } from '../../src/components/ui/s-icon';
 import { SIconButton } from '../../src/components/ui/s-icon-button';
+import { SSelect } from '../../src/components/ui/s-select';
 import { SText } from '../../src/components/ui/s-text';
 import { STextInput } from '../../src/components/ui/s-text-input';
+import { BookLanguage, bookLanguageCodes } from '../../src/models/book-languages';
 import { supportedFormats } from '../../src/models/list-item';
 import { isLibraryAdded, useList } from '../../src/stores/use-list';
-import { useSearch } from '../../src/stores/use-search';
+import { defaultSearchLanguage, useSearch } from '../../src/stores/use-search';
 import { useWishlist } from '../../src/stores/use-wishlist';
 import { colors, spacing } from '../../src/theme';
 
@@ -27,12 +28,14 @@ export default function SearchScreen() {
     query,
     field,
     format,
+    language,
     results,
     status,
     error,
     setQuery,
     setField,
     setFormat,
+    setLanguage,
     search,
     reset,
   } = useSearch();
@@ -56,6 +59,15 @@ export default function SearchScreen() {
 
   const formats: (BookFormat | null)[] = [null, ...supportedFormats];
   const fields: SearchField[] = ['title', 'author'];
+  const appLanguage = defaultSearchLanguage();
+  // the app language first, the rest by their translated name
+  const languages: (BookLanguage | null)[] = [
+    ...(appLanguage ? [appLanguage] : []),
+    ...bookLanguageCodes
+      .filter((c) => c !== appLanguage)
+      .sort((a, b) => t(`bookLanguages.${a}`).localeCompare(t(`bookLanguages.${b}`))),
+    null,
+  ];
 
   return (
     <Screen>
@@ -87,32 +99,36 @@ export default function SearchScreen() {
           />
         </View>
       </View>
-      <View
-        style={{
-          flexDirection: 'row',
-          gap: spacing.sm,
-          paddingHorizontal: spacing.lg,
-          paddingBottom: spacing.sm,
-        }}
-      >
-        {fields.map((f) => (
-          <SChip
-            key={f}
-            label={t(f === 'author' ? 'search.byAuthor' : 'search.byTitle')}
-            selected={field === f}
-            onPress={() => setField(f)}
+      <View style={{ gap: spacing.sm, paddingHorizontal: spacing.lg, paddingBottom: spacing.sm }}>
+        <SSelect
+          label={t('search.language')}
+          value={language === undefined ? appLanguage : language}
+          onChange={setLanguage}
+          options={languages.map((l) => ({
+            value: l,
+            label: l ? t(`bookLanguages.${l}`) : t('search.allLanguages'),
+          }))}
+        />
+        <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+          <SSelect
+            label={t('search.by')}
+            value={field}
+            onChange={setField}
+            options={fields.map((f) => ({
+              value: f,
+              label: t(f === 'author' ? 'search.byAuthor' : 'search.byTitle'),
+            }))}
           />
-        ))}
-      </View>
-      <View style={{ flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg }}>
-        {formats.map((f) => (
-          <SChip
-            key={f ?? 'all'}
-            label={f ? f.toUpperCase() : t('search.all')}
-            selected={format === f}
-            onPress={() => setFormat(f)}
+          <SSelect
+            label={t('search.format')}
+            value={format}
+            onChange={setFormat}
+            options={formats.map((f) => ({
+              value: f,
+              label: f ? f.toUpperCase() : t('search.all'),
+            }))}
           />
-        ))}
+        </View>
       </View>
 
       <FlatList

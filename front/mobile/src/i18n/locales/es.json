@@ -117,12 +117,19 @@
     "placeholderAuthor": "Buscar por autor",
     "byTitle": "Título",
     "byAuthor": "Autor",
-    "all": "Todos",
+    "all": "Todos los formatos",
     "added_one": "{{count}} añadido a la lista",
     "added_other": "{{count}} añadidos a la lista",
     "empty": "Sin resultados",
     "idle": "Busca libros para añadirlos a la lista",
-    "noMd5": "No disponible"
+    "noMd5": "No disponible",
+    "by": "Buscar por",
+    "language": "Idioma",
+    "format": "Formato",
+    "allLanguages": "Todos los idiomas",
+    "pages_one": "{{count}} página",
+    "pages_other": "{{count}} páginas",
+    "cover": "Portada de «{{title}}»"
   },
   "sending": {
     "title": "Enviando",
@@ -225,6 +232,21 @@
   "languages": {
     "es": "Español",
     "en": "English"
+  },
+  "bookLanguages": {
+    "es": "Español",
+    "en": "Inglés",
+    "fr": "Francés",
+    "de": "Alemán",
+    "it": "Italiano",
+    "pt": "Portugués",
+    "ca": "Catalán",
+    "ru": "Ruso",
+    "ja": "Japonés",
+    "zh": "Chino",
+    "nl": "Neerlandés",
+    "pl": "Polaco",
+    "tr": "Turco"
   },
   "errors": {
     "title": "Algo ha fallado",
