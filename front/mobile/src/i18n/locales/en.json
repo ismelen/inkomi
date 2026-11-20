@@ -42,7 +42,9 @@
     "history": "History",
     "activity": "In progress",
     "settings": "Settings",
-    "library": "Library"
+    "library": "Library",
+    "wishlist": "Wishlist",
+    "discover": "Discover"
   },
   "add": {
     "title": "Add",
@@ -250,7 +252,10 @@
     "dropboxFolderMissing": "The Dropbox folder does not exist",
     "dropboxFolderExists": "A folder with that name already exists",
     "insufficientStorage": "The server is out of space right now. Try again later",
-    "sourceNotCancellable": "This send already finished"
+    "sourceNotCancellable": "This send already finished",
+    "wishlistDuplicate": "Already in your wishlist",
+    "wishlistFull": "Your wishlist is full",
+    "catalogUnavailable": "The book catalog isn't answering, try again later"
   },
   "update": {
     "title": "New version {{version}}",
@@ -275,5 +280,32 @@
     "namePlaceholder": "Profile name",
     "count_one": "{{count}} profile",
     "count_other": "{{count}} profiles"
+  },
+  "wishlist": {
+    "title": "Wishlist",
+    "books": "Books",
+    "authors": "Authors",
+    "add": "Add",
+    "addBook": "Add book",
+    "addAuthor": "Add author",
+    "placeholderBook": "Book title",
+    "placeholderAuthor": "Author name",
+    "emptyBooks": "No books wished yet",
+    "emptyAuthors": "No authors followed yet",
+    "searchLibrary": "Search the library",
+    "remove": "Remove",
+    "added": "Added to the wishlist",
+    "useText": "Add “{{text}}”"
+  },
+  "discover": {
+    "title": "Discover",
+    "forYou": "For you",
+    "new": "New",
+    "discover": "Discover",
+    "because": "Because you like {{title}}",
+    "empty": "Send books or wish some and recommendations will show up here. They are updated every few hours.",
+    "search": "Search",
+    "wish": "Wish",
+    "dismiss": "Not interested"
   }
 }

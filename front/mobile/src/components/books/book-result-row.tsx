@@ -13,9 +13,12 @@ interface Props {
   book: BookResponse;
   added: boolean;
   onToggle: () => void;
+  wished?: boolean;
+  /** Adds the book to the wishlist; hidden when absent. */
+  onWish?: () => void;
 }
 
-export function BookResultRow({ book, added, onToggle }: Props) {
+export function BookResultRow({ book, added, onToggle, wished, onWish }: Props) {
   const { t } = useTranslation();
   const subtitle = [book.author, book.language].filter(Boolean).join(' · ');
   const addable = !!book.md5;
@@ -70,6 +73,15 @@ export function BookResultRow({ book, added, onToggle }: Props) {
           )}
         </View>
       </View>
+      {onWish && (
+        <SIconButton
+          icon={wished ? 'check' : 'favorite'}
+          label={t('discover.wish')}
+          size={20}
+          disabled={wished}
+          onPress={onWish}
+        />
+      )}
       {addable ? (
         <SIconButton
           icon={added ? 'check' : 'add'}

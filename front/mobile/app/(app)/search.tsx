@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, View } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -15,6 +15,7 @@ import { STextInput } from '../../src/components/ui/s-text-input';
 import { supportedFormats } from '../../src/models/list-item';
 import { isLibraryAdded, useList } from '../../src/stores/use-list';
 import { useSearch } from '../../src/stores/use-search';
+import { useWishlist } from '../../src/stores/use-wishlist';
 import { colors, spacing } from '../../src/theme';
 
 const debounceMs = 500;
@@ -37,10 +38,15 @@ export default function SearchScreen() {
   } = useSearch();
   const items = useList((s) => s.items);
   const toggleLibrary = useList((s) => s.toggleLibrary);
+  const wishes = useWishlist((s) => s.items);
+  const addWish = useWishlist((s) => s.add);
   const [added, setAdded] = useState(0);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => () => reset(), [reset]);
+  useEffect(() => {
+    if (useWishlist.getState().status === 'idle') void useWishlist.getState().load();
+  }, []);
 
   const onChangeQuery = (text: string) => {
     setQuery(text);
@@ -122,6 +128,12 @@ export default function SearchScreen() {
             book={book}
             added={isLibraryAdded(items, book.md5)}
             onToggle={() => setAdded((n) => n + (toggleLibrary(book) ? 1 : -1))}
+            wished={wishes.some((w) => w.kind === 'book' && w.title === book.title)}
+            onWish={() =>
+              void addWish({ kind: 'book', title: book.title, author: book.author }).then(
+                (err) => err && Alert.alert(t('errors.title'), t(err))
+              )
+            }
           />
         )}
         ListEmptyComponent={

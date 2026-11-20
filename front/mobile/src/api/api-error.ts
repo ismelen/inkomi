@@ -48,6 +48,9 @@ const messageKeys: Record<string, string> = {
   'invalid format': 'invalidRequest',
   'no release available': 'noRelease',
   'release source unavailable': 'releaseUnavailable',
+  'already in the wishlist': 'wishlistDuplicate',
+  'wishlist is full': 'wishlistFull',
+  'book catalog unavailable': 'catalogUnavailable',
 };
 
 /** Raw message of an error without a translation, to show next to errors.unknown. */

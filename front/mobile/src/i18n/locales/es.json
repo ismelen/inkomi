@@ -42,7 +42,9 @@
     "history": "Historial",
     "activity": "En curso",
     "settings": "Ajustes",
-    "library": "Biblioteca"
+    "library": "Biblioteca",
+    "wishlist": "Deseados",
+    "discover": "Descubrir"
   },
   "add": {
     "title": "Añadir",
@@ -250,7 +252,10 @@
     "dropboxFolderMissing": "La carpeta de Dropbox no existe",
     "dropboxFolderExists": "Ya existe una carpeta con ese nombre",
     "insufficientStorage": "Ahora mismo no hay espacio en el servidor. Inténtalo más tarde",
-    "sourceNotCancellable": "Este envío ya ha terminado"
+    "sourceNotCancellable": "Este envío ya ha terminado",
+    "wishlistDuplicate": "Ya está en tu lista de deseados",
+    "wishlistFull": "Tu lista de deseados está llena",
+    "catalogUnavailable": "El catálogo de libros no responde, prueba más tarde"
   },
   "update": {
     "title": "Nueva versión {{version}}",
@@ -275,5 +280,32 @@
     "namePlaceholder": "Nombre del perfil",
     "count_one": "{{count}} perfil",
     "count_other": "{{count}} perfiles"
+  },
+  "wishlist": {
+    "title": "Deseados",
+    "books": "Libros",
+    "authors": "Autores",
+    "add": "Añadir",
+    "addBook": "Añadir libro",
+    "addAuthor": "Añadir autor",
+    "placeholderBook": "Título del libro",
+    "placeholderAuthor": "Nombre del autor",
+    "emptyBooks": "Aún no deseas ningún libro",
+    "emptyAuthors": "Aún no sigues a ningún autor",
+    "searchLibrary": "Buscar en la biblioteca",
+    "remove": "Quitar",
+    "added": "Añadido a deseados",
+    "useText": "Añadir “{{text}}”"
+  },
+  "discover": {
+    "title": "Descubrir",
+    "forYou": "Para ti",
+    "new": "Novedades",
+    "discover": "Descubre",
+    "because": "Porque te gusta {{title}}",
+    "empty": "Envía libros o añade deseados y aquí aparecerán recomendaciones. Se actualizan cada pocas horas.",
+    "search": "Buscar",
+    "wish": "Desear",
+    "dismiss": "No me interesa"
   }
 }

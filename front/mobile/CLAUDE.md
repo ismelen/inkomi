@@ -13,7 +13,8 @@
 app/_layout.tsx            fuentes, i18n, hidrata la sesión; Stack.Protected (auth) vs (app)
 app/(auth)/login.tsx       login / registro / Google / Dropbox
 app/(app)/_layout.tsx      con sesión: arranca WS + sync + push + perfil; monta SendingModal
-app/(app)/*.tsx            index (Home), search, activity (En curso), history, settings,
+app/(app)/*.tsx            index (Home), search, activity (En curso), history, settings, wishlist (Deseados),
+                           discover (recomendaciones: Para ti / Novedades / Descubre),
                            options/[id] (item | grupo | "default"), group/[id]/reorder
 app/oauth.tsx              redirect del OAuth de Dropbox
 src/api/                   http-client, ws-client, un módulo por servicio, api-error
@@ -36,7 +37,8 @@ modules/file-handler/      módulo nativo Android: copia content:// a la caché
 
 ## Contratos (el backend manda)
 
-- Sin prefijo `/api`: el ingress enruta `/auth`, `/users`, `/books`, `/uploads`, `/ws` y `/app` (release-service, público).
+- Sin prefijo `/api`: Caddy enruta `/auth`, `/users`, `/books`, `/uploads`, `/ws`, `/wishlist`, `/recommendations` y `/app` (release, público).
+- Las recomendaciones se calculan en segundo plano en el servidor (cada pocas horas y poco después de cambiar los deseados); la app solo las lee. Las portadas de recomendaciones y deseados vienen de `covers.openlibrary.org`; las de la búsqueda de la biblioteca, del proxy `/books/cover`.
 - `src/api/types/*` copia nombres y casing exactos de los DTOs Go y cita el fichero de origen. Si cambia un DTO, se cambia aquí. Casing: **snake_case** en el body de `POST /uploads/request` (`SourceDTO`); **camelCase** en `ConfigDTO`, auth, users, `GET /uploads`, descarga y mensajes del WS.
 - Errores `{error: string}`; el middleware JWT responde 401 en **texto plano**. Los mensajes exactos de los centinelas se traducen en `api/api-error.ts` (`errorKey`) a claves `errors.*`; un centinela nuevo del backend añade su entrada y su texto.
 - Rangos de la configuración manga: `back/api/internal/modules/manga/domain/models/manga-config.go` (reflejados en `models/manga-config.ts`, que valida antes de enviar).
