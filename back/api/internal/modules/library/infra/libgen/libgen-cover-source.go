@@ -32,8 +32,22 @@ func (s *LibgenCoverSource) Cover(ctx context.Context, rawURL string) (*models.C
 	if !IsCoverURL(rawURL) {
 		return nil, models.ErrInvalidCoverURL
 	}
+	return fetchCover(ctx, rawURL)
+}
 
-	resp, err := get(ctx, pageClient, rawURL)
+// fetchCover downloads the image at rawURL as a page of its own mirror would. The mirrors
+// protect their covers from hotlinking: without a Referer of the same site they answer
+// 200 image/jpeg with an empty body.
+func fetchCover(ctx context.Context, rawURL string) (*models.Cover, error) {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return nil, fmt.Errorf("parse %s: %w", rawURL, models.ErrInvalidCoverURL)
+	}
+	headers := http.Header{}
+	headers.Set("Referer", u.Scheme+"://"+u.Host+"/")
+	headers.Set("Accept", "image/avif,image/webp,image/apng,image/*,*/*;q=0.8")
+
+	resp, err := getWithHeaders(ctx, pageClient, rawURL, headers)
 	if err != nil {
 		var statusErr *statusError
 		if errors.As(err, &statusErr) && statusErr.code == http.StatusNotFound {
@@ -45,6 +59,10 @@ func (s *LibgenCoverSource) Cover(ctx context.Context, rawURL string) (*models.C
 	if !strings.HasPrefix(contentType, "image/") {
 		resp.Body.Close()
 		return nil, fmt.Errorf("%s is %q, not an image: %w", rawURL, contentType, models.ErrInvalidCoverURL)
+	}
+	if resp.ContentLength == 0 {
+		resp.Body.Close()
+		return nil, fmt.Errorf("%s is an empty image: %w", rawURL, models.ErrInvalidCoverURL)
 	}
 	return &models.Cover{
 		Body:        limitedBody{Reader: io.LimitReader(resp.Body, maxCoverSize), Closer: resp.Body},

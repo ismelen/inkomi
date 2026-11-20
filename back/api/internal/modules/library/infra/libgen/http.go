@@ -37,6 +37,11 @@ func (e *statusError) Error() string {
 // get requests rawURL with browser headers. Any status but 200 is a *statusError and the
 // body is already closed.
 func get(ctx context.Context, client *http.Client, rawURL string) (*http.Response, error) {
+	return getWithHeaders(ctx, client, rawURL, nil)
+}
+
+// getWithHeaders is get with extra headers, which override the default ones.
+func getWithHeaders(ctx context.Context, client *http.Client, rawURL string, headers http.Header) (*http.Response, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("build request %s: %w", rawURL, err)
@@ -44,6 +49,9 @@ func get(ctx context.Context, client *http.Client, rawURL string) (*http.Respons
 	req.Header.Set("User-Agent", userAgent)
 	req.Header.Set("Accept", "text/html,application/xhtml+xml,*/*;q=0.8")
 	req.Header.Set("Accept-Language", "es-ES,es;q=0.9,en;q=0.8")
+	for name, values := range headers {
+		req.Header[name] = values
+	}
 
 	resp, err := client.Do(req)
 	if err != nil {
