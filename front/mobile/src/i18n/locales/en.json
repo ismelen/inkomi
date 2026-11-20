@@ -34,7 +34,7 @@
     "searchPlaceholder": "Search books…",
     "empty": "Add files or folders, or search books to start",
     "dropbox": "Dropbox",
-    "send": "SEND",
+    "send": "Send",
     "selected_one": "{{count}} item selected",
     "selected_other": "{{count}} items selected",
     "cancelSelection": "Cancel selection",
