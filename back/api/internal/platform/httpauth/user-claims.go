@@ -18,3 +18,8 @@ func GetUserClaims(ctx context.Context) (*UserClaims, bool) {
 	claims, ok := ctx.Value(userClaimsKey{}).(*UserClaims)
 	return claims, ok
 }
+
+// WithUserClaims returns ctx carrying claims, as the auth middleware does.
+func WithUserClaims(ctx context.Context, claims *UserClaims) context.Context {
+	return context.WithValue(ctx, userClaimsKey{}, claims)
+}

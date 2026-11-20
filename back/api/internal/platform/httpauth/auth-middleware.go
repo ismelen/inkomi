@@ -1,7 +1,6 @@
 package httpauth
 
 import (
-	"context"
 	"crypto/rsa"
 	"errors"
 	"fmt"
@@ -37,7 +36,7 @@ func NewAuthMiddleware(publicKeyPEM string) (func(http.Handler) http.Handler, er
 				return
 			}
 
-			ctx := context.WithValue(r.Context(), userClaimsKey{}, claims)
+			ctx := WithUserClaims(r.Context(), claims)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}, nil
