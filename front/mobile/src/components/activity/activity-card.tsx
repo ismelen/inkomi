@@ -7,34 +7,31 @@ import { uploadsApi } from '../../api/uploads-api';
 import { ActivityLine, activityView } from '../../models/activity-view';
 import { unfinishedIds, UploadTree } from '../../models/upload-tree';
 import { advanceStatus } from '../../services/activity-db';
+import { IconName } from '../icons/icons';
 import { SButton } from '../ui/s-button';
+import { SIcon } from '../ui/s-icon';
 import { SModal } from '../ui/s-modal';
 import { SText } from '../ui/s-text';
-import { StepChips } from './step-chips';
+import { StepTracker } from './step-tracker';
 
-function useLineText() {
-  const { t } = useTranslation();
-  return (line: ActivityLine) => {
-    switch (line.key) {
-      case 'processing':
-        return line.total
-          ? t('activity.line.processingCount', { done: line.done, total: line.total })
-          : t('activity.line.processing');
-      case 'waitingJoin':
-        return t('activity.line.waitingJoin', { done: line.done, total: line.total });
-      case 'failed':
-        return t('activity.line.failed', { error: line.error });
-      default:
-        return t(`activity.line.${line.key}`);
-    }
-  };
-}
+const lineIcon: Record<ActivityLine['key'], IconName> = {
+  pendingUpload: 'attach_file',
+  queued: 'progress_activity',
+  downloading: 'download',
+  processing: 'menu_book',
+  waitingJoin: 'checklist',
+  joining: 'checklist',
+  kepub: 'tune',
+  uploading: 'check_circle',
+  failed: 'error',
+  cancelled: 'close',
+};
 
 export function ActivityCard({ tree }: { tree: UploadTree }) {
   const { t } = useTranslation();
-  const lineText = useLineText();
   const view = activityView(tree);
   const toneColor = colors[view.tone];
+  const cancellable = unfinishedIds(tree).length > 0;
   const [confirming, setConfirming] = useState(false);
   const [cancelling, setCancelling] = useState(false);
 
@@ -52,61 +49,94 @@ export function ActivityCard({ tree }: { tree: UploadTree }) {
     }
   };
 
+  const step = view.stepIndex >= 0 ? view.steps[view.stepIndex] : undefined;
+
   return (
     <View
       style={{
         borderWidth: 1,
         borderColor: colors.border,
         borderRadius: radii.lg,
-        padding: spacing.md,
-        gap: spacing.sm,
+        padding: spacing.lg,
+        gap: spacing.md,
       }}
     >
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-        <SText variant="label" numberOfLines={1} style={{ flex: 1 }}>
-          {tree.root.title}
-        </SText>
-        {view.counter && (
-          <SText variant="small" tone="textSecondary">
-            {view.counter.done}/{view.counter.total}
-          </SText>
-        )}
-      </View>
-      <SText variant="small" style={{ color: toneColor }} numberOfLines={2}>
-        {lineText(view.line)}
+      <SText variant="title" numberOfLines={2}>
+        {tree.root.title}
       </SText>
-      {!!view.current && (
-        <SText variant="small" tone="textSecondary" numberOfLines={1}>
-          {view.current}
+
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+        <SIcon name={lineIcon[view.line.key]} size={22} color={toneColor} />
+        <SText variant="label" style={{ flex: 1, color: toneColor }}>
+          {t(`activity.line.${view.line.key}`)}
+        </SText>
+      </View>
+      {view.line.key === 'failed' && (
+        <SText variant="small" tone="textSecondary">
+          {t('activity.failedHint')}
         </SText>
       )}
-      <View style={{ height: 4, borderRadius: radii.pill, backgroundColor: colors.surface }}>
-        <View
-          style={{
-            width: `${Math.round(view.progress * 100)}%`,
-            height: 4,
-            borderRadius: radii.pill,
-            backgroundColor: toneColor,
-          }}
-        />
-      </View>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-        <View style={{ flex: 1 }}>
-          <StepChips steps={view.steps} tone={view.tone} />
+
+      {view.steps.length > 1 && (
+        <View style={{ gap: spacing.sm }}>
+          {step && (
+            <SText variant="small" tone="textSecondary">
+              {t('activity.stepOf', {
+                current: view.stepIndex + 1,
+                total: view.steps.length,
+                step: t(`activity.steps.${step.key}`),
+              })}
+            </SText>
+          )}
+          <StepTracker steps={view.steps} tone={view.tone} />
         </View>
+      )}
+
+      {view.counter && view.counter.total > 0 && (
+        <View style={{ gap: spacing.xs }}>
+          <SText variant="small" tone="textSecondary">
+            {t('activity.booksReady', {
+              count: view.counter.total,
+              done: view.counter.done,
+            })}
+          </SText>
+          <View
+            accessibilityRole="progressbar"
+            accessibilityValue={{ min: 0, max: view.counter.total, now: view.counter.done }}
+            style={{ height: 8, borderRadius: radii.pill, backgroundColor: colors.surface }}
+          >
+            <View
+              style={{
+                width: `${Math.round((view.counter.done / view.counter.total) * 100)}%`,
+                height: 8,
+                borderRadius: radii.pill,
+                backgroundColor: colors.success,
+              }}
+            />
+          </View>
+          {!!view.current && (
+            <SText variant="small" tone="textSecondary" numberOfLines={2}>
+              {t('activity.now', { titles: view.current })}
+            </SText>
+          )}
+        </View>
+      )}
+
+      {cancellable && (
         <SButton
-          variant="secondary"
-          compact
+          variant="dangerOutline"
           icon="close"
           label={t('activity.cancel')}
           loading={cancelling}
           onPress={() => setConfirming(true)}
+          style={{ alignSelf: 'flex-end' }}
         />
-      </View>
+      )}
+
       <SModal
         visible={confirming}
         title={t('activity.cancelTitle')}
-        message={t('activity.cancelMessage')}
+        message={t('activity.cancelMessage', { title: tree.root.title })}
         onClose={() => setConfirming(false)}
         actions={[
           {
@@ -114,7 +144,11 @@ export function ActivityCard({ tree }: { tree: UploadTree }) {
             onPress: () => setConfirming(false),
             variant: 'secondary',
           },
-          { label: t('activity.cancel'), onPress: () => void cancel(), variant: 'danger' },
+          {
+            label: t('activity.cancelConfirm'),
+            onPress: () => void cancel(),
+            variant: 'danger',
+          },
         ]}
       />
     </View>

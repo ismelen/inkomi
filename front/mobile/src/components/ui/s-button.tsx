@@ -5,7 +5,7 @@ import { IconName } from '../icons/icons';
 import { SIcon } from './s-icon';
 import { SText } from './s-text';
 
-type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
+type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'dangerOutline';
 
 interface Props {
   label: string;
@@ -25,6 +25,7 @@ const palette: Record<Variant, { bg: string; fg: string; border: string }> = {
   secondary: { bg: colors.background, fg: colors.text, border: colors.border },
   ghost: { bg: 'transparent', fg: colors.text, border: 'transparent' },
   danger: { bg: colors.danger, fg: colors.onPrimary, border: colors.danger },
+  dangerOutline: { bg: colors.background, fg: colors.danger, border: colors.danger },
 };
 
 export function SButton({

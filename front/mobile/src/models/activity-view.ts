@@ -30,13 +30,21 @@ export type ActivityLine =
   | { key: 'waitingJoin'; done: number; total: number }
   | { key: 'failed'; error: string };
 
+export interface ActivityStep {
+  key: StepKey;
+  state: Exclude<StepState, 'skip'>;
+}
+
 export interface ActivityView {
   counter?: { done: number; total: number };
   /** Titles of the items being converted right now. */
   current?: string;
   line: ActivityLine;
   tone: Tone;
-  steps: Record<StepKey, StepState>;
+  /** Only the steps this upload goes through, in order. */
+  steps: ActivityStep[];
+  /** Index in steps of the step running now; -1 before the first one starts. */
+  stepIndex: number;
   progress: number;
 }
 
@@ -138,17 +146,14 @@ export function activityView(tree: UploadTree): ActivityView {
   }
 
   const active = activeStep(node);
-  const activeIndex = active ? stepOrder.indexOf(active) : -1;
-  const steps = {} as Record<StepKey, StepState>;
-  stepOrder.forEach((step, i) => {
-    if (!applicable.has(step)) steps[step] = 'skip';
-    else if (i < activeIndex) steps[step] = 'done';
-    else if (i === activeIndex) steps[step] = 'active';
-    else steps[step] = 'todo';
-  });
-
   const ordered = stepOrder.filter((s) => applicable.has(s));
-  const doneSteps = active ? ordered.indexOf(active) + 0.5 : 0;
+  const stepIndex = active ? ordered.indexOf(active) : -1;
+  const steps: ActivityStep[] = ordered.map((key, i) => ({
+    key,
+    state: i < stepIndex ? 'done' : i === stepIndex ? 'active' : 'todo',
+  }));
+
+  const doneSteps = stepIndex >= 0 ? stepIndex + 0.5 : 0;
   let progress = ordered.length ? doneSteps / ordered.length : 0;
   if (folder && items.length > 0 && !resultsOf(tree).length) {
     progress = Math.max(progress, (settled / items.length) * 0.8);
@@ -165,6 +170,7 @@ export function activityView(tree: UploadTree): ActivityView {
     line,
     tone: toneOf[line.key],
     steps,
+    stepIndex,
     progress: Math.min(1, Math.max(0.03, progress)),
   };
 }
