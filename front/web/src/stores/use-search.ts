@@ -47,8 +47,8 @@ export const useSearch = create<SearchState>()((set, get) => ({
     set({ status: 'loading', error: undefined });
     try {
       const format = get().format;
-      const results = await booksApi.search(q, format ? [format] : supportedFormats, signal);
-      if (!signal.aborted) set({ results, status: 'done' });
+      const page = await booksApi.search(q, format ? [format] : supportedFormats, signal);
+      if (!signal.aborted) set({ results: page.books, status: 'done' });
     } catch (err) {
       if (!signal.aborted) set({ results: [], status: 'error', error: errorKey(err) });
     }
