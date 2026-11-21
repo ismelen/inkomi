@@ -5,6 +5,7 @@ import {
   WishItem,
   WishKind,
   WishSuggestion,
+  WorkDetails,
   WorksPage,
 } from './types/wishlist';
 
@@ -14,6 +15,8 @@ export const wishlistApi = {
   remove: (id: number) => http.delete<void>(`/wishlist/${id}`),
   lookup: (kind: WishKind, q: string, signal?: AbortSignal) =>
     http.get<WishSuggestion[]>('/wishlist/lookup', { query: { kind, q }, signal }),
+  work: (workKey: string, signal?: AbortSignal) =>
+    http.get<WorkDetails>(`/wishlist/works/${encodeURIComponent(workKey)}`, { signal }),
   authorWorks: ({ authorKey, author, sort, lang, page }: AuthorWorksQuery, signal?: AbortSignal) =>
     http.get<WorksPage>('/wishlist/works', {
       query: {

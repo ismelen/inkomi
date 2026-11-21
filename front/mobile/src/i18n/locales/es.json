@@ -281,7 +281,8 @@
     "sourceNotCancellable": "Este envío ya ha terminado",
     "wishlistDuplicate": "Ya está en tu lista de deseados",
     "wishlistFull": "Tu lista de deseados está llena",
-    "catalogUnavailable": "El catálogo de libros no responde, prueba más tarde"
+    "catalogUnavailable": "El catálogo de libros no responde, prueba más tarde",
+    "workNotFound": "El catálogo no conoce este libro"
   },
   "update": {
     "title": "Nueva versión {{version}}",
@@ -338,5 +339,10 @@
     "count_one": "{{count}} libro",
     "count_other": "{{count}} libros",
     "empty": "No se han encontrado libros de este autor"
+  },
+  "workSheet": {
+    "title": "Sinopsis",
+    "noSynopsis": "No hay sinopsis de este libro en el catálogo",
+    "open": "Ver la sinopsis"
   }
 }

@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Pressable, ScrollView, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { errorKey } from '../../src/api/api-error';
 import { wishlistApi } from '../../src/api/wishlist-api';
 import { WishSuggestion, WorksSort } from '../../src/api/types/wishlist';
 import { BookCover } from '../../src/components/books/book-cover';
+import { SheetBook, WorkSheet } from '../../src/components/wishlist/work-sheet';
 import { Header } from '../../src/components/ui/header';
 import { Screen } from '../../src/components/ui/screen';
 import { SIconButton } from '../../src/components/ui/s-icon-button';
@@ -15,7 +16,7 @@ import { BookLanguage, bookLanguageCodes } from '../../src/models/book-languages
 import { openLibrarySearch } from '../../src/services/library-search';
 import { defaultSearchLanguage } from '../../src/stores/use-search';
 import { useWishlist } from '../../src/stores/use-wishlist';
-import { colors, spacing } from '../../src/theme';
+import { colors, radii, spacing } from '../../src/theme';
 
 const sorts: WorksSort[] = ['popular', 'new', 'old', 'title'];
 
@@ -41,6 +42,7 @@ export default function AuthorWorksScreen() {
   const [status, setStatus] = useState<Status>('loading');
   const [error, setError] = useState<string>();
   const [loadingMore, setLoadingMore] = useState(false);
+  const [details, setDetails] = useState<SheetBook | null>(null);
   const controller = useRef<AbortController | null>(null);
 
   const fetchPage = useCallback(
@@ -107,9 +109,13 @@ export default function AuthorWorksScreen() {
     );
 
   const wish = (w: WishSuggestion) =>
-    void addWish({ kind: 'book', title: w.title, author: w.author, workKey: w.workKey }).then(
-      (err) => err && Alert.alert(t('errors.title'), t(err))
-    );
+    void addWish({
+      kind: 'book',
+      title: w.title,
+      author: w.author,
+      workKey: w.workKey,
+      coverUrl: w.coverUrl,
+    }).then((err) => err && Alert.alert(t('errors.title'), t(err)));
 
   return (
     <Screen bottomInset>
@@ -160,28 +166,36 @@ export default function AuthorWorksScreen() {
         renderItem={({ item }) => {
           const wished = isWished(item);
           return (
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: spacing.md,
-                paddingVertical: spacing.sm,
-              }}
-            >
-              <BookCover
-                url={item.coverUrl}
-                accessibilityLabel={t('search.cover', { title: item.title })}
-              />
-              <View style={{ flex: 1, gap: spacing.xxs }}>
-                <SText variant="label" numberOfLines={2}>
-                  {item.title}
-                </SText>
-                {!!item.year && (
-                  <SText variant="small" tone="textSecondary">
-                    {item.year}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+              <Pressable
+                onPress={() => setDetails({ ...item, author: name || item.author })}
+                accessibilityRole="button"
+                accessibilityHint={t('workSheet.open')}
+                android_ripple={{ color: colors.ripple }}
+                style={{
+                  flex: 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: spacing.md,
+                  paddingVertical: spacing.sm,
+                  borderRadius: radii.md,
+                }}
+              >
+                <BookCover
+                  url={item.coverUrl}
+                  accessibilityLabel={t('search.cover', { title: item.title })}
+                />
+                <View style={{ flex: 1, gap: spacing.xxs }}>
+                  <SText variant="label" numberOfLines={2}>
+                    {item.title}
                   </SText>
-                )}
-              </View>
+                  {!!item.year && (
+                    <SText variant="small" tone="textSecondary">
+                      {item.year}
+                    </SText>
+                  )}
+                </View>
+              </Pressable>
               <SIconButton
                 icon={wished ? 'check' : 'favorite'}
                 label={t('wishlist.wish')}
@@ -220,6 +234,7 @@ export default function AuthorWorksScreen() {
           </View>
         }
       />
+      <WorkSheet book={details} onClose={() => setDetails(null)} />
     </Screen>
   );
 }

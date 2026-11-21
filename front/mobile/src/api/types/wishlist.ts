@@ -11,6 +11,8 @@ export interface WishItem {
   /** Open Library keys; empty when the item was typed by hand. */
   workKey: string;
   authorKey: string;
+  /** Catalog cover of the book; empty until its work is found. */
+  coverUrl: string;
   createdAt: string;
 }
 
@@ -20,6 +22,8 @@ export interface AddWishRequest {
   author?: string;
   workKey?: string;
   authorKey?: string;
+  /** Cover of the picked suggestion. */
+  coverUrl?: string;
 }
 
 /** A catalog match while typing a wish (GET /wishlist/lookup). */
@@ -53,4 +57,15 @@ export interface AuthorWorksQuery {
   /** ISO 639-1 code; titles and covers come from the edition in that language. */
   lang?: string;
   page: number;
+}
+
+/** Cover, synopsis and subjects of a work (GET /wishlist/works/{workKey}). */
+export interface WorkDetails {
+  workKey: string;
+  title: string;
+  /** Synopsis as plain text; empty when the catalog has none. */
+  description: string;
+  coverUrl: string;
+  subjects: string[];
+  firstPublished: string;
 }

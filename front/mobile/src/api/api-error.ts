@@ -51,6 +51,7 @@ const messageKeys: Record<string, string> = {
   'already in the wishlist': 'wishlistDuplicate',
   'wishlist is full': 'wishlistFull',
   'book catalog unavailable': 'catalogUnavailable',
+  'work not found': 'workNotFound',
 };
 
 /** Raw message of an error without a translation, to show next to errors.unknown. */

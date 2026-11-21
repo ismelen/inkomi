@@ -3,7 +3,9 @@ import { ActivityIndicator, Alert, FlatList, Pressable, View } from 'react-nativ
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { AddWishRequest, WishItem, WishKind } from '../../src/api/types/wishlist';
+import { BookCover } from '../../src/components/books/book-cover';
 import { AddWishModal } from '../../src/components/wishlist/add-wish-modal';
+import { SheetBook, WorkSheet } from '../../src/components/wishlist/work-sheet';
 import { Header } from '../../src/components/ui/header';
 import { Screen } from '../../src/components/ui/screen';
 import { SIcon } from '../../src/components/ui/s-icon';
@@ -26,6 +28,7 @@ export default function WishlistScreen() {
   const { items, status, error, load, add, remove } = useWishlist();
   const [kind, setKind] = useState<WishKind>('book');
   const [adding, setAdding] = useState(false);
+  const [details, setDetails] = useState<SheetBook | null>(null);
 
   useEffect(() => {
     void load();
@@ -76,20 +79,25 @@ export default function WishlistScreen() {
           return (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
               <Pressable
-                disabled={!isAuthor}
-                onPress={() => openAuthorWorks(item)}
-                accessibilityRole={isAuthor ? 'button' : undefined}
-                accessibilityHint={isAuthor ? t('authorWorks.open') : undefined}
-                android_ripple={isAuthor ? { color: colors.ripple } : undefined}
+                onPress={() => (isAuthor ? openAuthorWorks(item) : setDetails(item))}
+                accessibilityRole="button"
+                accessibilityHint={t(isAuthor ? 'authorWorks.open' : 'workSheet.open')}
+                android_ripple={{ color: colors.ripple }}
                 style={{
                   flex: 1,
                   flexDirection: 'row',
                   alignItems: 'center',
-                  gap: spacing.xs,
+                  gap: isAuthor ? spacing.xs : spacing.md,
                   paddingVertical: spacing.sm,
                   borderRadius: radii.md,
                 }}
               >
+                {!isAuthor && (
+                  <BookCover
+                    url={item.coverUrl}
+                    accessibilityLabel={t('search.cover', { title: item.title })}
+                  />
+                )}
                 <View style={{ flex: 1, gap: spacing.xxs }}>
                   <SText variant="label" numberOfLines={2}>
                     {item.title}
@@ -142,6 +150,7 @@ export default function WishlistScreen() {
         onClose={() => setAdding(false)}
         onAdd={onAdd}
       />
+      <WorkSheet book={details} onClose={() => setDetails(null)} />
     </Screen>
   );
 }

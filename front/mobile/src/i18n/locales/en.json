@@ -281,7 +281,8 @@
     "sourceNotCancellable": "This send already finished",
     "wishlistDuplicate": "Already in your wishlist",
     "wishlistFull": "Your wishlist is full",
-    "catalogUnavailable": "The book catalog isn't answering, try again later"
+    "catalogUnavailable": "The book catalog isn't answering, try again later",
+    "workNotFound": "The catalog doesn't know this book"
   },
   "update": {
     "title": "New version {{version}}",
@@ -338,5 +339,10 @@
     "count_one": "{{count}} book",
     "count_other": "{{count}} books",
     "empty": "No books found for this author"
+  },
+  "workSheet": {
+    "title": "Synopsis",
+    "noSynopsis": "The catalog has no synopsis for this book",
+    "open": "See the synopsis"
   }
 }

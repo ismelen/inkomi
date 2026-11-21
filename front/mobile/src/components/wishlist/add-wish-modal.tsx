@@ -47,7 +47,13 @@ export function AddWishModal({ visible, initialKind, onClose, onAdd }: Props) {
     onAdd(
       s.kind === 'author'
         ? { kind: 'author', title: s.title, authorKey: s.authorKey }
-        : { kind: 'book', title: s.title, author: s.author, workKey: s.workKey }
+        : {
+            kind: 'book',
+            title: s.title,
+            author: s.author,
+            workKey: s.workKey,
+            coverUrl: s.coverUrl,
+          }
     );
 
   const text = query.trim();
