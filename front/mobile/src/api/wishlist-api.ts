@@ -1,5 +1,12 @@
 import { http } from './http-client';
-import { AddWishRequest, WishItem, WishKind, WishSuggestion } from './types/wishlist';
+import {
+  AddWishRequest,
+  AuthorWorksQuery,
+  WishItem,
+  WishKind,
+  WishSuggestion,
+  WorksPage,
+} from './types/wishlist';
 
 export const wishlistApi = {
   list: () => http.get<WishItem[]>('/wishlist'),
@@ -7,4 +14,14 @@ export const wishlistApi = {
   remove: (id: number) => http.delete<void>(`/wishlist/${id}`),
   lookup: (kind: WishKind, q: string, signal?: AbortSignal) =>
     http.get<WishSuggestion[]>('/wishlist/lookup', { query: { kind, q }, signal }),
+  authorWorks: ({ authorKey, author, sort, lang, page }: AuthorWorksQuery, signal?: AbortSignal) =>
+    http.get<WorksPage>('/wishlist/works', {
+      query: {
+        sort,
+        page: String(page),
+        ...(authorKey ? { authorKey } : { author: author ?? '' }),
+        ...(lang ? { lang } : {}),
+      },
+      signal,
+    }),
 };

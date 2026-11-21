@@ -1,64 +1,46 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { wishlistApi } from '../../api/wishlist-api';
 import { AddWishRequest, WishKind, WishSuggestion } from '../../api/types/wishlist';
+import { useCatalogSuggestions } from '../../hooks/use-catalog-suggestions';
 import { colors, radii, spacing } from '../../theme';
 import { BookCover } from '../books/book-cover';
 import { SModal } from '../ui/s-modal';
+import { SSegmented } from '../ui/s-segmented';
 import { SText } from '../ui/s-text';
 import { STextInput } from '../ui/s-text-input';
 
-const debounceMs = 400;
-const minQuery = 2;
-
 interface Props {
-  kind: WishKind | null;
+  visible: boolean;
+  /** Kind selected when the modal opens; the user can switch it. */
+  initialKind: WishKind;
   onClose: () => void;
   onAdd: (item: AddWishRequest) => void;
 }
 
 /** Adds a wish: suggestions from the catalog while typing, or the typed text as is. */
-export function AddWishModal({ kind, onClose, onAdd }: Props) {
+export function AddWishModal({ visible, initialKind, onClose, onAdd }: Props) {
   const { t } = useTranslation();
+  const [kind, setKind] = useState<WishKind>(initialKind);
   const [query, setQuery] = useState('');
-  const [suggestions, setSuggestions] = useState<WishSuggestion[]>([]);
-  const [loading, setLoading] = useState(false);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const controller = useRef<AbortController | null>(null);
+  const { suggestions, loading, lookup, clear } = useCatalogSuggestions();
 
   useEffect(() => {
+    if (!visible) return;
+    setKind(initialKind);
     setQuery('');
-    setSuggestions([]);
-  }, [kind]);
-
-  useEffect(
-    () => () => {
-      if (timer.current) clearTimeout(timer.current);
-      controller.current?.abort();
-    },
-    []
-  );
+    clear();
+  }, [visible, initialKind, clear]);
 
   const onChange = (text: string) => {
     setQuery(text);
-    if (timer.current) clearTimeout(timer.current);
-    controller.current?.abort();
-    if (!kind || text.trim().length < minQuery) {
-      setSuggestions([]);
-      setLoading(false);
-      return;
-    }
-    timer.current = setTimeout(() => {
-      const ctrl = new AbortController();
-      controller.current = ctrl;
-      setLoading(true);
-      wishlistApi
-        .lookup(kind, text.trim(), ctrl.signal)
-        .then((found) => !ctrl.signal.aborted && setSuggestions(found))
-        .catch(() => !ctrl.signal.aborted && setSuggestions([]))
-        .finally(() => !ctrl.signal.aborted && setLoading(false));
-    }, debounceMs);
+    lookup(kind, text);
+  };
+
+  const onKind = (next: WishKind) => {
+    setKind(next);
+    clear();
+    lookup(next, query);
   };
 
   const pick = (s: WishSuggestion) =>
@@ -72,18 +54,26 @@ export function AddWishModal({ kind, onClose, onAdd }: Props) {
 
   return (
     <SModal
-      visible={kind !== null}
-      title={t(kind === 'author' ? 'wishlist.addAuthor' : 'wishlist.addBook')}
+      visible={visible}
+      title={t('wishlist.addTitle')}
       onClose={onClose}
       actions={[
         { label: t('common.close'), onPress: onClose, variant: 'secondary' },
         {
           label: t('wishlist.add'),
-          onPress: () => kind && onAdd({ kind, title: text }),
+          onPress: () => onAdd({ kind, title: text }),
           disabled: text.length === 0,
         },
       ]}
     >
+      <SSegmented
+        value={kind}
+        onChange={onKind}
+        options={[
+          { value: 'book', label: t('wishlist.book') },
+          { value: 'author', label: t('wishlist.author') },
+        ]}
+      />
       <STextInput
         autoFocus
         value={query}

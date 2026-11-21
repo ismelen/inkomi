@@ -12,13 +12,17 @@ interface Props<T> {
   options: Option<T>[];
   value: T;
   onChange: (value: T) => void;
+  /** lg: taller, with bigger text, for the main switch of a screen. Default md. */
+  size?: 'md' | 'lg';
 }
 
 export function SSegmented<T extends string | number | boolean>({
   options,
   value,
   onChange,
+  size = 'md',
 }: Props<T>) {
+  const large = size === 'lg';
   return (
     <View
       style={{
@@ -39,7 +43,7 @@ export function SSegmented<T extends string | number | boolean>({
             accessibilityState={{ selected }}
             style={{
               flex: 1,
-              paddingVertical: spacing.sm,
+              paddingVertical: large ? spacing.md : spacing.sm,
               borderRadius: radii.sm,
               alignItems: 'center',
               backgroundColor: selected ? colors.background : 'transparent',
@@ -47,7 +51,7 @@ export function SSegmented<T extends string | number | boolean>({
               borderColor: colors.border,
             }}
           >
-            <SText variant="label" tone={selected ? 'text' : 'textSecondary'}>
+            <SText variant={large ? 'title' : 'label'} tone={selected ? 'text' : 'textSecondary'}>
               {option.label}
             </SText>
           </Pressable>

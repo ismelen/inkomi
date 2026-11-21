@@ -312,8 +312,6 @@
     "books": "Books",
     "authors": "Authors",
     "add": "Add",
-    "addBook": "Add book",
-    "addAuthor": "Add author",
     "placeholderBook": "Book title",
     "placeholderAuthor": "Author name",
     "emptyBooks": "No books wished yet",
@@ -322,6 +320,23 @@
     "remove": "Remove",
     "added": "Added to the wishlist",
     "useText": "Add “{{text}}”",
-    "wish": "Wish"
+    "wish": "Wish",
+    "addTitle": "Add to the wishlist",
+    "book": "Book",
+    "author": "Author"
+  },
+  "authorWorks": {
+    "title": "Author's books",
+    "open": "See their books",
+    "sort": "Sort by",
+    "sorts": {
+      "popular": "Popularity",
+      "new": "Newest",
+      "old": "Oldest",
+      "title": "Alphabetical"
+    },
+    "count_one": "{{count}} book",
+    "count_other": "{{count}} books",
+    "empty": "No books found for this author"
   }
 }

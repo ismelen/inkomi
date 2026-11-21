@@ -312,8 +312,6 @@
     "books": "Libros",
     "authors": "Autores",
     "add": "Añadir",
-    "addBook": "Añadir libro",
-    "addAuthor": "Añadir autor",
     "placeholderBook": "Título del libro",
     "placeholderAuthor": "Nombre del autor",
     "emptyBooks": "Aún no deseas ningún libro",
@@ -322,6 +320,23 @@
     "remove": "Quitar",
     "added": "Añadido a deseados",
     "useText": "Añadir “{{text}}”",
-    "wish": "Desear"
+    "wish": "Desear",
+    "addTitle": "Añadir a deseados",
+    "book": "Libro",
+    "author": "Autor"
+  },
+  "authorWorks": {
+    "title": "Libros del autor",
+    "open": "Ver sus libros",
+    "sort": "Ordenar por",
+    "sorts": {
+      "popular": "Popularidad",
+      "new": "Más recientes",
+      "old": "Más antiguos",
+      "title": "Alfabético"
+    },
+    "count_one": "{{count}} libro",
+    "count_other": "{{count}} libros",
+    "empty": "No se han encontrado libros de este autor"
   }
 }

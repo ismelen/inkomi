@@ -33,3 +33,24 @@ export interface WishSuggestion {
   year: number;
   coverUrl: string;
 }
+
+/** Order of the works of an author (sort of GET /wishlist/works). */
+export type WorksSort = 'popular' | 'new' | 'old' | 'title';
+
+/** A page of the works of an author (GET /wishlist/works). */
+export interface WorksPage {
+  works: WishSuggestion[];
+  total: number;
+  page: number;
+  hasMore: boolean;
+}
+
+export interface AuthorWorksQuery {
+  /** Open Library key; without it the author is searched by name. */
+  authorKey?: string;
+  author?: string;
+  sort: WorksSort;
+  /** ISO 639-1 code; titles and covers come from the edition in that language. */
+  lang?: string;
+  page: number;
+}
