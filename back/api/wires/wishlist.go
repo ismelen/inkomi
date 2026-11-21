@@ -7,6 +7,7 @@ import (
 
 	"github.com/ismelen/inkomi/back/api/internal/modules/wishlist/infra/openlibrary"
 	"github.com/ismelen/inkomi/back/api/internal/modules/wishlist/infra/repositories"
+	"github.com/ismelen/inkomi/back/api/internal/modules/wishlist/infra/wikipedia"
 	"github.com/ismelen/inkomi/back/api/internal/modules/wishlist/ui/handlers"
 	"github.com/ismelen/inkomi/back/api/internal/modules/wishlist/ui/routes"
 	"github.com/ismelen/inkomi/back/api/internal/modules/wishlist/usecases/additem"
@@ -36,7 +37,8 @@ func Wishlist(d *Deps, r chi.Router) {
 			listitems.NewListItemsUC(repo),
 			lookup.NewLookupUC(catalog),
 			authorworks.NewAuthorWorksUC(catalog),
-			getwork.NewGetWorkUC(works, catalog),
+			getwork.NewGetWorkUC(works, catalog, repositories.NewSQLiteSynopsisRepository(d.WishlistDB),
+				wikipedia.NewWikipediaSynopsisLookup(d.OpenLibrary, d.Wikimedia)),
 		))
 	})
 }

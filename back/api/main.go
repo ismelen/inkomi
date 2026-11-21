@@ -25,6 +25,7 @@ import (
 	"github.com/ismelen/inkomi/back/api/internal/platform/resources"
 	"github.com/ismelen/inkomi/back/api/internal/platform/sqlitedb"
 	"github.com/ismelen/inkomi/back/api/internal/platform/storage"
+	"github.com/ismelen/inkomi/back/api/internal/platform/wikimedia"
 	"github.com/ismelen/inkomi/back/api/migrations"
 	"github.com/ismelen/inkomi/back/api/wires"
 )
@@ -89,6 +90,7 @@ func main() {
 		MangaConcurrency: mangaConcurrency(memory),
 		WishlistDB:       wishlistDB,
 		OpenLibrary:      openlibrary.NewClient(openlibrary.DefaultBaseURL, config.Env.OpenLibraryUserAgent, config.Env.OpenLibraryRPS),
+		Wikimedia:        wikimedia.NewClient(wikimedia.DefaultSPARQLURL, wikimedia.DefaultWikipediaURL, config.Env.OpenLibraryUserAgent),
 	}
 
 	router := chi.NewRouter()

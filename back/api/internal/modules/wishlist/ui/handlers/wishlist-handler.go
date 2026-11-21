@@ -108,9 +108,10 @@ func (h *WishlistHandler) HandleAuthorWorks(r *http.Request) (*dtos.WorksPageRes
 	return &response, nil
 }
 
-// HandleWork serves GET /wishlist/works/{workKey}: cover, synopsis and subjects of a work.
+// HandleWork serves GET /wishlist/works/{workKey}?lang=<iso>: cover, synopsis and subjects of a
+// work; with lang, the synopsis is the one of an edition in that language, or empty.
 func (h *WishlistHandler) HandleWork(r *http.Request) (*dtos.WorkResponse, error) {
-	work, err := h.workUC.Execute(r.Context(), chi.URLParam(r, "workKey"))
+	work, err := h.workUC.Execute(r.Context(), chi.URLParam(r, "workKey"), r.URL.Query().Get("lang"))
 	if err != nil {
 		return nil, mapError(err)
 	}
@@ -130,7 +131,7 @@ func mapError(err error) error {
 	case errors.Is(err, models.ErrInvalidKind), errors.Is(err, models.ErrEmptyTitle),
 		errors.Is(err, models.ErrTooLong), errors.Is(err, models.ErrEmptyQuery),
 		errors.Is(err, models.ErrInvalidSort), errors.Is(err, models.ErrInvalidPage),
-		errors.Is(err, models.ErrInvalidWorkKey):
+		errors.Is(err, models.ErrInvalidWorkKey), errors.Is(err, models.ErrInvalidLanguage):
 		return requtil.NewError(http.StatusBadRequest, err.Error())
 	case errors.Is(err, models.ErrDuplicate):
 		return requtil.NewError(http.StatusConflict, err.Error())

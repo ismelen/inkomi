@@ -148,3 +148,46 @@ func TestClient_GetWork_PlainDescriptionAndMissing_MapsThem(t *testing.T) {
 	assert.Equal(t, "A city.", work.Description)
 	assert.ErrorIs(t, missingErr, openlibrary.ErrNotFound)
 }
+
+func TestClient_EditionKeyIn_EditionInLanguage_ReturnsItsKey(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	var got *http.Request
+	client := newServer(t, func(w http.ResponseWriter, r *http.Request) {
+		got = r
+		fmt.Fprint(w, `{"docs":[{"key":"/works/OL5W","editions":{"docs":[
+			{"key":"/books/OL29659236M","language":["spa"]}]}}]}`)
+	})
+
+	// Act
+	key, err := client.EditionKeyIn(context.Background(), "OL5W", "es")
+
+	// Assert
+	require.NoError(t, err)
+	assert.Equal(t, "OL29659236M", key)
+	assert.Equal(t, "key:/works/OL5W", got.URL.Query().Get("q"))
+	assert.Equal(t, "spa", got.URL.Query().Get("language"))
+}
+
+func TestClient_EditionKeyIn_OtherLanguageOrUnknown_ReturnsEmpty(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	calls := 0
+	client := newServer(t, func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		fmt.Fprint(w, `{"docs":[{"editions":{"docs":[{"key":"/books/OL1M","language":["eng"]}]}}]}`)
+	})
+
+	// Act
+	key, err := client.EditionKeyIn(context.Background(), "OL5W", "es")
+	unknown, unknownErr := client.EditionKeyIn(context.Background(), "OL5W", "xx")
+
+	// Assert
+	require.NoError(t, err)
+	require.NoError(t, unknownErr)
+	assert.Empty(t, key)
+	assert.Empty(t, unknown)
+	assert.Equal(t, 1, calls)
+}

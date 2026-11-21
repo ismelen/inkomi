@@ -18,6 +18,7 @@ import (
 	"github.com/ismelen/inkomi/back/api/internal/platform/openlibrary"
 	"github.com/ismelen/inkomi/back/api/internal/platform/queue"
 	"github.com/ismelen/inkomi/back/api/internal/platform/storage"
+	"github.com/ismelen/inkomi/back/api/internal/platform/wikimedia"
 )
 
 // TimeoutMiddleware bounds every route except the WebSocket, which is long-lived, and the preview,
@@ -43,6 +44,7 @@ type Deps struct {
 	JoinStore   *store.SQLiteJoinStore
 	WishlistDB  *sql.DB
 	OpenLibrary *openlibrary.Client
+	Wikimedia   *wikimedia.Client
 }
 
 // CloseLogged adapts a Close method to a closer that logs its error.

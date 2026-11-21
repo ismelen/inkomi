@@ -25,3 +25,13 @@ CREATE TABLE IF NOT EXISTS wishlist_work (
 	firstPublished TEXT NOT NULL DEFAULT '',
 	fetchedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Synopses of the wished works in each language (Wikipedia leads), shared by every user; an empty
+-- description records that there was none.
+CREATE TABLE IF NOT EXISTS wishlist_synopsis (
+	workKey TEXT NOT NULL,
+	lang TEXT NOT NULL,
+	description TEXT NOT NULL DEFAULT '',
+	fetchedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	PRIMARY KEY (workKey, lang)
+);

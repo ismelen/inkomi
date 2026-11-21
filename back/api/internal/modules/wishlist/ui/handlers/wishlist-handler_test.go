@@ -37,7 +37,7 @@ func newRouter(repo *mocks.MockItemRepository, catalog *mocks.MockCatalogLookup)
 	routes.SetupWishlistRoutes(router, handlers.NewWishlistHandler(
 		additem.NewAddItemUC(repo, resolvework.NewResolveWorkUC(repo, &mocks.MockWorkRepository{}, catalog)), removeitem.NewRemoveItemUC(repo), listitems.NewListItemsUC(repo), lookup.NewLookupUC(catalog),
 		authorworks.NewAuthorWorksUC(catalog),
-		getwork.NewGetWorkUC(&mocks.MockWorkRepository{}, catalog),
+		getwork.NewGetWorkUC(&mocks.MockWorkRepository{}, catalog, &mocks.MockSynopsisRepository{}, &mocks.MockSynopsisLookup{}),
 	))
 	return router
 }
@@ -198,4 +198,19 @@ func TestWishlistHandler_HandleWork_Known_ReturnsCamelCaseDetails(t *testing.T) 
 	require.Equal(t, http.StatusOK, rec.Code)
 	assert.JSONEq(t, `{"workKey":"OL5W","title":"Mistborn","description":"Ash falls.",
 		"coverUrl":"https://covers.openlibrary.org/b/id/1-M.jpg","subjects":["Fantasy"],"firstPublished":"2006"}`, rec.Body.String())
+}
+
+func TestWishlistHandler_HandleWork_InvalidLanguage_Returns400(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	router := newRouter(&mocks.MockItemRepository{}, &mocks.MockCatalogLookup{})
+	rec := httptest.NewRecorder()
+
+	// Act
+	router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/wishlist/works/OL5W?lang=spanish", nil))
+
+	// Assert
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+	assert.JSONEq(t, `{"error":"invalid language"}`, rec.Body.String())
 }
