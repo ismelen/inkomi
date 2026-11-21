@@ -11,6 +11,7 @@ import (
 	"github.com/ismelen/inkomi/back/api/internal/modules/wishlist/ui/dtos"
 	"github.com/ismelen/inkomi/back/api/internal/modules/wishlist/ui/requtil"
 	"github.com/ismelen/inkomi/back/api/internal/modules/wishlist/usecases/additem"
+	"github.com/ismelen/inkomi/back/api/internal/modules/wishlist/usecases/authorworks"
 	"github.com/ismelen/inkomi/back/api/internal/modules/wishlist/usecases/listitems"
 	"github.com/ismelen/inkomi/back/api/internal/modules/wishlist/usecases/lookup"
 	"github.com/ismelen/inkomi/back/api/internal/modules/wishlist/usecases/removeitem"
@@ -22,10 +23,11 @@ type WishlistHandler struct {
 	removeUC *removeitem.RemoveItemUC
 	listUC   *listitems.ListItemsUC
 	lookupUC *lookup.LookupUC
+	worksUC  *authorworks.AuthorWorksUC
 }
 
-func NewWishlistHandler(addUC *additem.AddItemUC, removeUC *removeitem.RemoveItemUC, listUC *listitems.ListItemsUC, lookupUC *lookup.LookupUC) *WishlistHandler {
-	return &WishlistHandler{addUC: addUC, removeUC: removeUC, listUC: listUC, lookupUC: lookupUC}
+func NewWishlistHandler(addUC *additem.AddItemUC, removeUC *removeitem.RemoveItemUC, listUC *listitems.ListItemsUC, lookupUC *lookup.LookupUC, worksUC *authorworks.AuthorWorksUC) *WishlistHandler {
+	return &WishlistHandler{addUC: addUC, removeUC: removeUC, listUC: listUC, lookupUC: lookupUC, worksUC: worksUC}
 }
 
 // HandleList serves GET /wishlist.
@@ -78,6 +80,32 @@ func (h *WishlistHandler) HandleLookup(r *http.Request) (*[]dtos.SuggestionRespo
 	return &response, nil
 }
 
+// HandleAuthorWorks serves GET /wishlist/works?authorKey=<key>&author=<name>&sort=<popular|new|old|title>&lang=<iso>&page=<n>;
+// authorKey wins over author, sort defaults to popular and page to 1.
+func (h *WishlistHandler) HandleAuthorWorks(r *http.Request) (*dtos.WorksPageResponse, error) {
+	params := r.URL.Query()
+	page := 1
+	if value := params.Get("page"); value != "" {
+		n, err := strconv.Atoi(value)
+		if err != nil {
+			return nil, requtil.NewError(http.StatusBadRequest, models.ErrInvalidPage.Error())
+		}
+		page = n
+	}
+	result, err := h.worksUC.Execute(r.Context(), models.AuthorWorksQuery{
+		AuthorKey: params.Get("authorKey"),
+		Author:    params.Get("author"),
+		Sort:      models.WorksSort(params.Get("sort")),
+		Language:  params.Get("lang"),
+		Page:      page,
+	})
+	if err != nil {
+		return nil, mapError(err)
+	}
+	response := dtos.NewWorksPageResponse(result)
+	return &response, nil
+}
+
 func userId(r *http.Request) int {
 	claims, _ := httpauth.GetUserClaims(r.Context())
 	return claims.Id
@@ -88,7 +116,8 @@ func mapError(err error) error {
 	case err == nil:
 		return nil
 	case errors.Is(err, models.ErrInvalidKind), errors.Is(err, models.ErrEmptyTitle),
-		errors.Is(err, models.ErrTooLong), errors.Is(err, models.ErrEmptyQuery):
+		errors.Is(err, models.ErrTooLong), errors.Is(err, models.ErrEmptyQuery),
+		errors.Is(err, models.ErrInvalidSort), errors.Is(err, models.ErrInvalidPage):
 		return requtil.NewError(http.StatusBadRequest, err.Error())
 	case errors.Is(err, models.ErrDuplicate):
 		return requtil.NewError(http.StatusConflict, err.Error())

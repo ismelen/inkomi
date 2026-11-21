@@ -21,7 +21,22 @@ const (
 	maxBodySize    = 4 << 20
 )
 
-const searchFields = "key,title,author_name,author_key,subject,first_publish_year,language,cover_i"
+const (
+	searchFields  = "key,title,author_name,author_key,subject,first_publish_year,language,cover_i"
+	editionFields = ",editions,editions.title,editions.cover_i"
+)
+
+// marcLanguages maps the ISO 639-1 codes the clients use to the MARC codes of Open Library.
+var marcLanguages = map[string]string{
+	"es": "spa", "en": "eng", "fr": "fre", "de": "ger", "it": "ita", "pt": "por", "ca": "cat",
+	"ru": "rus", "ja": "jpn", "zh": "chi", "nl": "dut", "pl": "pol", "tr": "tur",
+}
+
+// IsLanguage reports whether code (ISO 639-1) can filter a search.
+func IsLanguage(code string) bool {
+	_, ok := marcLanguages[code]
+	return ok
+}
 
 // Client calls Open Library at most rps times per second. Open Library allows about one request
 // per second to anonymous clients and three to the ones that identify themselves in the
@@ -47,14 +62,28 @@ func NewClient(baseURL, userAgent string, rps float64) *Client {
 
 // SearchQuery is a query of search.json; empty fields are left out.
 type SearchQuery struct {
-	Title  string
-	Author string
+	Title     string
+	Author    string
+	AuthorKey string
 	// Query is free text matched against titles and authors.
 	Query string
-	Limit int
+	// Sort is a sort of search.json (new, old, title, readinglog...); empty sorts by relevance.
+	Sort string
+	// Language (ISO 639-1, see IsLanguage) keeps the works with an edition in it, and reads
+	// the title and cover of that edition.
+	Language string
+	Limit    int
+	// Page starts at 1.
+	Page int
 }
 
-func (c *Client) SearchWorks(ctx context.Context, q SearchQuery) ([]Work, error) {
+// SearchResult is a page of works and how many works match in total.
+type SearchResult struct {
+	Works []Work
+	Total int
+}
+
+func (c *Client) SearchWorks(ctx context.Context, q SearchQuery) (SearchResult, error) {
 	params := url.Values{}
 	set := func(key, value string) {
 		if value != "" {
@@ -63,15 +92,27 @@ func (c *Client) SearchWorks(ctx context.Context, q SearchQuery) ([]Work, error)
 	}
 	set("title", q.Title)
 	set("author", q.Author)
+	set("author_key", q.AuthorKey)
 	set("q", q.Query)
-	params.Set("fields", searchFields)
+	set("sort", q.Sort)
+	fields := searchFields
+	if marc, ok := marcLanguages[q.Language]; ok {
+		params.Set("language", marc)
+		params.Set("lang", q.Language)
+		fields += editionFields
+	}
+	params.Set("fields", fields)
 	params.Set("limit", strconv.Itoa(max(q.Limit, 1)))
+	if q.Page > 1 {
+		params.Set("page", strconv.Itoa(q.Page))
+	}
 
 	var body struct {
-		Docs []searchDoc `json:"docs"`
+		NumFound int         `json:"numFound"`
+		Docs     []searchDoc `json:"docs"`
 	}
 	if err := c.getJSON(ctx, "/search.json?"+params.Encode(), &body); err != nil {
-		return nil, err
+		return SearchResult{}, err
 	}
 	works := make([]Work, 0, len(body.Docs))
 	for _, doc := range body.Docs {
@@ -79,7 +120,7 @@ func (c *Client) SearchWorks(ctx context.Context, q SearchQuery) ([]Work, error)
 			works = append(works, work)
 		}
 	}
-	return works, nil
+	return SearchResult{Works: works, Total: body.NumFound}, nil
 }
 
 func (c *Client) SearchAuthors(ctx context.Context, query string, limit int) ([]Author, error) {

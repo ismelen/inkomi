@@ -8,6 +8,7 @@ import (
 var ErrNotFound = errors.New("not found in open library")
 
 // Work is a work of a search or subject listing; keys have no "/works/" or "/authors/" prefix.
+// With a language in the query, Title and CoverId are those of its edition in that language.
 type Work struct {
 	Key              string
 	Title            string
@@ -35,6 +36,12 @@ type searchDoc struct {
 	FirstPublishYear int      `json:"first_publish_year"`
 	Language         []string `json:"language"`
 	CoverI           int      `json:"cover_i"`
+	Editions         struct {
+		Docs []struct {
+			Title  string `json:"title"`
+			CoverI int    `json:"cover_i"`
+		} `json:"docs"`
+	} `json:"editions"`
 }
 
 func (d searchDoc) work() (Work, bool) {
@@ -45,15 +52,25 @@ func (d searchDoc) work() (Work, bool) {
 	for i, key := range d.AuthorKey {
 		keys[i] = trimKey(key)
 	}
+	title, coverId := d.Title, d.CoverI
+	if len(d.Editions.Docs) > 0 {
+		edition := d.Editions.Docs[0]
+		if edition.Title != "" {
+			title = edition.Title
+		}
+		if edition.CoverI > 0 {
+			coverId = edition.CoverI
+		}
+	}
 	return Work{
 		Key:              trimKey(d.Key),
-		Title:            d.Title,
+		Title:            title,
 		Authors:          d.AuthorName,
 		AuthorKeys:       keys,
 		Subjects:         d.Subject,
 		Languages:        d.Language,
 		FirstPublishYear: d.FirstPublishYear,
-		CoverId:          d.CoverI,
+		CoverId:          coverId,
 	}, true
 }
 

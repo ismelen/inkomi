@@ -17,6 +17,7 @@ import (
 	"github.com/ismelen/inkomi/back/api/internal/modules/wishlist/ui/handlers"
 	"github.com/ismelen/inkomi/back/api/internal/modules/wishlist/ui/routes"
 	"github.com/ismelen/inkomi/back/api/internal/modules/wishlist/usecases/additem"
+	"github.com/ismelen/inkomi/back/api/internal/modules/wishlist/usecases/authorworks"
 	"github.com/ismelen/inkomi/back/api/internal/modules/wishlist/usecases/listitems"
 	"github.com/ismelen/inkomi/back/api/internal/modules/wishlist/usecases/lookup"
 	"github.com/ismelen/inkomi/back/api/internal/modules/wishlist/usecases/mocks"
@@ -33,6 +34,7 @@ func newRouter(repo *mocks.MockItemRepository, catalog *mocks.MockCatalogLookup)
 	})
 	routes.SetupWishlistRoutes(router, handlers.NewWishlistHandler(
 		additem.NewAddItemUC(repo), removeitem.NewRemoveItemUC(repo), listitems.NewListItemsUC(repo), lookup.NewLookupUC(catalog),
+		authorworks.NewAuthorWorksUC(catalog),
 	))
 	return router
 }
@@ -81,6 +83,9 @@ func TestWishlistHandler_Errors_MapsStatus(t *testing.T) {
 		{"Removed", http.MethodDelete, "/wishlist/1", ``, http.StatusNoContent},
 		{"Short lookup", http.MethodGet, "/wishlist/lookup?kind=book&q=a", ``, http.StatusBadRequest},
 		{"Catalog down", http.MethodGet, "/wishlist/lookup?kind=book&q=dune", ``, http.StatusBadGateway},
+		{"Works without author", http.MethodGet, "/wishlist/works", ``, http.StatusBadRequest},
+		{"Works bad sort", http.MethodGet, "/wishlist/works?authorKey=OL1A&sort=rating", ``, http.StatusBadRequest},
+		{"Works bad page", http.MethodGet, "/wishlist/works?authorKey=OL1A&page=x", ``, http.StatusBadRequest},
 	}
 
 	for _, tc := range cases {
@@ -129,4 +134,40 @@ func TestWishlistHandler_HandleLookup_Authors_ReturnsSuggestions(t *testing.T) {
 	// Assert
 	require.Equal(t, http.StatusOK, rec.Code)
 	assert.Contains(t, rec.Body.String(), `"authorKey":"OL9A"`)
+}
+
+func TestWishlistHandler_HandleAuthorWorks_Query_ReturnsCamelCasePage(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	var got models.AuthorWorksQuery
+	router := newRouter(&mocks.MockItemRepository{}, &mocks.MockCatalogLookup{
+		WorksFn: func(ctx context.Context, query models.AuthorWorksQuery, limit int) (models.WorksPage, error) {
+			got = query
+			return models.WorksPage{
+				Works: []models.Suggestion{{Kind: models.ItemKindBook, Title: "El imperio final", WorkKey: "OL2W"}},
+				Total: 44, Page: query.Page, HasMore: true,
+			}, nil
+		},
+	})
+	rec := httptest.NewRecorder()
+
+	// Act
+	router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/wishlist/works?authorKey=OL1A&sort=new&lang=es&page=2", nil))
+
+	// Assert
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, models.AuthorWorksQuery{AuthorKey: "OL1A", Sort: models.WorksSortNew, Language: "es", Page: 2}, got)
+	var body struct {
+		Works   []map[string]any `json:"works"`
+		Total   int              `json:"total"`
+		Page    int              `json:"page"`
+		HasMore bool             `json:"hasMore"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Len(t, body.Works, 1)
+	assert.Equal(t, "OL2W", body.Works[0]["workKey"])
+	assert.Equal(t, 44, body.Total)
+	assert.Equal(t, 2, body.Page)
+	assert.True(t, body.HasMore)
 }

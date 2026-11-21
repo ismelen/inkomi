@@ -12,6 +12,7 @@ func SetupWishlistRoutes(api chi.Router, handler *handlers.WishlistHandler) {
 		r.Get("/", requtil.Wrap(handler.HandleList))
 		r.Post("/", requtil.Wrap(handler.HandleAdd))
 		r.Get("/lookup", requtil.Wrap(handler.HandleLookup))
+		r.Get("/works", requtil.Wrap(handler.HandleAuthorWorks))
 		r.Delete("/{id}", requtil.Wrap(handler.HandleRemove))
 	})
 }

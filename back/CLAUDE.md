@@ -43,7 +43,8 @@ ui/                 entrada HTTP: dtos, handlers, routes, middlewares, requtil
 
 ## Deseados
 
-- `wishlist`: libros y autores que quiere cada usuario, en `wishlist.db` (`migrations/wishlist.sql`), con autocompletado desde Open Library (`platform/openlibrary`, con un único límite de peticiones para todo el proceso). Los duplicados se detectan por la clave de Open Library o por título y autor normalizados.
+- `wishlist`: libros y autores que quiere cada usuario, en `wishlist.db` (`migrations/wishlist.sql`), con autocompletado desde Open Library (`platform/openlibrary`, con un único límite de peticiones para todo el proceso). Los duplicados se detectan por la clave de Open Library o por título y autor normalizados. `GET /wishlist/works` pagina los libros de un autor (por clave o nombre), con orden y, si hay idioma, título y portada de la edición en ese idioma.
+- `library`: `GET /books/search` responde `{books, nextPage}`. Las páginas de libgen+ traen 25 resultados aunque se pidan más, así que `PlusMirror` lee 4 páginas por búsqueda y `SearchBooksUC` lee otra tanda si los filtros (idioma, formato) dejan menos de 10 libros.
 
 ## Nombres
 

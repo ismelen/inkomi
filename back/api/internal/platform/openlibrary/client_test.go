@@ -33,7 +33,7 @@ func TestClient_SearchWorks_Query_SendsParamsAndTrimsKeys(t *testing.T) {
 	})
 
 	// Act
-	works, err := client.SearchWorks(context.Background(), openlibrary.SearchQuery{Title: "la nena", Author: "mola", Limit: 5})
+	result, err := client.SearchWorks(context.Background(), openlibrary.SearchQuery{Title: "la nena", Author: "mola", Limit: 5})
 
 	// Assert
 	require.NoError(t, err)
@@ -42,11 +42,13 @@ func TestClient_SearchWorks_Query_SendsParamsAndTrimsKeys(t *testing.T) {
 	assert.Equal(t, "mola", got.URL.Query().Get("author"))
 	assert.Equal(t, "5", got.URL.Query().Get("limit"))
 	assert.Empty(t, got.URL.Query().Get("subject"))
+	assert.Empty(t, got.URL.Query().Get("page"))
+	assert.Empty(t, got.URL.Query().Get("language"))
 	assert.Equal(t, "test-agent", got.Header.Get("User-Agent"))
 	assert.Equal(t, []openlibrary.Work{{
 		Key: "OL1W", Title: "La nena", Authors: []string{"Carmen Mola"}, AuthorKeys: []string{"OL9A"},
 		Subjects: []string{"Thriller"}, Languages: []string{"spa"}, FirstPublishYear: 2020, CoverId: 42,
-	}}, works)
+	}}, result.Works)
 }
 
 func TestClient_SearchAuthors_NotFoundAndErrors_MapsThem(t *testing.T) {
@@ -69,4 +71,35 @@ func TestCoverURL_CoverId_BuildsMediumCover(t *testing.T) {
 
 	assert.Equal(t, "https://covers.openlibrary.org/b/id/42-M.jpg", openlibrary.CoverURL(42))
 	assert.Empty(t, openlibrary.CoverURL(0))
+}
+
+func TestClient_SearchWorks_AuthorPageWithLanguage_ReadsEditionAndTotal(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	var got *http.Request
+	client := newServer(t, func(w http.ResponseWriter, r *http.Request) {
+		got = r
+		fmt.Fprint(w, `{"numFound":44,"docs":[{"key":"/works/OL2W","title":"The Final Empire","cover_i":1,
+			"editions":{"docs":[{"title":"El imperio final","cover_i":7}]}}]}`)
+	})
+
+	// Act
+	result, err := client.SearchWorks(context.Background(), openlibrary.SearchQuery{
+		AuthorKey: "OL1A", Sort: "new", Language: "es", Limit: 20, Page: 3,
+	})
+
+	// Assert
+	require.NoError(t, err)
+	query := got.URL.Query()
+	assert.Equal(t, "OL1A", query.Get("author_key"))
+	assert.Equal(t, "new", query.Get("sort"))
+	assert.Equal(t, "spa", query.Get("language"))
+	assert.Equal(t, "es", query.Get("lang"))
+	assert.Equal(t, "3", query.Get("page"))
+	assert.Contains(t, query.Get("fields"), "editions.title")
+	assert.Equal(t, 44, result.Total)
+	require.Len(t, result.Works, 1)
+	assert.Equal(t, "El imperio final", result.Works[0].Title)
+	assert.Equal(t, 7, result.Works[0].CoverId)
 }

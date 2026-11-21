@@ -9,6 +9,7 @@ import (
 type MockCatalogLookup struct {
 	BooksFn   func(ctx context.Context, query string, limit int) ([]models.Suggestion, error)
 	AuthorsFn func(ctx context.Context, query string, limit int) ([]models.Suggestion, error)
+	WorksFn   func(ctx context.Context, query models.AuthorWorksQuery, limit int) (models.WorksPage, error)
 }
 
 func (m *MockCatalogLookup) Books(ctx context.Context, query string, limit int) ([]models.Suggestion, error) {
@@ -23,4 +24,11 @@ func (m *MockCatalogLookup) Authors(ctx context.Context, query string, limit int
 		return m.AuthorsFn(ctx, query, limit)
 	}
 	return nil, nil
+}
+
+func (m *MockCatalogLookup) AuthorWorks(ctx context.Context, query models.AuthorWorksQuery, limit int) (models.WorksPage, error) {
+	if m.WorksFn != nil {
+		return m.WorksFn(ctx, query, limit)
+	}
+	return models.WorksPage{Page: query.Page}, nil
 }
