@@ -14,3 +14,14 @@ CREATE TABLE IF NOT EXISTS wishlist_item (
 	UNIQUE (userId, kind, dedupKey)
 );
 CREATE INDEX IF NOT EXISTS wishlist_item_created ON wishlist_item (createdAt);
+
+-- Catalog details of the wished works (cover, synopsis), shared by every user.
+CREATE TABLE IF NOT EXISTS wishlist_work (
+	workKey TEXT PRIMARY KEY,
+	title TEXT NOT NULL DEFAULT '',
+	description TEXT NOT NULL DEFAULT '',
+	coverUrl TEXT NOT NULL DEFAULT '',
+	subjects TEXT NOT NULL DEFAULT '',
+	firstPublished TEXT NOT NULL DEFAULT '',
+	fetchedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

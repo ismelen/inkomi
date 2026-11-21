@@ -18,10 +18,12 @@ import (
 	"github.com/ismelen/inkomi/back/api/internal/modules/wishlist/ui/routes"
 	"github.com/ismelen/inkomi/back/api/internal/modules/wishlist/usecases/additem"
 	"github.com/ismelen/inkomi/back/api/internal/modules/wishlist/usecases/authorworks"
+	"github.com/ismelen/inkomi/back/api/internal/modules/wishlist/usecases/getwork"
 	"github.com/ismelen/inkomi/back/api/internal/modules/wishlist/usecases/listitems"
 	"github.com/ismelen/inkomi/back/api/internal/modules/wishlist/usecases/lookup"
 	"github.com/ismelen/inkomi/back/api/internal/modules/wishlist/usecases/mocks"
 	"github.com/ismelen/inkomi/back/api/internal/modules/wishlist/usecases/removeitem"
+	"github.com/ismelen/inkomi/back/api/internal/modules/wishlist/usecases/resolvework"
 	"github.com/ismelen/inkomi/back/api/internal/platform/httpauth"
 )
 
@@ -33,8 +35,9 @@ func newRouter(repo *mocks.MockItemRepository, catalog *mocks.MockCatalogLookup)
 		})
 	})
 	routes.SetupWishlistRoutes(router, handlers.NewWishlistHandler(
-		additem.NewAddItemUC(repo), removeitem.NewRemoveItemUC(repo), listitems.NewListItemsUC(repo), lookup.NewLookupUC(catalog),
+		additem.NewAddItemUC(repo, resolvework.NewResolveWorkUC(repo, &mocks.MockWorkRepository{}, catalog)), removeitem.NewRemoveItemUC(repo), listitems.NewListItemsUC(repo), lookup.NewLookupUC(catalog),
 		authorworks.NewAuthorWorksUC(catalog),
+		getwork.NewGetWorkUC(&mocks.MockWorkRepository{}, catalog),
 	))
 	return router
 }
@@ -86,6 +89,8 @@ func TestWishlistHandler_Errors_MapsStatus(t *testing.T) {
 		{"Works without author", http.MethodGet, "/wishlist/works", ``, http.StatusBadRequest},
 		{"Works bad sort", http.MethodGet, "/wishlist/works?authorKey=OL1A&sort=rating", ``, http.StatusBadRequest},
 		{"Works bad page", http.MethodGet, "/wishlist/works?authorKey=OL1A&page=x", ``, http.StatusBadRequest},
+		{"Work bad key", http.MethodGet, "/wishlist/works/OL1A", ``, http.StatusBadRequest},
+		{"Work unknown", http.MethodGet, "/wishlist/works/OL404W", ``, http.StatusNotFound},
 	}
 
 	for _, tc := range cases {
@@ -170,4 +175,27 @@ func TestWishlistHandler_HandleAuthorWorks_Query_ReturnsCamelCasePage(t *testing
 	assert.Equal(t, 44, body.Total)
 	assert.Equal(t, 2, body.Page)
 	assert.True(t, body.HasMore)
+}
+
+func TestWishlistHandler_HandleWork_Known_ReturnsCamelCaseDetails(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	router := newRouter(&mocks.MockItemRepository{}, &mocks.MockCatalogLookup{
+		WorkFn: func(ctx context.Context, workKey string) (models.WorkDetails, error) {
+			return models.WorkDetails{
+				Title: "Mistborn", Description: "Ash falls.", CoverURL: "https://covers.openlibrary.org/b/id/1-M.jpg",
+				Subjects: []string{"Fantasy"}, FirstPublished: "2006",
+			}, nil
+		},
+	})
+	rec := httptest.NewRecorder()
+
+	// Act
+	router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/wishlist/works/OL5W", nil))
+
+	// Assert
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.JSONEq(t, `{"workKey":"OL5W","title":"Mistborn","description":"Ash falls.",
+		"coverUrl":"https://covers.openlibrary.org/b/id/1-M.jpg","subjects":["Fantasy"],"firstPublished":"2006"}`, rec.Body.String())
 }

@@ -13,6 +13,7 @@ type ItemResponse struct {
 	Author    string    `json:"author"`
 	WorkKey   string    `json:"workKey"`
 	AuthorKey string    `json:"authorKey"`
+	CoverURL  string    `json:"coverUrl"`
 	CreatedAt time.Time `json:"createdAt"`
 }
 
@@ -24,6 +25,7 @@ func NewItemResponse(item models.Item) ItemResponse {
 		Author:    item.Author,
 		WorkKey:   item.WorkKey,
 		AuthorKey: item.AuthorKey,
+		CoverURL:  item.CoverURL,
 		CreatedAt: item.CreatedAt,
 	}
 }

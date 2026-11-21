@@ -103,3 +103,48 @@ func TestClient_SearchWorks_AuthorPageWithLanguage_ReadsEditionAndTotal(t *testi
 	assert.Equal(t, "El imperio final", result.Works[0].Title)
 	assert.Equal(t, 7, result.Works[0].CoverId)
 }
+
+func TestClient_GetWork_Record_ReadsTypedDescriptionAndSkipsBadCovers(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	var path string
+	client := newServer(t, func(w http.ResponseWriter, r *http.Request) {
+		path = r.URL.Path
+		fmt.Fprint(w, `{"key":"/works/OL2W","title":"Mistborn","description":{"type":"/type/text","value":"Ash falls."},
+			"covers":[-1,42],"subjects":["Fantasy"],"first_publish_date":"2006"}`)
+	})
+
+	// Act
+	work, err := client.GetWork(context.Background(), "OL2W")
+
+	// Assert
+	require.NoError(t, err)
+	assert.Equal(t, "/works/OL2W.json", path)
+	assert.Equal(t, openlibrary.WorkRecord{
+		Key: "OL2W", Title: "Mistborn", Description: "Ash falls.", CoverIds: []int{42},
+		Subjects: []string{"Fantasy"}, FirstPublishDate: "2006",
+	}, work)
+}
+
+func TestClient_GetWork_PlainDescriptionAndMissing_MapsThem(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	client := newServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/works/OL404W.json" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		fmt.Fprint(w, `{"key":"/works/OL3W","title":"Elantris","description":"A city."}`)
+	})
+
+	// Act
+	work, err := client.GetWork(context.Background(), "OL3W")
+	_, missingErr := client.GetWork(context.Background(), "OL404W")
+
+	// Assert
+	require.NoError(t, err)
+	assert.Equal(t, "A city.", work.Description)
+	assert.ErrorIs(t, missingErr, openlibrary.ErrNotFound)
+}

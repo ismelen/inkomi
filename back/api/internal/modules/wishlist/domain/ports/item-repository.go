@@ -15,4 +15,10 @@ type IItemRepository interface {
 	// ListByUserId returns the items of the user, newest first.
 	ListByUserId(ctx context.Context, userId int) ([]models.Item, error)
 	CountByUserId(ctx context.Context, userId int) (int, error)
+	// SetWorkKey stores the work key found for a book typed by hand; it returns
+	// models.ErrDuplicate when the user already has that work.
+	SetWorkKey(ctx context.Context, item *models.Item, workKey string) error
+	// ListBooksWithoutWork returns the books of every user with no work key or whose work has
+	// no stored details.
+	ListBooksWithoutWork(ctx context.Context) ([]models.Item, error)
 }

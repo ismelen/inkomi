@@ -12,6 +12,7 @@ import (
 	"github.com/ismelen/inkomi/back/api/internal/modules/wishlist/ui/requtil"
 	"github.com/ismelen/inkomi/back/api/internal/modules/wishlist/usecases/additem"
 	"github.com/ismelen/inkomi/back/api/internal/modules/wishlist/usecases/authorworks"
+	"github.com/ismelen/inkomi/back/api/internal/modules/wishlist/usecases/getwork"
 	"github.com/ismelen/inkomi/back/api/internal/modules/wishlist/usecases/listitems"
 	"github.com/ismelen/inkomi/back/api/internal/modules/wishlist/usecases/lookup"
 	"github.com/ismelen/inkomi/back/api/internal/modules/wishlist/usecases/removeitem"
@@ -24,10 +25,11 @@ type WishlistHandler struct {
 	listUC   *listitems.ListItemsUC
 	lookupUC *lookup.LookupUC
 	worksUC  *authorworks.AuthorWorksUC
+	workUC   *getwork.GetWorkUC
 }
 
-func NewWishlistHandler(addUC *additem.AddItemUC, removeUC *removeitem.RemoveItemUC, listUC *listitems.ListItemsUC, lookupUC *lookup.LookupUC, worksUC *authorworks.AuthorWorksUC) *WishlistHandler {
-	return &WishlistHandler{addUC: addUC, removeUC: removeUC, listUC: listUC, lookupUC: lookupUC, worksUC: worksUC}
+func NewWishlistHandler(addUC *additem.AddItemUC, removeUC *removeitem.RemoveItemUC, listUC *listitems.ListItemsUC, lookupUC *lookup.LookupUC, worksUC *authorworks.AuthorWorksUC, workUC *getwork.GetWorkUC) *WishlistHandler {
+	return &WishlistHandler{addUC: addUC, removeUC: removeUC, listUC: listUC, lookupUC: lookupUC, worksUC: worksUC, workUC: workUC}
 }
 
 // HandleList serves GET /wishlist.
@@ -49,7 +51,7 @@ func (h *WishlistHandler) HandleAdd(r *http.Request) (*dtos.ItemResponse, error)
 	if err != nil {
 		return nil, err
 	}
-	item, err := h.addUC.Execute(r.Context(), userId(r), models.ItemKind(body.Kind), body.Title, body.Author, body.WorkKey, body.AuthorKey)
+	item, err := h.addUC.Execute(r.Context(), userId(r), models.ItemKind(body.Kind), body.Title, body.Author, body.WorkKey, body.AuthorKey, body.CoverURL)
 	if err != nil {
 		return nil, mapError(err)
 	}
@@ -106,6 +108,16 @@ func (h *WishlistHandler) HandleAuthorWorks(r *http.Request) (*dtos.WorksPageRes
 	return &response, nil
 }
 
+// HandleWork serves GET /wishlist/works/{workKey}: cover, synopsis and subjects of a work.
+func (h *WishlistHandler) HandleWork(r *http.Request) (*dtos.WorkResponse, error) {
+	work, err := h.workUC.Execute(r.Context(), chi.URLParam(r, "workKey"))
+	if err != nil {
+		return nil, mapError(err)
+	}
+	response := dtos.NewWorkResponse(*work)
+	return &response, nil
+}
+
 func userId(r *http.Request) int {
 	claims, _ := httpauth.GetUserClaims(r.Context())
 	return claims.Id
@@ -117,11 +129,12 @@ func mapError(err error) error {
 		return nil
 	case errors.Is(err, models.ErrInvalidKind), errors.Is(err, models.ErrEmptyTitle),
 		errors.Is(err, models.ErrTooLong), errors.Is(err, models.ErrEmptyQuery),
-		errors.Is(err, models.ErrInvalidSort), errors.Is(err, models.ErrInvalidPage):
+		errors.Is(err, models.ErrInvalidSort), errors.Is(err, models.ErrInvalidPage),
+		errors.Is(err, models.ErrInvalidWorkKey):
 		return requtil.NewError(http.StatusBadRequest, err.Error())
 	case errors.Is(err, models.ErrDuplicate):
 		return requtil.NewError(http.StatusConflict, err.Error())
-	case errors.Is(err, models.ErrItemNotFound):
+	case errors.Is(err, models.ErrItemNotFound), errors.Is(err, models.ErrWorkNotFound):
 		return requtil.NewError(http.StatusNotFound, err.Error())
 	case errors.Is(err, models.ErrWishlistFull):
 		return requtil.NewError(http.StatusUnprocessableEntity, err.Error())

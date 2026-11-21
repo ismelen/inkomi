@@ -30,6 +30,8 @@ type Item struct {
 	Author    string
 	WorkKey   string
 	AuthorKey string
+	// CoverURL comes from the catalog details of WorkKey; empty until they are known.
+	CoverURL  string
 	CreatedAt time.Time
 }
 

@@ -11,6 +11,8 @@ type MockItemRepository struct {
 	DeleteFn        func(ctx context.Context, id int64, userId int) error
 	ListByUserIdFn  func(ctx context.Context, userId int) ([]models.Item, error)
 	CountByUserIdFn func(ctx context.Context, userId int) (int, error)
+	SetWorkKeyFn    func(ctx context.Context, item *models.Item, workKey string) error
+	ListWithoutFn   func(ctx context.Context) ([]models.Item, error)
 }
 
 func (m *MockItemRepository) Add(ctx context.Context, item *models.Item) error {
@@ -40,4 +42,19 @@ func (m *MockItemRepository) CountByUserId(ctx context.Context, userId int) (int
 		return m.CountByUserIdFn(ctx, userId)
 	}
 	return 0, nil
+}
+
+func (m *MockItemRepository) SetWorkKey(ctx context.Context, item *models.Item, workKey string) error {
+	if m.SetWorkKeyFn != nil {
+		return m.SetWorkKeyFn(ctx, item, workKey)
+	}
+	item.WorkKey = workKey
+	return nil
+}
+
+func (m *MockItemRepository) ListBooksWithoutWork(ctx context.Context) ([]models.Item, error) {
+	if m.ListWithoutFn != nil {
+		return m.ListWithoutFn(ctx)
+	}
+	return nil, nil
 }

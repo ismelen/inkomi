@@ -10,6 +10,7 @@ type MockCatalogLookup struct {
 	BooksFn   func(ctx context.Context, query string, limit int) ([]models.Suggestion, error)
 	AuthorsFn func(ctx context.Context, query string, limit int) ([]models.Suggestion, error)
 	WorksFn   func(ctx context.Context, query models.AuthorWorksQuery, limit int) (models.WorksPage, error)
+	WorkFn    func(ctx context.Context, workKey string) (models.WorkDetails, error)
 }
 
 func (m *MockCatalogLookup) Books(ctx context.Context, query string, limit int) ([]models.Suggestion, error) {
@@ -31,4 +32,11 @@ func (m *MockCatalogLookup) AuthorWorks(ctx context.Context, query models.Author
 		return m.WorksFn(ctx, query, limit)
 	}
 	return models.WorksPage{Page: query.Page}, nil
+}
+
+func (m *MockCatalogLookup) Work(ctx context.Context, workKey string) (models.WorkDetails, error) {
+	if m.WorkFn != nil {
+		return m.WorkFn(ctx, workKey)
+	}
+	return models.WorkDetails{}, models.ErrWorkNotFound
 }

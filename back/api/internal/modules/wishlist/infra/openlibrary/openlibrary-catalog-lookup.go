@@ -2,6 +2,7 @@ package openlibrary
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	"github.com/ismelen/inkomi/back/api/internal/modules/wishlist/domain/models"
@@ -10,6 +11,9 @@ import (
 )
 
 // OpenLibraryCatalogLookup suggests books and authors from Open Library.
+// maxSubjects bounds the subjects kept of a work; Open Library lists dozens, most of them noise.
+const maxSubjects = 8
+
 type OpenLibraryCatalogLookup struct {
 	client *openlibrary.Client
 }
@@ -49,6 +53,27 @@ func (o *OpenLibraryCatalogLookup) AuthorWorks(ctx context.Context, query models
 		Page:    query.Page,
 		HasMore: query.Page*limit < result.Total,
 	}, nil
+}
+
+func (o *OpenLibraryCatalogLookup) Work(ctx context.Context, workKey string) (models.WorkDetails, error) {
+	record, err := o.client.GetWork(ctx, workKey)
+	if errors.Is(err, openlibrary.ErrNotFound) {
+		return models.WorkDetails{}, models.ErrWorkNotFound
+	}
+	if err != nil {
+		return models.WorkDetails{}, err
+	}
+	work := models.WorkDetails{
+		WorkKey:        record.Key,
+		Title:          strings.TrimSpace(record.Title),
+		Description:    cleanDescription(record.Description),
+		Subjects:       record.Subjects[:min(len(record.Subjects), maxSubjects)],
+		FirstPublished: record.FirstPublishDate,
+	}
+	if len(record.CoverIds) > 0 {
+		work.CoverURL = openlibrary.CoverURL(record.CoverIds[0])
+	}
+	return work, nil
 }
 
 // sorts maps each sort to the one of search.json; popularity is how many readers logged it.
