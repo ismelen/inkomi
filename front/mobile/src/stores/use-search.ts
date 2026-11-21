@@ -25,6 +25,9 @@ interface SearchState {
   /** Language filter; undefined follows the app language, null searches every language. */
   language?: BookLanguage | null;
   results: BookResponse[];
+  /** Page to load next; 0 when there are no more results. */
+  nextPage: number;
+  loadingMore: boolean;
   status: SearchStatus;
   /** i18n key of the last error. */
   error?: string;
@@ -33,16 +36,32 @@ interface SearchState {
   setFormat(format: BookFormat | null): void;
   setLanguage(language: BookLanguage | null): void;
   search(): Promise<void>;
+  /** Appends the next page of the current search, if any. */
+  loadMore(): Promise<void>;
   reset(): void;
 }
 
 let controller: AbortController | null = null;
+
+function fetchPage(state: SearchState, q: string, page: number, signal: AbortSignal) {
+  const lang = state.language === undefined ? defaultSearchLanguage() : state.language;
+  return booksApi.search(
+    q,
+    state.field,
+    state.format ? [state.format] : supportedFormats,
+    lang ? bookLanguages[lang] : undefined,
+    page,
+    signal
+  );
+}
 
 export const useSearch = create<SearchState>()((set, get) => ({
   query: '',
   field: defaultField,
   format: defaultFormat,
   results: [],
+  nextPage: 0,
+  loadingMore: false,
   status: 'idle',
 
   setQuery: (query) => set({ query }),
@@ -66,26 +85,38 @@ export const useSearch = create<SearchState>()((set, get) => ({
     const q = get().query.trim();
     controller?.abort();
     if (!q) {
-      set({ results: [], status: 'idle', error: undefined });
+      set({ results: [], nextPage: 0, loadingMore: false, status: 'idle', error: undefined });
       return;
     }
 
     controller = new AbortController();
     const signal = controller.signal;
-    set({ status: 'loading', error: undefined });
+    set({ status: 'loading', loadingMore: false, error: undefined });
     try {
-      const { field, format, language } = get();
-      const lang = language === undefined ? defaultSearchLanguage() : language;
-      const results = await booksApi.search(
-        q,
-        field,
-        format ? [format] : supportedFormats,
-        lang ? bookLanguages[lang] : undefined,
-        signal
-      );
-      if (!signal.aborted) set({ results, status: 'done' });
+      const page = await fetchPage(get(), q, 1, signal);
+      if (!signal.aborted) set({ results: page.books, nextPage: page.nextPage, status: 'done' });
     } catch (err) {
-      if (!signal.aborted) set({ results: [], status: 'error', error: errorKey(err) });
+      if (!signal.aborted) set({ results: [], nextPage: 0, status: 'error', error: errorKey(err) });
+    }
+  },
+
+  loadMore: async () => {
+    const state = get();
+    const q = state.query.trim();
+    if (state.status !== 'done' || state.loadingMore || !state.nextPage || !q) return;
+
+    controller = new AbortController();
+    const signal = controller.signal;
+    set({ loadingMore: true });
+    try {
+      const page = await fetchPage(state, q, state.nextPage, signal);
+      if (signal.aborted) return;
+      const seen = new Set(get().results.map((b) => b.md5 || b.title));
+      const fresh = page.books.filter((b) => !seen.has(b.md5 || b.title));
+      set({ results: [...get().results, ...fresh], nextPage: page.nextPage, loadingMore: false });
+    } catch {
+      // the list stays as it is; scrolling again retries the same page
+      if (!signal.aborted) set({ loadingMore: false });
     }
   },
 
@@ -97,6 +128,8 @@ export const useSearch = create<SearchState>()((set, get) => ({
       format: defaultFormat,
       language: undefined,
       results: [],
+      nextPage: 0,
+      loadingMore: false,
       status: 'idle',
       error: undefined,
     });

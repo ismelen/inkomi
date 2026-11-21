@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FlatList, Pressable, View } from 'react-native';
+import { FlatList, Keyboard, Pressable } from 'react-native';
 import { colors, radii, spacing } from '../../theme';
 import { SIcon } from './s-icon';
 import { SSheet } from './s-sheet';
@@ -11,14 +11,14 @@ export interface SelectOption<T> {
 }
 
 interface Props<T> {
-  /** Caption above the value, also the title of the list. */
+  /** Title of the list and accessibility name; the chip shows the current value. */
   label: string;
   options: SelectOption<T>[];
   value: T;
   onChange: (value: T) => void;
 }
 
-/** Dropdown: a field with the current value that opens the options in a sheet. */
+/** Compact dropdown: a chip with the current value that opens the options in a sheet. */
 export function SSelect<T extends string | number | null>({
   label,
   options,
@@ -27,37 +27,36 @@ export function SSelect<T extends string | number | null>({
 }: Props<T>) {
   const [open, setOpen] = useState(false);
   const current = options.find((o) => o.value === value);
+  // with the keyboard up the sheet would rise over the screen: close it first
+  const openSheet = () => {
+    Keyboard.dismiss();
+    setOpen(true);
+  };
 
   return (
     <>
       <Pressable
-        onPress={() => setOpen(true)}
+        onPress={openSheet}
         accessibilityRole="button"
         accessibilityLabel={`${label}: ${current?.label ?? ''}`}
-        android_ripple={{ color: colors.ripple }}
-        style={{
-          flex: 1,
+        hitSlop={6}
+        style={({ pressed }) => ({
           flexDirection: 'row',
           alignItems: 'center',
-          gap: spacing.xs,
-          minHeight: 48,
-          paddingHorizontal: spacing.md,
-          paddingVertical: spacing.xs,
+          gap: spacing.xxs,
+          height: 32,
+          paddingLeft: spacing.md,
+          paddingRight: spacing.sm,
+          borderRadius: radii.pill,
           borderWidth: 1,
           borderColor: colors.border,
-          borderRadius: radii.md,
-          overflow: 'hidden',
-        }}
+          backgroundColor: pressed ? colors.surface : colors.background,
+        })}
       >
-        <View style={{ flex: 1 }}>
-          <SText variant="small" tone="textSecondary" numberOfLines={1}>
-            {label}
-          </SText>
-          <SText variant="label" numberOfLines={1}>
-            {current?.label ?? ''}
-          </SText>
-        </View>
-        <SIcon name="expand_more" size={20} color={colors.textSecondary} />
+        <SText variant="small" style={{ fontFamily: 'medium' }} numberOfLines={1}>
+          {current?.label ?? label}
+        </SText>
+        <SIcon name="expand_more" size={18} color={colors.textSecondary} />
       </Pressable>
       <SSheet visible={open} title={label} onClose={() => setOpen(false)}>
         <FlatList

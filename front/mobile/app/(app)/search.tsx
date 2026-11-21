@@ -1,9 +1,18 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Keyboard,
+  Pressable,
+  ScrollView,
+  View,
+} from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { BookFormat, SearchField } from '../../src/api/types/books';
+import { WishSuggestion } from '../../src/api/types/wishlist';
 import { BookResultRow } from '../../src/components/books/book-result-row';
 import { Screen } from '../../src/components/ui/screen';
 import { SButton } from '../../src/components/ui/s-button';
@@ -12,14 +21,16 @@ import { SIconButton } from '../../src/components/ui/s-icon-button';
 import { SSelect } from '../../src/components/ui/s-select';
 import { SText } from '../../src/components/ui/s-text';
 import { STextInput } from '../../src/components/ui/s-text-input';
+import { useCatalogSuggestions } from '../../src/hooks/use-catalog-suggestions';
 import { BookLanguage, bookLanguageCodes } from '../../src/models/book-languages';
 import { supportedFormats } from '../../src/models/list-item';
 import { isLibraryAdded, useList } from '../../src/stores/use-list';
 import { defaultSearchLanguage, useSearch } from '../../src/stores/use-search';
 import { useWishlist } from '../../src/stores/use-wishlist';
-import { colors, spacing } from '../../src/theme';
+import { colors, radii, spacing } from '../../src/theme';
 
 const debounceMs = 500;
+const maxSuggestions = 5;
 
 export default function SearchScreen() {
   const { t } = useTranslation();
@@ -30,6 +41,8 @@ export default function SearchScreen() {
     format,
     language,
     results,
+    nextPage,
+    loadingMore,
     status,
     error,
     setQuery,
@@ -37,8 +50,11 @@ export default function SearchScreen() {
     setFormat,
     setLanguage,
     search,
+    loadMore,
     reset,
   } = useSearch();
+  const { suggestions, lookup, clear } = useCatalogSuggestions();
+  const [focused, setFocused] = useState(false);
   const items = useList((s) => s.items);
   const toggleLibrary = useList((s) => s.toggleLibrary);
   const wishes = useWishlist((s) => s.items);
@@ -53,9 +69,26 @@ export default function SearchScreen() {
 
   const onChangeQuery = (text: string) => {
     setQuery(text);
+    lookup(field === 'author' ? 'author' : 'book', text);
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => void search(), debounceMs);
   };
+
+  const onChangeField = (next: SearchField) => {
+    clear();
+    setField(next);
+  };
+
+  // the catalog spelling of a name finds what a typo misses
+  const pickSuggestion = (s: WishSuggestion) => {
+    if (timer.current) clearTimeout(timer.current);
+    clear();
+    Keyboard.dismiss();
+    setQuery(s.title);
+    void search();
+  };
+
+  const shownSuggestions = focused && query.trim() ? suggestions.slice(0, maxSuggestions) : [];
 
   const formats: (BookFormat | null)[] = [null, ...supportedFormats];
   const fields: SearchField[] = ['title', 'author'];
@@ -80,7 +113,12 @@ export default function SearchScreen() {
             autoFocus
             value={query}
             onChangeText={onChangeQuery}
-            onSubmitEditing={() => void search()}
+            onSubmitEditing={() => {
+              clear();
+              void search();
+            }}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
             returnKeyType="search"
             placeholder={t(
               field === 'author' ? 'search.placeholderAuthor' : 'search.placeholderTitle'
@@ -99,7 +137,26 @@ export default function SearchScreen() {
           />
         </View>
       </View>
-      <View style={{ gap: spacing.sm, paddingHorizontal: spacing.lg, paddingBottom: spacing.sm }}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        style={{ flexGrow: 0 }}
+        contentContainerStyle={{
+          gap: spacing.sm,
+          paddingHorizontal: spacing.lg,
+          paddingBottom: spacing.sm,
+        }}
+      >
+        <SSelect
+          label={t('search.by')}
+          value={field}
+          onChange={onChangeField}
+          options={fields.map((f) => ({
+            value: f,
+            label: t(f === 'author' ? 'search.byAuthor' : 'search.byTitle'),
+          }))}
+        />
         <SSelect
           label={t('search.language')}
           value={language === undefined ? appLanguage : language}
@@ -109,70 +166,118 @@ export default function SearchScreen() {
             label: l ? t(`bookLanguages.${l}`) : t('search.allLanguages'),
           }))}
         />
-        <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-          <SSelect
-            label={t('search.by')}
-            value={field}
-            onChange={setField}
-            options={fields.map((f) => ({
-              value: f,
-              label: t(f === 'author' ? 'search.byAuthor' : 'search.byTitle'),
-            }))}
-          />
-          <SSelect
-            label={t('search.format')}
-            value={format}
-            onChange={setFormat}
-            options={formats.map((f) => ({
-              value: f,
-              label: f ? f.toUpperCase() : t('search.all'),
-            }))}
-          />
-        </View>
-      </View>
+        <SSelect
+          label={t('search.format')}
+          value={format}
+          onChange={setFormat}
+          options={formats.map((f) => ({
+            value: f,
+            label: f ? f.toUpperCase() : t('search.all'),
+          }))}
+        />
+      </ScrollView>
 
-      <FlatList
-        data={status === 'done' ? results : []}
-        keyExtractor={(book, i) => book.md5 || `${book.title}-${i}`}
-        contentContainerStyle={{
-          paddingHorizontal: spacing.lg,
-          paddingVertical: spacing.sm,
-          flexGrow: 1,
-        }}
-        renderItem={({ item: book }) => (
-          <BookResultRow
-            book={book}
-            added={isLibraryAdded(items, book.md5)}
-            onToggle={() => setAdded((n) => n + (toggleLibrary(book) ? 1 : -1))}
-            wished={wishes.some((w) => w.kind === 'book' && w.title === book.title)}
-            onWish={() =>
-              void addWish({ kind: 'book', title: book.title, author: book.author }).then(
-                (err) => err && Alert.alert(t('errors.title'), t(err))
-              )
-            }
-          />
-        )}
-        ListEmptyComponent={
+      <View style={{ flex: 1 }}>
+        <FlatList
+          data={status === 'done' ? results : []}
+          onEndReached={() => nextPage > 0 && void loadMore()}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={
+            loadingMore ? (
+              <ActivityIndicator color={colors.primary} style={{ padding: spacing.lg }} />
+            ) : null
+          }
+          keyExtractor={(book, i) => book.md5 || `${book.title}-${i}`}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{
+            paddingHorizontal: spacing.lg,
+            paddingVertical: spacing.sm,
+            flexGrow: 1,
+          }}
+          renderItem={({ item: book }) => (
+            <BookResultRow
+              book={book}
+              added={isLibraryAdded(items, book.md5)}
+              onToggle={() => setAdded((n) => n + (toggleLibrary(book) ? 1 : -1))}
+              wished={wishes.some((w) => w.kind === 'book' && w.title === book.title)}
+              onWish={() =>
+                void addWish({ kind: 'book', title: book.title, author: book.author }).then(
+                  (err) => err && Alert.alert(t('errors.title'), t(err))
+                )
+              }
+            />
+          )}
+          ListEmptyComponent={
+            <View
+              style={{
+                flex: 1,
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: spacing.xl,
+              }}
+            >
+              {status === 'loading' ? (
+                <ActivityIndicator color={colors.primary} />
+              ) : (
+                <SText
+                  tone={status === 'error' ? 'danger' : 'textSecondary'}
+                  style={{ textAlign: 'center' }}
+                >
+                  {status === 'error' && error
+                    ? t(error)
+                    : status === 'done'
+                      ? t('search.empty')
+                      : t('search.idle')}
+                </SText>
+              )}
+            </View>
+          }
+        />
+        {shownSuggestions.length > 0 && (
           <View
-            style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl }}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: spacing.lg,
+              right: spacing.lg,
+              paddingVertical: spacing.xs,
+              borderRadius: radii.md,
+              borderWidth: 1,
+              borderColor: colors.border,
+              backgroundColor: colors.background,
+              elevation: 4,
+            }}
           >
-            {status === 'loading' ? (
-              <ActivityIndicator color={colors.primary} />
-            ) : (
-              <SText
-                tone={status === 'error' ? 'danger' : 'textSecondary'}
-                style={{ textAlign: 'center' }}
+            {shownSuggestions.map((s, i) => (
+              <Pressable
+                key={`${s.authorKey || s.workKey}-${i}`}
+                onPress={() => pickSuggestion(s)}
+                android_ripple={{ color: colors.ripple }}
+                accessibilityRole="button"
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: spacing.sm,
+                  paddingHorizontal: spacing.md,
+                  paddingVertical: spacing.sm,
+                }}
               >
-                {status === 'error' && error
-                  ? t(error)
-                  : status === 'done'
-                    ? t('search.empty')
-                    : t('search.idle')}
-              </SText>
-            )}
+                <SIcon name="search" size={18} color={colors.textSecondary} />
+                <View style={{ flex: 1 }}>
+                  <SText variant="label" numberOfLines={1}>
+                    {s.title}
+                  </SText>
+                  {!!s.author && (
+                    <SText variant="small" tone="textSecondary" numberOfLines={1}>
+                      {s.author}
+                    </SText>
+                  )}
+                </View>
+              </Pressable>
+            ))}
           </View>
-        }
-      />
+        )}
+      </View>
 
       {added > 0 && (
         <View
