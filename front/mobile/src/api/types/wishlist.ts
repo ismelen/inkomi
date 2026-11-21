@@ -63,7 +63,7 @@ export interface AuthorWorksQuery {
 export interface WorkDetails {
   workKey: string;
   title: string;
-  /** Synopsis as plain text; empty when the catalog has none. */
+  /** Synopsis as plain text in the requested language; empty when there is none in it. */
   description: string;
   coverUrl: string;
   subjects: string[];

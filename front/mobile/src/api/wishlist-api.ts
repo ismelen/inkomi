@@ -15,8 +15,12 @@ export const wishlistApi = {
   remove: (id: number) => http.delete<void>(`/wishlist/${id}`),
   lookup: (kind: WishKind, q: string, signal?: AbortSignal) =>
     http.get<WishSuggestion[]>('/wishlist/lookup', { query: { kind, q }, signal }),
-  work: (workKey: string, signal?: AbortSignal) =>
-    http.get<WorkDetails>(`/wishlist/works/${encodeURIComponent(workKey)}`, { signal }),
+  /** lang (ISO 639-1) picks the synopsis of an edition in that language; empty when there is none. */
+  work: (workKey: string, lang: string, signal?: AbortSignal) =>
+    http.get<WorkDetails>(`/wishlist/works/${encodeURIComponent(workKey)}`, {
+      query: { lang },
+      signal,
+    }),
   authorWorks: ({ authorKey, author, sort, lang, page }: AuthorWorksQuery, signal?: AbortSignal) =>
     http.get<WorksPage>('/wishlist/works', {
       query: {

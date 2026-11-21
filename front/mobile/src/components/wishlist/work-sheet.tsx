@@ -27,7 +27,8 @@ interface Props {
 
 /** Cover, synopsis and subjects of a wished book, with a shortcut to the library search. */
 export function WorkSheet({ book, onClose }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language;
   const [work, setWork] = useState<WorkDetails>();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
@@ -39,12 +40,12 @@ export function WorkSheet({ book, onClose }: Props) {
     const ctrl = new AbortController();
     setLoading(true);
     wishlistApi
-      .work(book.workKey, ctrl.signal)
+      .work(book.workKey, lang, ctrl.signal)
       .then((found) => !ctrl.signal.aborted && setWork(found))
       .catch((err) => !ctrl.signal.aborted && setError(errorKey(err)))
       .finally(() => !ctrl.signal.aborted && setLoading(false));
     return () => ctrl.abort();
-  }, [book?.workKey]);
+  }, [book?.workKey, lang]);
 
   if (!book) return null;
 
