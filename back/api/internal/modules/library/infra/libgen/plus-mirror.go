@@ -6,13 +6,25 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/ismelen/inkomi/back/api/internal/modules/library/domain/models"
 	"github.com/ismelen/inkomi/back/api/internal/modules/library/shared/strutil"
 )
 
-var hrefMD5Re = regexp.MustCompile(`(?i)[0-9a-f]{32}`)
+const (
+	plusPagesPerSearch = 4
+	// extraPageTimeout keeps a slow extra page from holding the whole search: it is left for
+	// the next one.
+	extraPageTimeout = 8 * time.Second
+)
+
+var (
+	hrefMD5Re   = regexp.MustCompile(`(?i)[0-9a-f]{32}`)
+	paginatorRe = regexp.MustCompile(`new Paginator\(\s*"[^"]*",\s*(\d+)`)
+)
 
 // PlusMirror is a libgen+ site (libgen.la, libgen.bz...): results are scraped from index.php.
 type PlusMirror struct {
@@ -23,7 +35,46 @@ func NewPlusMirror(url string) *PlusMirror {
 	return &PlusMirror{mirrorBase{url: url}}
 }
 
-func (p *PlusMirror) Search(ctx context.Context, query string, field models.SearchField) ([]models.Book, error) {
+// Search reads plusPagesPerSearch pages of the site from page on: a libgen+ page has 25 results
+// whatever res asks for, too few once the language and format filters drop most of them. A page
+// that fails after the first one ends the results there, and NextPage retries it.
+func (p *PlusMirror) Search(ctx context.Context, query string, field models.SearchField, page int) (models.SearchPage, error) {
+	page = max(page, 1)
+	books, total, err := p.searchPage(ctx, query, field, page)
+	if err != nil {
+		return models.SearchPage{}, err
+	}
+
+	last := min(page+plusPagesPerSearch-1, total)
+	rest := make([][]models.Book, max(last-page, 0))
+	errs := make([]error, len(rest))
+	extraCtx, cancel := context.WithTimeout(ctx, extraPageTimeout)
+	defer cancel()
+	var wg sync.WaitGroup
+	for i := range rest {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			rest[i], _, errs[i] = p.searchPage(extraCtx, query, field, page+1+i)
+		}()
+	}
+	wg.Wait()
+
+	for i, pageBooks := range rest {
+		if errs[i] != nil {
+			return models.SearchPage{Books: books, NextPage: page + 1 + i}, nil
+		}
+		books = append(books, pageBooks...)
+	}
+	next := 0
+	if last < total {
+		next = last + 1
+	}
+	return models.SearchPage{Books: books, NextPage: next}, nil
+}
+
+// searchPage reads one results page and the number of pages of the search.
+func (p *PlusMirror) searchPage(ctx context.Context, query string, field models.SearchField, page int) ([]models.Book, int, error) {
 	params := url.Values{}
 	params.Set("req", query)
 	params.Set("res", strconv.Itoa(maxResults))
@@ -37,10 +88,11 @@ func (p *PlusMirror) Search(ctx context.Context, query string, field models.Sear
 	params.Set("curtab", "f")
 	params.Set("order", "time_added")
 	params.Set("ordermode", "desc")
+	params.Set("page", strconv.Itoa(page))
 
 	doc, err := fetchDocument(ctx, p.url+"/index.php?"+params.Encode())
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	books := make([]models.Book, 0)
@@ -52,7 +104,24 @@ func (p *PlusMirror) Search(ctx context.Context, query string, field models.Sear
 			books = append(books, book)
 		}
 	})
-	return books, nil
+	return books, pageCount(doc, page), nil
+}
+
+// pageCount reads the number of pages from the paginator script; without one there is only
+// the current page.
+func pageCount(doc *goquery.Document, page int) int {
+	total := page
+	doc.Find("script").EachWithBreak(func(_ int, script *goquery.Selection) bool {
+		match := paginatorRe.FindStringSubmatch(script.Text())
+		if match == nil {
+			return true
+		}
+		if n, err := strconv.Atoi(match[1]); err == nil {
+			total = max(n, page)
+		}
+		return false
+	})
+	return total
 }
 
 func (p *PlusMirror) parseRow(tds *goquery.Selection) (models.Book, bool) {

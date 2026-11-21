@@ -53,9 +53,9 @@ func (l *LibgenLibrary) Start(ctx context.Context, interval time.Duration) {
 	}()
 }
 
-func (l *LibgenLibrary) Search(ctx context.Context, query string, field models.SearchField) ([]models.Book, error) {
-	return withFailover(ctx, l, func(m IMirror) ([]models.Book, error) {
-		return m.Search(ctx, query, field)
+func (l *LibgenLibrary) Search(ctx context.Context, query string, field models.SearchField, page int) (models.SearchPage, error) {
+	return withFailover(ctx, l, func(m IMirror) (models.SearchPage, error) {
+		return m.Search(ctx, query, field, page)
 	})
 }
 

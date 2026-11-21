@@ -3,6 +3,7 @@ package handlers
 import (
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/ismelen/inkomi/back/api/internal/modules/library/domain/models"
@@ -21,9 +22,9 @@ func NewBooksHandler(searchUC *searchbooks.SearchBooksUC) *BooksHandler {
 	return &BooksHandler{searchUC: searchUC}
 }
 
-// HandleSearch serves GET /books/search?q=<query>&by=<title|author>&lang=<language>&fmt=<ext,ext>;
-// by defaults to title and fmt to epub.
-func (b *BooksHandler) HandleSearch(r *http.Request) (*[]dtos.BookResponse, error) {
+// HandleSearch serves GET /books/search?q=<query>&by=<title|author>&lang=<language>&fmt=<ext,ext>&page=<n>;
+// by defaults to title, fmt to epub and page to 1.
+func (b *BooksHandler) HandleSearch(r *http.Request) (*dtos.SearchResponse, error) {
 	params := r.URL.Query()
 	formats := defaultFormats
 	if value := params.Get("fmt"); value != "" {
@@ -35,9 +36,18 @@ func (b *BooksHandler) HandleSearch(r *http.Request) (*[]dtos.BookResponse, erro
 		field = models.SearchField(value)
 	}
 
-	books, err := b.searchUC.Execute(r.Context(), params.Get("q"), field, params.Get("lang"), formats)
+	page := 1
+	if value := params.Get("page"); value != "" {
+		n, err := strconv.Atoi(value)
+		if err != nil {
+			return nil, requtil.NewError(http.StatusBadRequest, models.ErrInvalidPage.Error())
+		}
+		page = n
+	}
+
+	result, err := b.searchUC.Execute(r.Context(), params.Get("q"), field, params.Get("lang"), formats, page)
 	switch {
-	case errors.Is(err, models.ErrEmptyQuery), errors.Is(err, models.ErrInvalidField):
+	case errors.Is(err, models.ErrEmptyQuery), errors.Is(err, models.ErrInvalidField), errors.Is(err, models.ErrInvalidPage):
 		return nil, requtil.NewError(http.StatusBadRequest, err.Error())
 	case errors.Is(err, models.ErrNoMirror):
 		return nil, requtil.NewError(http.StatusServiceUnavailable, err.Error())
@@ -45,9 +55,6 @@ func (b *BooksHandler) HandleSearch(r *http.Request) (*[]dtos.BookResponse, erro
 		return nil, err
 	}
 
-	response := make([]dtos.BookResponse, 0, len(books))
-	for _, book := range books {
-		response = append(response, dtos.NewBookResponse(book))
-	}
+	response := dtos.NewSearchResponse(result)
 	return &response, nil
 }

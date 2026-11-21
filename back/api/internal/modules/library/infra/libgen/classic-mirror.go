@@ -34,14 +34,28 @@ type classicBook struct {
 	CoverURL  string `json:"coverurl"`
 }
 
-func (c *ClassicMirror) Search(ctx context.Context, query string, field models.SearchField) ([]models.Book, error) {
-	ids, err := c.searchIds(ctx, query, field)
+func (c *ClassicMirror) Search(ctx context.Context, query string, field models.SearchField, page int) (models.SearchPage, error) {
+	page = max(page, 1)
+	ids, err := c.searchIds(ctx, query, field, page)
 	if err != nil {
-		return nil, err
+		return models.SearchPage{}, err
 	}
 	if len(ids) == 0 {
-		return []models.Book{}, nil
+		return models.SearchPage{Books: []models.Book{}}, nil
 	}
+	next := 0
+	if len(ids) >= maxResults {
+		next = page + 1
+	}
+
+	books, err := c.metadata(ctx, ids)
+	if err != nil {
+		return models.SearchPage{}, err
+	}
+	return models.SearchPage{Books: books, NextPage: next}, nil
+}
+
+func (c *ClassicMirror) metadata(ctx context.Context, ids []string) ([]models.Book, error) {
 
 	params := url.Values{}
 	params.Set("ids", strings.Join(ids, ","))
@@ -98,13 +112,14 @@ func classicColumn(field models.SearchField) string {
 	return "title"
 }
 
-func (c *ClassicMirror) searchIds(ctx context.Context, query string, field models.SearchField) ([]string, error) {
+func (c *ClassicMirror) searchIds(ctx context.Context, query string, field models.SearchField, page int) ([]string, error) {
 	params := url.Values{}
 	params.Set("req", query)
 	params.Set("res", strconv.Itoa(maxResults))
 	params.Set("view", "simple")
 	params.Set("phrase", "1")
 	params.Set("column", classicColumn(field))
+	params.Set("page", strconv.Itoa(page))
 
 	doc, err := fetchDocument(ctx, c.url+"/search.php?"+params.Encode())
 	if err != nil {

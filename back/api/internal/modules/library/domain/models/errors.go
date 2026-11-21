@@ -9,5 +9,6 @@ var (
 	ErrNoMirror        = errors.New("no libgen mirror available")
 	ErrNoResults       = errors.New("no books found")
 	ErrInvalidField    = errors.New("invalid search field")
+	ErrInvalidPage     = errors.New("invalid page")
 	ErrInvalidCoverURL = errors.New("invalid cover url")
 )

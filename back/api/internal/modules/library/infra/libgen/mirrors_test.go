@@ -70,10 +70,11 @@ func TestPlusMirror_Search_ResultsPage_ParsesBooks(t *testing.T) {
 	mirror := libgen.NewPlusMirror(server.URL)
 
 	// Act
-	books, err := mirror.Search(context.Background(), "dune", models.SearchFieldTitle)
+	result, err := mirror.Search(context.Background(), "dune", models.SearchFieldTitle, 1)
 
 	// Assert
 	require.NoError(t, err)
+	assert.Zero(t, result.NextPage, "no paginator: a single page")
 	assert.Equal(t, []models.Book{{
 		Title:     "Dune: Deluxe Edition",
 		Author:    "Frank Herbert",
@@ -82,7 +83,7 @@ func TestPlusMirror_Search_ResultsPage_ParsesBooks(t *testing.T) {
 		Extension: "epub",
 		MD5:       string(testMD5),
 		CoverURL:  server.URL + "/covers/1.jpg",
-	}}, books)
+	}}, result.Books)
 }
 
 func TestMirror_Download_KnownMD5_StreamsBook(t *testing.T) {
@@ -155,14 +156,15 @@ func TestClassicMirror_Search_ResultsPage_ReadsMetadata(t *testing.T) {
 	t.Cleanup(server.Close)
 
 	// Act
-	books, err := libgen.NewClassicMirror(server.URL).Search(context.Background(), "dune", models.SearchFieldTitle)
+	books, err := libgen.NewClassicMirror(server.URL).Search(context.Background(), "dune", models.SearchFieldTitle, 1)
 
 	// Assert
 	require.NoError(t, err)
 	assert.Equal(t, []models.Book{
 		{Title: "Dune", Author: "Frank Herbert", Pages: 412, Language: "English", Extension: "epub", MD5: string(testMD5)},
 		{Title: "Dune Messiah", Author: "Frank Herbert", Language: "English", Extension: "pdf"},
-	}, books)
+	}, books.Books)
+	assert.Zero(t, books.NextPage)
 }
 
 func TestClassicMirror_Search_NoIds_ReturnsEmpty(t *testing.T) {
@@ -175,11 +177,11 @@ func TestClassicMirror_Search_NoIds_ReturnsEmpty(t *testing.T) {
 	t.Cleanup(server.Close)
 
 	// Act
-	books, err := libgen.NewClassicMirror(server.URL).Search(context.Background(), "nothing", models.SearchFieldTitle)
+	books, err := libgen.NewClassicMirror(server.URL).Search(context.Background(), "nothing", models.SearchFieldTitle, 1)
 
 	// Assert
 	require.NoError(t, err)
-	assert.Empty(t, books)
+	assert.Empty(t, books.Books)
 }
 
 func TestSlumMirrorList_Mirrors_StatusPage_ReturnsLibgenMirrors(t *testing.T) {
@@ -270,7 +272,7 @@ func TestPlusMirror_Search_Field_SearchesItsColumn(t *testing.T) {
 			t.Cleanup(server.Close)
 
 			// Act
-			_, err := libgen.NewPlusMirror(server.URL).Search(context.Background(), "mola", tc.field)
+			_, err := libgen.NewPlusMirror(server.URL).Search(context.Background(), "mola", tc.field, 1)
 
 			// Assert
 			require.NoError(t, err)
@@ -291,12 +293,12 @@ func TestPlusMirror_Search_LazyCover_ReadsDataSrc(t *testing.T) {
 	t.Cleanup(server.Close)
 
 	// Act
-	books, err := libgen.NewPlusMirror(server.URL).Search(context.Background(), "dune", models.SearchFieldTitle)
+	books, err := libgen.NewPlusMirror(server.URL).Search(context.Background(), "dune", models.SearchFieldTitle, 1)
 
 	// Assert
 	require.NoError(t, err)
-	require.Len(t, books, 1)
-	assert.Equal(t, server.URL+"/fictioncovers/1/abc_small.jpg", books[0].CoverURL)
+	require.Len(t, books.Books, 1)
+	assert.Equal(t, server.URL+"/fictioncovers/1/abc_small.jpg", books.Books[0].CoverURL)
 }
 
 func TestClassicMirror_Search_AuthorWithCover_SearchesAuthorAndBuildsCoverURL(t *testing.T) {
@@ -317,13 +319,13 @@ func TestClassicMirror_Search_AuthorWithCover_SearchesAuthorAndBuildsCoverURL(t 
 	t.Cleanup(server.Close)
 
 	// Act
-	books, err := libgen.NewClassicMirror(server.URL).Search(context.Background(), "mola", models.SearchFieldAuthor)
+	books, err := libgen.NewClassicMirror(server.URL).Search(context.Background(), "mola", models.SearchFieldAuthor, 1)
 
 	// Assert
 	require.NoError(t, err)
 	assert.Equal(t, "author", column)
-	require.Len(t, books, 1)
-	assert.Equal(t, server.URL+"/covers/1234000/abc.jpg", books[0].CoverURL)
+	require.Len(t, books.Books, 1)
+	assert.Equal(t, server.URL+"/covers/1234000/abc.jpg", books.Books[0].CoverURL)
 }
 
 func TestMirror_Download_StaleKey_RetriesWithAFreshOne(t *testing.T) {
@@ -399,4 +401,105 @@ func TestLibgenCoverSource_Cover_NotALibgenImage_ReturnsErrInvalidCoverURL(t *te
 	// Assert
 	assert.ErrorIs(t, err, models.ErrInvalidCoverURL)
 	assert.Nil(t, cover)
+}
+
+func plusPage(page string) string {
+	row := `<tr><td></td><td><a href="edition.php?id=1">Book ` + page + `</a></td><td>Brandon Sanderson</td><td></td><td></td>` +
+		`<td>Spanish</td><td>0</td><td></td><td>epub</td><td><a href="/ads.php?md5=0123456789abcdef0123456789abcdef">x</a></td></tr>`
+	return `<html><body><table id="tablelibgen"><tr><th>h</th></tr>` + row + `</table>` +
+		`<script type="text/javascript">paginator_example_top = new Paginator("paginator_example_top", 6, 25, ` + page + `, "/index.php?page=" );</script>` +
+		`</body></html>`
+}
+
+func TestPlusMirror_Search_ManyPages_ReadsSeveralAndReturnsNext(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name  string
+		page  int
+		books []string
+		next  int
+	}{
+		{"First pages", 1, []string{"Book 1", "Book 2", "Book 3", "Book 4"}, 5},
+		{"Last pages", 5, []string{"Book 5", "Book 6"}, 0},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			// Arrange
+			var requests atomic.Int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requests.Add(1)
+				fmt.Fprint(w, plusPage(r.URL.Query().Get("page")))
+			}))
+			t.Cleanup(server.Close)
+
+			// Act
+			result, err := libgen.NewPlusMirror(server.URL).Search(context.Background(), "sanderson", models.SearchFieldAuthor, tc.page)
+
+			// Assert
+			require.NoError(t, err)
+			titles := make([]string, len(result.Books))
+			for i, b := range result.Books {
+				titles[i] = b.Title
+			}
+			assert.Equal(t, tc.books, titles)
+			assert.Equal(t, tc.next, result.NextPage)
+			assert.Equal(t, int32(len(tc.books)), requests.Load())
+		})
+	}
+}
+
+func TestPlusMirror_Search_LaterPageFails_ReturnsItAsNext(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		page := r.URL.Query().Get("page")
+		if page == "3" {
+			w.WriteHeader(http.StatusBadGateway)
+			return
+		}
+		fmt.Fprint(w, plusPage(page))
+	}))
+	t.Cleanup(server.Close)
+
+	// Act
+	result, err := libgen.NewPlusMirror(server.URL).Search(context.Background(), "sanderson", models.SearchFieldAuthor, 1)
+
+	// Assert
+	require.NoError(t, err)
+	require.Len(t, result.Books, 2)
+	assert.Equal(t, 3, result.NextPage)
+}
+
+func TestClassicMirror_Search_FullPage_ReturnsNextPage(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	var gotPage string
+	rows := `<tr><td>ID</td></tr>`
+	for i := 1; i <= 100; i++ {
+		rows += fmt.Sprintf(`<tr><td>%d</td></tr>`, i)
+	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/search.php", func(w http.ResponseWriter, r *http.Request) {
+		gotPage = r.URL.Query().Get("page")
+		fmt.Fprint(w, `<table class="c">`+rows+`</table>`)
+	})
+	mux.HandleFunc("/json.php", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `[{"title":"Dune","extension":"epub"}]`)
+	})
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+
+	// Act
+	result, err := libgen.NewClassicMirror(server.URL).Search(context.Background(), "dune", models.SearchFieldTitle, 2)
+
+	// Assert
+	require.NoError(t, err)
+	assert.Equal(t, "2", gotPage)
+	assert.Equal(t, 3, result.NextPage)
 }

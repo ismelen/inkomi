@@ -70,7 +70,7 @@ Base `EXPO_PUBLIC_BACKEND_URL` (sin `/api`). Errores JSON `{error: string}`; 204
 - Bearer: `GET /users/me` → `{id, email?, emailVerified, hasPassword, providers: ('google'|'dropbox')[], dropbox: {linked, email?, folder}}`; `PUT /users/me/fcm-token {token}` (`""` = borrar); `PUT|DELETE /users/me/dropbox {refreshToken}`; `PUT /users/me/dropbox/folder {folder}` → `{folder}`.
 - Mensajes de error exactos en `back/microservices/auth-service/internal/infra/api/handlers/api-errors.go` → mapear a claves i18n.
 
-**library-service**: `GET /books/search?q&lang&fmt=epub,cbz,pdf` (Bearer) → `{title, author, pages, language, extension, md5, coverUrl}[]`; `md5` puede ser `""` (no añadible); 400 `empty query`, 503 `no libgen mirror available`. Sin paginación ni tamaño.
+**library-service**: `GET /books/search?q&lang&fmt=epub,cbz,pdf` (Bearer) → `{books: {title, author, pages, language, extension, md5, coverUrl}[], nextPage}` (`page` para seguir; `nextPage` 0 = no hay más); `md5` puede ser `""` (no añadible); 400 `empty query`, 503 `no libgen mirror available`. Sin tamaño.
 
 **transaction-manager** (`back/microservices/transaction-manager/internal/infra/api/`):
 - `POST /uploads/request` body `{ereader_key, sources: SourceDTO[], config: Record<key, ConfigDTO>}` → `SourceDTO[]` con `id` y `url` (solo `type:"file"`). SourceDTO snake_case: `title, type ('file'|'folder'|'library'), size?, filename, config_hash? (clave del mapa), reading_direction ('ltr'|'rtl'), to_cloud, should_join, items[]`. Hijos heredan dirección/to_cloud/config del padre.

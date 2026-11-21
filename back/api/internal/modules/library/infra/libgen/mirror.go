@@ -8,7 +8,7 @@ import (
 
 // IMirror is one libgen site; each flavour (classic, plus) parses its own search pages.
 type IMirror interface {
-	Search(ctx context.Context, query string, field models.SearchField) ([]models.Book, error)
+	Search(ctx context.Context, query string, field models.SearchField, page int) (models.SearchPage, error)
 	Download(ctx context.Context, md5 models.MD5) (*models.BookDownload, error)
 	URL() string
 }

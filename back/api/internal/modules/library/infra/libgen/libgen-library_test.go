@@ -19,18 +19,18 @@ import (
 // fakeMirror answers pings through a real server and searches through SearchFn.
 type fakeMirror struct {
 	url        string
-	SearchFn   func() ([]models.Book, error)
+	SearchFn   func() (models.SearchPage, error)
 	DownloadFn func() (*models.BookDownload, error)
 	searches   atomic.Int32
 	downloads  atomic.Int32
 }
 
-func (f *fakeMirror) Search(ctx context.Context, query string, field models.SearchField) ([]models.Book, error) {
+func (f *fakeMirror) Search(ctx context.Context, query string, field models.SearchField, page int) (models.SearchPage, error) {
 	f.searches.Add(1)
 	if f.SearchFn != nil {
 		return f.SearchFn()
 	}
-	return []models.Book{{Title: f.url}}, nil
+	return models.SearchPage{Books: []models.Book{{Title: f.url}}}, nil
 }
 
 func (f *fakeMirror) Download(ctx context.Context, md5 models.MD5) (*models.BookDownload, error) {
@@ -74,11 +74,11 @@ func TestLibgenLibrary_Search_NoMirrorYet_UsesFastest(t *testing.T) {
 	library := libgen.NewLibgenLibrary(&fakeMirrorList{mirrors: []libgen.IMirror{broken, slow, fast}}, time.Hour)
 
 	// Act
-	books, err := library.Search(context.Background(), "dune", models.SearchFieldTitle)
+	books, err := library.Search(context.Background(), "dune", models.SearchFieldTitle, 1)
 
 	// Assert
 	require.NoError(t, err)
-	assert.Equal(t, []models.Book{{Title: fast.url}}, books)
+	assert.Equal(t, []models.Book{{Title: fast.url}}, books.Books)
 	assert.Zero(t, broken.searches.Load())
 	assert.Zero(t, slow.searches.Load())
 }
@@ -91,8 +91,8 @@ func TestLibgenLibrary_Search_NoMirrorAnswers_ReturnsErrNoMirror(t *testing.T) {
 	library := libgen.NewLibgenLibrary(list, time.Hour)
 
 	// Act
-	_, err := library.Search(context.Background(), "dune", models.SearchFieldTitle)
-	_, errAgain := library.Search(context.Background(), "dune", models.SearchFieldTitle)
+	_, err := library.Search(context.Background(), "dune", models.SearchFieldTitle, 1)
+	_, errAgain := library.Search(context.Background(), "dune", models.SearchFieldTitle, 1)
 
 	// Assert
 	assert.ErrorIs(t, err, models.ErrNoMirror)
@@ -105,17 +105,17 @@ func TestLibgenLibrary_Search_MirrorFails_RetriesOnAnotherMirror(t *testing.T) {
 
 	// Arrange
 	failing := newMirror(t, 0, http.StatusOK)
-	failing.SearchFn = func() ([]models.Book, error) { return nil, errors.New("captcha") }
+	failing.SearchFn = func() (models.SearchPage, error) { return models.SearchPage{}, errors.New("captcha") }
 	backup := newMirror(t, 150*time.Millisecond, http.StatusOK)
 	library := libgen.NewLibgenLibrary(&fakeMirrorList{mirrors: []libgen.IMirror{failing, backup}}, 0)
 
 	// Act
-	books, err := library.Search(context.Background(), "dune", models.SearchFieldTitle)
-	again, errAgain := library.Search(context.Background(), "dune", models.SearchFieldTitle)
+	books, err := library.Search(context.Background(), "dune", models.SearchFieldTitle, 1)
+	again, errAgain := library.Search(context.Background(), "dune", models.SearchFieldTitle, 1)
 
 	// Assert
 	require.NoError(t, err)
-	assert.Equal(t, []models.Book{{Title: backup.url}}, books)
+	assert.Equal(t, []models.Book{{Title: backup.url}}, books.Books)
 	require.NoError(t, errAgain)
 	assert.Equal(t, books, again)
 	assert.Equal(t, int32(1), failing.searches.Load(), "the backup stays as the current mirror")
@@ -127,12 +127,12 @@ func TestLibgenLibrary_Search_FailsWithinCooldown_ReturnsError(t *testing.T) {
 	// Arrange
 	searchErr := errors.New("captcha")
 	failing := newMirror(t, 0, http.StatusOK)
-	failing.SearchFn = func() ([]models.Book, error) { return nil, searchErr }
+	failing.SearchFn = func() (models.SearchPage, error) { return models.SearchPage{}, searchErr }
 	backup := newMirror(t, 150*time.Millisecond, http.StatusOK)
 	library := libgen.NewLibgenLibrary(&fakeMirrorList{mirrors: []libgen.IMirror{failing, backup}}, time.Hour)
 
 	// Act
-	_, err := library.Search(context.Background(), "dune", models.SearchFieldTitle)
+	_, err := library.Search(context.Background(), "dune", models.SearchFieldTitle, 1)
 
 	// Assert
 	assert.ErrorIs(t, err, searchErr)
@@ -150,7 +150,7 @@ func TestLibgenLibrary_Search_Concurrent_DiscoversOnce(t *testing.T) {
 	var wg sync.WaitGroup
 	for range 10 {
 		wg.Go(func() {
-			_, err := library.Search(context.Background(), "dune", models.SearchFieldTitle)
+			_, err := library.Search(context.Background(), "dune", models.SearchFieldTitle, 1)
 			assert.NoError(t, err)
 		})
 	}
@@ -175,7 +175,7 @@ func TestLibgenLibrary_Start_Interval_RenewsMirror(t *testing.T) {
 	// Assert
 	assert.Eventually(t, func() bool { return list.calls.Load() >= 3 }, 2*time.Second, 10*time.Millisecond)
 	cancel()
-	_, err := library.Search(context.Background(), "dune", models.SearchFieldTitle)
+	_, err := library.Search(context.Background(), "dune", models.SearchFieldTitle, 1)
 	assert.NoError(t, err)
 }
 

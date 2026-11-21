@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -32,11 +33,11 @@ func TestBooksHandler_HandleSearch_Results_ReturnsCamelCaseBooks(t *testing.T) {
 
 	// Arrange
 	router := newRouter(&mocks.MockLibrary{
-		SearchFn: func(ctx context.Context, query string, field models.SearchField) ([]models.Book, error) {
-			return []models.Book{
+		SearchFn: func(ctx context.Context, query string, field models.SearchField, page int) (models.SearchPage, error) {
+			return models.SearchPage{Books: []models.Book{
 				{Title: "Dune", Extension: "epub", MD5: "abc", CoverURL: "http://c/1.jpg"},
 				{Title: "Dune Messiah", Extension: "pdf", MD5: "def"},
-			}, nil
+			}}, nil
 		},
 	})
 	rec := httptest.NewRecorder()
@@ -46,12 +47,16 @@ func TestBooksHandler_HandleSearch_Results_ReturnsCamelCaseBooks(t *testing.T) {
 
 	// Assert
 	require.Equal(t, http.StatusOK, rec.Code)
-	var body []map[string]any
+	var body struct {
+		Books    []map[string]any `json:"books"`
+		NextPage int              `json:"nextPage"`
+	}
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
-	require.Len(t, body, 1, "only epub by default")
-	assert.Equal(t, "Dune", body[0]["title"])
-	assert.Equal(t, "abc", body[0]["md5"])
-	assert.Equal(t, "/books/cover?url=http%3A%2F%2Fc%2F1.jpg", body[0]["coverUrl"])
+	require.Len(t, body.Books, 1, "only epub by default")
+	assert.Equal(t, "Dune", body.Books[0]["title"])
+	assert.Equal(t, "abc", body.Books[0]["md5"])
+	assert.Equal(t, "/books/cover?url=http%3A%2F%2Fc%2F1.jpg", body.Books[0]["coverUrl"])
+	assert.Zero(t, body.NextPage)
 }
 
 func TestBooksHandler_HandleSearch_Errors_MapsStatus(t *testing.T) {
@@ -65,6 +70,8 @@ func TestBooksHandler_HandleSearch_Errors_MapsStatus(t *testing.T) {
 	}{
 		{"Empty query", "/books/search?q=", nil, http.StatusBadRequest},
 		{"Invalid field", "/books/search?q=dune&by=isbn", nil, http.StatusBadRequest},
+		{"Invalid page", "/books/search?q=dune&page=x", nil, http.StatusBadRequest},
+		{"Zero page", "/books/search?q=dune&page=0", nil, http.StatusBadRequest},
 		{"No mirror", "/books/search?q=dune", models.ErrNoMirror, http.StatusServiceUnavailable},
 		{"Mirror error", "/books/search?q=dune", errors.New("boom"), http.StatusInternalServerError},
 	}
@@ -75,8 +82,8 @@ func TestBooksHandler_HandleSearch_Errors_MapsStatus(t *testing.T) {
 
 			// Arrange
 			router := newRouter(&mocks.MockLibrary{
-				SearchFn: func(ctx context.Context, query string, field models.SearchField) ([]models.Book, error) {
-					return nil, tc.err
+				SearchFn: func(ctx context.Context, query string, field models.SearchField, page int) (models.SearchPage, error) {
+					return models.SearchPage{}, tc.err
 				},
 			})
 			rec := httptest.NewRecorder()
@@ -97,9 +104,9 @@ func TestBooksHandler_HandleSearch_ByAuthor_SearchesAuthor(t *testing.T) {
 	// Arrange
 	var gotField models.SearchField
 	router := newRouter(&mocks.MockLibrary{
-		SearchFn: func(ctx context.Context, query string, field models.SearchField) ([]models.Book, error) {
+		SearchFn: func(ctx context.Context, query string, field models.SearchField, page int) (models.SearchPage, error) {
 			gotField = field
-			return nil, nil
+			return models.SearchPage{}, nil
 		},
 	})
 	rec := httptest.NewRecorder()
@@ -152,4 +159,36 @@ func TestCoversHandler_HandleCover_Results_MapsStatusAndStreams(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestBooksHandler_HandleSearch_Page_PassesItAndReturnsNextPage(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	var gotPage int
+	router := newRouter(&mocks.MockLibrary{
+		SearchFn: func(ctx context.Context, query string, field models.SearchField, page int) (models.SearchPage, error) {
+			gotPage = page
+			books := make([]models.Book, 10)
+			for i := range books {
+				books[i] = models.Book{Title: fmt.Sprintf("Dune %d", i), Extension: "epub"}
+			}
+			return models.SearchPage{Books: books, NextPage: page + 4}, nil
+		},
+	})
+	rec := httptest.NewRecorder()
+
+	// Act
+	router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/books/search?q=dune&page=5", nil))
+
+	// Assert
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, 5, gotPage)
+	var body struct {
+		Books    []map[string]any `json:"books"`
+		NextPage int              `json:"nextPage"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	assert.Len(t, body.Books, 10)
+	assert.Equal(t, 9, body.NextPage)
 }
